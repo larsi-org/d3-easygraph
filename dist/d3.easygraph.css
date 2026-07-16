@@ -1,0 +1,12 @@
+/* d3.easygraph.css */
+rect.pane{cursor:move;fill:none;pointer-events:all}
+#title{text-anchor:middle;font-size:16px;fill:#333}
+.tick{font-size:12px}
+.axis line{stroke:#CCC;stroke-width:1.0px;stroke-dasharray:2,2}
+.axis path{fill:none;stroke:#999;stroke-width:1.0px}
+.data-areas{stroke:none}
+.data-lines{fill:none;stroke-width:1.5px}
+.data-bars{stroke:none;stroke:#333;stroke-width:1.5px}
+.heatmap_cells{shape-rendering:crispEdges}
+line.crosshair-line{stroke:#aaa;stroke-width:1px;stroke-dasharray:4,2;pointer-events:none}
+.easygraph-crosshair-tip{position:absolute;background:rgba(255,255,255,0.92);border:1px solid #ccc;border-radius:4px;padding:4px 8px;pointer-events:none;font-size:12px;white-space:nowrap;z-index:1000}
