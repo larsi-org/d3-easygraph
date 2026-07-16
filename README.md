@@ -1,5 +1,7 @@
 # d3-easygraph
 
+[![Build](https://github.com/larsi-org/d3-easygraph/actions/workflows/build.yml/badge.svg)](https://github.com/larsi-org/d3-easygraph/actions/workflows/build.yml)
+
 A small, batteries-included charting library built on [D3](https://d3js.org) v7: lines, filled
 areas, zoom, a hover crosshair, stacked/grouped bars (vertical and horizontal), and heatmaps — all
 through one consistent config object, with chart width that tracks its container's rendered size
