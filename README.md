@@ -7,6 +7,8 @@ areas, zoom, a hover crosshair, stacked/grouped bars (vertical and horizontal), 
 through one consistent config object, with chart width that tracks its container's rendered size
 (height stays fixed).
 
+**Live examples and docs:** [larsi.org/easygraph](https://larsi.org/easygraph)
+
 ## Chart families
 
 Each chart family has its own constructor, taking only the config that family understands:
@@ -58,6 +60,20 @@ graph.update([
 `graph.update(data, xRange, yRange)` re-renders with new data (`xRange`/`yRange` optionally
 pin the axis domains instead of auto-fitting to the data). Resize handling is automatic — no calls
 needed on your end.
+
+## Examples
+
+Live, real-world examples — part of [larsi.org](https://larsi.org), where this library
+originated and is still used across its weather/sensors/EnergyPlus/graphics sections (not
+included in this repo):
+
+- **Line** — [Hourly Data](https://larsi.org/easygraph/data_hourly.php) (zoom + crosshair, daily
+  min/max band toggle), [Multi Hourly Data](https://larsi.org/easygraph/multi_data_hourly.php)
+- **Bars** — [Monthly Data](https://larsi.org/easygraph/data_monthly.php) (live
+  grouped/stacked toggle), [Multi Monthly Data](https://larsi.org/easygraph/multi_data_monthly.php),
+  [Horizontal Bars](https://larsi.org/easygraph/h.php),
+  [Sensitivity](https://larsi.org/easygraph/data_sensitivity.php) (`colorPerData`)
+- **Heatmap** — [Hourly Data Heat Map](https://larsi.org/easygraph/data_hourly_heatmap.php)
 
 ## Architecture
 
