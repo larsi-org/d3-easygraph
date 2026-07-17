@@ -3,7 +3,7 @@
 // http://creativecommons.org/licenses/by-sa/3.0/
 // Copyright (c) 2015, Lars Schumann, larsi.org@gmail.com
 //
-// The continuous chart-family module: lines, areas, zoom, and crosshair — these
+// The continuous chart-family constructor: lines, areas, zoom, and crosshair — these
 // always travel together in practice and share a continuous (time/linear) x scale.
 
 // defined once at module level — never changes
@@ -24,11 +24,15 @@ function _nestedExtent(data, acc) {
   ];
 }
 
-d3.easygraph.modules.push({
-  test: function(graph) {
-    return graph.show_lines || graph.show_areas || graph.show_zoom || graph.show_crosshair;
-  },
-  factory: function(graph) {
+d3.easygraph.line = function(config) {
+  return d3.easygraph._build(config, {
+    lines:              false,
+    areas:               false,
+    zoom:                false,
+    crosshair:           false,
+    crosshairThreshold:  10,
+    interpolate:         'linear'
+  }, function(graph) {
     var clipId = "clip-" + graph.id;
     var _cx, _cy, _bisect;
 
@@ -54,9 +58,9 @@ d3.easygraph.modules.push({
           graph.$group.selectAll("path.data-lines").attr("d", graph.$line);
         };
 
-        if (graph.show_zoom) {
-          graph.$zoom = d3.zoom().scaleExtent(graph.show_zoom).on("zoom", function(event) {
-            graph.x.$scale.domain(event.transform.rescaleX(graph.$x_scale_ref).domain());
+        if (graph.zoom) {
+          graph.$zoom = d3.zoom().scaleExtent(graph.zoom).on("zoom", function(event) {
+            graph.x.$scale.domain(event.transform.rescaleX(graph.$xScaleRef).domain());
             graph.draw();
             if (graph.onZoom) graph.onZoom(event.transform);
           });
@@ -69,10 +73,10 @@ d3.easygraph.modules.push({
               .call(graph.$zoom);
         }
 
-        if (graph.show_crosshair) {
+        if (graph.crosshair) {
           _bisect = d3.bisector(function(d) { return d.x; }).left;
 
-          graph.$crosshair_line = graph.$svg
+          graph.$crosshairLine = graph.$svg
             .append("line")
             .attr("class", "crosshair-line")
             .attr("clip-path", "url(#" + clipId + ")")
@@ -80,14 +84,14 @@ d3.easygraph.modules.push({
             .attr("y2", graph.height)
             .style("display", "none");
 
-          graph.$crosshair_tip = d3.select("body")
+          graph.$crosshairTip = d3.select("body")
             .append("div")
             .attr("class", "easygraph-crosshair-tip")
             .style("display", "none");
 
           graph._moveCrosshair = function(mouseX) {
-            if (!graph._crosshair_data) return;
-            graph.$crosshair_line.attr("x1", mouseX).attr("x2", mouseX).style("display", null);
+            if (!graph._crosshairData) return;
+            graph.$crosshairLine.attr("x1", mouseX).attr("x2", mouseX).style("display", null);
 
             var x0 = graph.x.$scale.invert(mouseX);
             var xLabel = (graph.x.scale === 'time')
@@ -95,32 +99,32 @@ d3.easygraph.modules.push({
               : (graph.numberFormat(x0) + (graph.x.unit || ''));
 
             var html = '<strong>' + xLabel + '</strong>';
-            graph._crosshair_data.forEach(function(series, i) {
+            graph._crosshairData.forEach(function(series, i) {
               if (!series.length) return;
               var idx = _bisect(series, x0, 1);
               var d0 = series[Math.max(idx - 1, 0)], d1 = series[idx];
               var d = (d1 && Math.abs(x0 - d1.x) < Math.abs(x0 - d0.x)) ? d1 : d0;
               if (!d) return;
-              var near = Math.abs(graph.x.$scale(d.x) - mouseX) <= graph.crosshair_threshold;
+              var near = Math.abs(graph.x.$scale(d.x) - mouseX) <= graph.crosshairThreshold;
               var unit = (graph.units && graph.units[i] != null) ? graph.units[i] : (graph.unit || '');
               html += '<br><span style="color:' + graph.getPaletteColor(i) + '">&#9632;</span> ' + (near ? d.y : '?') + unit;
             });
 
-            graph.$crosshair_tip.html(html).style("display", null);
+            graph.$crosshairTip.html(html).style("display", null);
 
             var svgRect = graph.$svg.node().ownerSVGElement.getBoundingClientRect();
             var tipX = svgRect.left + window.scrollX + graph.margin.left + mouseX + 12;
             var tipY = svgRect.top  + window.scrollY + graph.margin.top;
-            var tipW = graph.$crosshair_tip.node().offsetWidth;
+            var tipW = graph.$crosshairTip.node().offsetWidth;
             if (tipX + tipW > window.scrollX + window.innerWidth) {
               tipX = svgRect.left + window.scrollX + graph.margin.left + mouseX - 12 - tipW;
             }
-            graph.$crosshair_tip.style("left", tipX + "px").style("top", tipY + "px");
+            graph.$crosshairTip.style("left", tipX + "px").style("top", tipY + "px");
           };
 
           graph._hideCrosshair = function() {
-            graph.$crosshair_line.style("display", "none");
-            graph.$crosshair_tip.style("display", "none");
+            graph.$crosshairLine.style("display", "none");
+            graph.$crosshairTip.style("display", "none");
           };
 
           graph.$svg.on("mousemove.crosshair", function(event) {
@@ -139,44 +143,44 @@ d3.easygraph.modules.push({
         }
       },
 
-      domain: function(data, x_range, y_range) {
-        var x_domain = x_range || _nestedExtent(data, function(d) { return d.x; });
+      domain: function(data, xRange, yRange) {
+        var xDomain = xRange || _nestedExtent(data, function(d) { return d.x; });
 
-        var y_domain;
-        if (y_range) {
-          y_domain = y_range;
-        } else if (graph.show_areas) {
-          y_domain = [
+        var yDomain;
+        if (yRange) {
+          yDomain = yRange;
+        } else if (graph.areas) {
+          yDomain = [
             d3.min(data, function(a) { return d3.min(a, function(d) { return d.min; }); }),
             d3.max(data, function(a) { return d3.max(a, function(d) { return d.max; }); })
           ];
         } else {
-          y_domain = _nestedExtent(data, function(d) { return d.y; });
+          yDomain = _nestedExtent(data, function(d) { return d.y; });
         }
 
-        return { x: x_domain, y: y_domain };
+        return { x: xDomain, y: yDomain };
       },
 
       render: function(data) {
-        if (graph.show_zoom) {
+        if (graph.zoom) {
           // baseline for zoom rescaling; reset transform so new domain is "home"
-          graph.$x_scale_ref = graph.x.$scale.copy();
+          graph.$xScaleRef = graph.x.$scale.copy();
           graph.$svg.select("rect.pane").call(graph.$zoom.transform, d3.zoomIdentity);
         }
 
-        if (graph.show_crosshair) graph._crosshair_data = data;
+        if (graph.crosshair) graph._crosshairData = data;
 
-        if (graph.show_areas) {
-          var data_areas = graph.$group.selectAll(".data-areas").data(data);
-          var areas_entered = data_areas.enter().append("path")
+        if (graph.areas) {
+          var dataAreas = graph.$group.selectAll(".data-areas").data(data);
+          var areasEntered = dataAreas.enter().append("path")
             .attr("class",      "data-areas")
             .attr("clip-path",  "url(#" + clipId + ")")
             .attr("d",          graph.$area0)
             .style("fill",      function(d, i) { return graph.getPaletteColor(i); })
             .style("opacity",   1e-6);
-          data_areas.exit().remove();
-          data_areas = areas_entered.merge(data_areas);
-          data_areas.transition().duration(graph.animation_stage1).ease(d3.easeCubicInOut)
+          dataAreas.exit().remove();
+          dataAreas = areasEntered.merge(dataAreas);
+          dataAreas.transition().duration(graph.duration).ease(d3.easeCubicInOut)
             .attr("d",        graph.$area)
             .style("fill",    function(d, i) { return graph.getPaletteColor(i); })
             .style("opacity", 0.4);
@@ -184,17 +188,17 @@ d3.easygraph.modules.push({
           graph.$group.selectAll(".data-areas").remove();
         }
 
-        if (graph.show_lines) {
-          var data_lines = graph.$group.selectAll(".data-lines").data(data);
-          var lines_entered = data_lines.enter().append("path")
+        if (graph.lines) {
+          var dataLines = graph.$group.selectAll(".data-lines").data(data);
+          var linesEntered = dataLines.enter().append("path")
             .attr("class",     "data-lines")
             .attr("clip-path", "url(#" + clipId + ")")
             .attr("d",         graph.$line0)
             .style("stroke",   function(d, i) { return graph.getPaletteColor(i); })
             .style("opacity",  1e-6);
-          data_lines.exit().remove();
-          data_lines = lines_entered.merge(data_lines);
-          data_lines.transition().duration(graph.animation_stage1).ease(d3.easeCubicInOut)
+          dataLines.exit().remove();
+          dataLines = linesEntered.merge(dataLines);
+          dataLines.transition().duration(graph.duration).ease(d3.easeCubicInOut)
             .attr("d",        graph.$line)
             .style("stroke",  function(d, i) { return graph.getPaletteColor(i); })
             .style("opacity", 1);
@@ -205,19 +209,19 @@ d3.easygraph.modules.push({
 
       resize: function() {
         if (graph.$pane) graph.$pane.attr("width", graph.width);
-        if (graph.$x_scale_ref) graph.$x_scale_ref.range([0, graph.width]);
+        if (graph.$xScaleRef) graph.$xScaleRef.range([0, graph.width]);
       }
     };
-  }
-});
+  });
+};
 
 d3.easygraph.syncZoom = function(graphs) {
   graphs.forEach(function(g) {
     if (!g.$pane) return;
     g.onZoom = function(transform) {
       graphs.forEach(function(other) {
-        if (other === g || !other.$pane || !other.$x_scale_ref) return;
-        other.x.$scale.domain(transform.rescaleX(other.$x_scale_ref).domain());
+        if (other === g || !other.$pane || !other.$xScaleRef) return;
+        other.x.$scale.domain(transform.rescaleX(other.$xScaleRef).domain());
         other.draw();
         other.$pane.node().__zoom = transform;
       });
@@ -230,7 +234,7 @@ d3.easygraph.syncCrosshair = function(graphs) {
     if (!g._moveCrosshair) return;
     g.onCrosshair = function(mouseX) {
       graphs.forEach(function(other) {
-        if (other === g || !other._moveCrosshair || !other.$x_scale_ref) return;
+        if (other === g || !other._moveCrosshair || !other.$xScaleRef) return;
         if (mouseX === null) {
           other._hideCrosshair();
         } else {

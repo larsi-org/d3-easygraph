@@ -9,14 +9,17 @@ through one consistent config object, with chart width that tracks its container
 
 ## Chart families
 
-`d3.easygraph({...})` picks its behavior from the config flags you pass in. Exactly one family is
-normally active per chart:
+Each chart family has its own constructor, taking only the config that family understands:
 
-| Family | Flags | Notes |
-| --- | --- | --- |
-| Line / area | `show_lines`, `show_areas`, `show_zoom`, `show_crosshair` | Continuous (time or linear) x axis. Zoom and crosshair only make sense here, and can be synced across multiple charts via `d3.easygraph.syncZoom`/`syncCrosshair`. |
-| Bars | `show_bars_stacked_v`, `show_bars_grouped_v`, `show_bars_stacked_h`, `show_bars_grouped_h` | Category axis uses a `d3.scaleBand()`. Orientation (v/h) is fixed for a chart's lifetime; stacked vs. grouped can be toggled live. |
-| Heatmap | `show_heatmap` | A grid of colored cells over plain continuous x/y axes, colored via its own `graph.c` scale. |
+| Family | Constructor | Config | Notes |
+| --- | --- | --- | --- |
+| Line / area | `d3.easygraph.line(config)` | `lines`, `areas`, `zoom`, `crosshair`, `crosshairThreshold`, `interpolate` | Continuous (time or linear) x axis. Zoom and crosshair can be synced across multiple charts via `d3.easygraph.syncZoom`/`syncCrosshair`. |
+| Bars | `d3.easygraph.bars(config)` | `orientation` (`'v'`\|`'h'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData` | Category axis uses a `d3.scaleBand()`. `orientation` is fixed for a chart's lifetime; `mode` can be toggled live. |
+| Heatmap | `d3.easygraph.heatmap(config)` | `color` (unit/preset config for the color scale) | A grid of colored cells over plain continuous x/y axes. |
+
+Shared config across all three: `id`, `label`, `x`/`y` (`scale`, `unit`, `label`, `noTick`, `preset`,
+`m`/`n`), `height`, `margin`, `colorPalette`, `duration`, `oneYear` (also used by heatmaps whose
+x-axis spans a full year, not just line charts).
 
 ## Usage
 
@@ -32,14 +35,14 @@ already be loaded as globals — they're peer dependencies, not bundled.
 <script src="dist/d3.easygraph.min.js"></script>
 
 <script>
-var graph = d3.easygraph({
+var graph = d3.easygraph.line({
   id:     "graph",
   label:  "Temperature",
   x:      { scale: "time" },
-  y:      { defaults: "temperature_c" },
-  svg:    { height: 320 },
+  y:      { preset: "temperatureC" },
+  height: 320,
   margin: { top: 20, right: 20, bottom: 30, left: 50 },
-  show_lines: true
+  lines:  true
 });
 
 graph.update([
@@ -52,17 +55,18 @@ graph.update([
 </script>
 ```
 
-`graph.update(data, x_range, y_range)` re-renders with new data (`x_range`/`y_range` optionally
+`graph.update(data, xRange, yRange)` re-renders with new data (`xRange`/`yRange` optionally
 pin the axis domains instead of auto-fitting to the data). Resize handling is automatic — no calls
 needed on your end.
 
 ## Architecture
 
-- `src/d3.easygraph.core.js` — container sizing/resize, SVG/margin/clip/title scaffolding,
-  palette handling, number/time axis formatting, and a self-registering module dispatch that the
-  other three files plug into.
-- `src/d3.easygraph.line.js`, `.bars.js`, `.heatmap.js` — one file per chart family above, each
-  implementing a small `init`/`domain`/`render`/`resize` hook interface.
+- `src/d3.easygraph.core.js` — container sizing/resize, SVG/margin/clip/title scaffolding, palette
+  handling, number/time axis formatting, unit presets (`d3.easygraph.presets`), and the shared
+  `_build()` that each constructor calls with its own defaults and hook set.
+- `src/d3.easygraph.line.js`, `.bars.js`, `.heatmap.js` — one constructor per chart family above,
+  each implementing a small `prepareScales?`/`init?`/`domain`/`render`/`resize?` hook interface
+  (only `domain`/`render` are required; `prepareScales` is bars-only, for its band scale).
 
 ## Building
 
