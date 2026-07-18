@@ -68,3 +68,15 @@ test('a preset fills in label/unit/range onto x/y config', async ({ page }) => {
   expect(y.unit).toBe('°C');
   expect(y.range).toEqual([-25, 45]);
 });
+
+test('label is optional: no label, no preset, no placeholder text needed -- the title renders blank', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const title = await page.evaluate(() => {
+    var g = d3.easygraph.line({ container: '#graph', height: 200 });
+    g.update([[{ x: 1, y: 1 }]]);
+    var text = document.querySelector('#title').textContent;
+    g.destroy();
+    return text;
+  });
+  expect(title).toBe('');
+});

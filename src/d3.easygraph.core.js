@@ -20,10 +20,11 @@ d3.easygraph._extend = function(dst, src) {
 };
 
 // resolves a preset (via units.js's getUnit(), which always returns a complete unit
-// definition) and the call-site label (e.g. "Property X") onto an x/y/color config object
-d3.easygraph._resolveProperty = function(prop, label) {
+// definition) onto an x/y/color config object. label/unit are genuinely optional — if
+// neither the caller nor a preset supplies one, they stay undefined, and the title text
+// (see near the bottom of _build()) renders blank rather than some generic placeholder.
+d3.easygraph._resolveProperty = function(prop) {
   d3.easygraph._extend(prop, d3.easygraph.getUnit(prop.preset));
-  d3.easygraph._extend(prop, { label: label });
   return prop;
 };
 
@@ -134,8 +135,8 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     graph.PALETTE_COLORS = graph.colorbrewerPalettes[graph.colorPalette].slice(0);
   }
 
-  d3.easygraph._resolveProperty(graph.x, 'Property X');
-  d3.easygraph._resolveProperty(graph.y, 'Property Y');
+  d3.easygraph._resolveProperty(graph.x);
+  d3.easygraph._resolveProperty(graph.y);
   d3.easygraph._extend(graph, { label: graph.y.label, unit: graph.y.unit });
 
   graph._outerHeight = graph.height;

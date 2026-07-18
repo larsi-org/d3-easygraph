@@ -8,7 +8,7 @@
 
 d3.easygraph.heatmap = function(config) {
   config.color = config.color || {};
-  d3.easygraph._resolveProperty(config.color, 'Property Color');
+  d3.easygraph._resolveProperty(config.color);
 
   return d3.easygraph._build(config, {}, function(graph) {
     function render(data) {

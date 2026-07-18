@@ -13,9 +13,14 @@ All notable changes to this project are documented here. Format loosely follows
 ### Changed
 - Presets and config resolution split out of `core.js`: `d3.easygraph.presets`/`getUnit()` live in
   `units.js` — a small, easygraph-agnostic lookup with no config merging or chart concepts of its
-  own — while `_resolveProperty` (folding a preset plus the call-site label, e.g. "Property X",
-  onto a graph's x/y/color config) moved into `core.js`, the only actual consumer of that
-  resolution.
+  own — while `_resolveProperty` (folding a preset onto a graph's x/y/color config) moved into
+  `core.js`, the only actual consumer of that resolution.
+- `label` (and `unit`) are now genuinely optional. `_resolveProperty` no longer falls back to a
+  generic call-site placeholder ("Property X"/"Property Y"/"Property Color") when neither the
+  caller nor a preset supplies one — it stays unset, and the chart title renders blank (d3's
+  `.text()` treats `undefined`/`null` as empty) instead of showing that placeholder text. No page
+  ever actually saw "Property X"/"Property Y"/"Property Color" live — every page either set its own
+  label or a `" "` (literal space) placeholder specifically to avoid it — so that hack is gone too.
 - Presets express their raw-to-display conversion as a `convert(v)` function instead of linear
   `m`/`n` coefficients — supports non-linear conversions, and reads as "how do I convert this
   value" rather than a formula the caller has to remember. Every preset (including the generic
