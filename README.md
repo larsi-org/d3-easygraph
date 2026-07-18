@@ -20,8 +20,8 @@ Each chart family has its own constructor, taking only the config that family un
 | Heatmap | `d3.easygraph.heatmap(config)` | `color` (unit/preset config for the color scale) | A grid of colored cells over plain continuous x/y axes. |
 
 Shared config across all three: `container`, `label`, `x`/`y` (`scale`, `unit`, `label`, `noTick`,
-`preset`, `m`/`n`), `height`, `margin`, `colorPalette`, `duration`, `oneYear` (also used by heatmaps
-whose x-axis spans a full year, not just line charts).
+`preset`, `convert`), `height`, `margin`, `colorPalette`, `duration`, `oneYear` (also used by
+heatmaps whose x-axis spans a full year, not just line charts).
 
 `container` accepts a CSS selector string, a DOM element, or a d3 selection. `height` must be a
 positive number and `container` must resolve to an element — both are checked at construction time,
@@ -30,20 +30,21 @@ that disconnects its resize observer and tears down its DOM.
 
 ## Unit conversion (no chart required)
 
-The same preset table and `m`/`n` linear-conversion coefficients a chart's `x`/`y`/`color` config
-resolve against are also available standalone — no container, no chart construction:
+The same preset table and `convert(v)` function a chart's `x`/`y`/`color` config resolve against
+are also available standalone — no container, no chart construction:
 
 ```js
 d3.easygraph.resolveUnit({ preset: "temperatureF" });
-// => { label: "Temperature", unit: "°F", scale: "linear", noTick: false, m: 1.8, n: 32, range: [-10, 110] }
+// => { label: "Temperature", unit: "°F", scale: "linear", noTick: false, convert: f(v), range: [-10, 110] }
 
 d3.easygraph.convertUnit(20, "temperatureF"); // => 68 (20°C to °F)
 ```
 
-`resolveUnit(config)` fills in a preset's (or your own explicit `label`/`unit`/`m`/`n`) blanks
-without mutating `config`. `convertUnit(value, presetOrConfig)` takes either a preset name string
-or a config object and applies its `m`/`n` coefficients: `m * value + n`. Handy for e.g. converting
-a raw value before coloring or labeling a map marker.
+`resolveUnit(config)` fills in a preset's (or your own explicit `label`/`unit`/`convert`) blanks
+without mutating `config`; a preset with no conversion of its own (most of them — e.g.
+`relativeHumidity`, `windDirection`) gets the identity function. `convertUnit(value,
+presetOrConfig)` takes either a preset name string or a config object and calls its
+`convert(value)`. Handy for e.g. converting a raw value before coloring or labeling a map marker.
 
 ## Usage
 
@@ -100,10 +101,11 @@ included in this repo):
 ## Architecture
 
 - `src/d3.easygraph.core.js` — container sizing/resize, SVG/margin/clip/title scaffolding, palette
-  handling, number/time axis formatting, unit presets (`d3.easygraph.presets`), and the shared
-  `_build()` that each constructor calls with its own defaults and hook set.
-- `src/d3.easygraph.units.js` — `resolveUnit()`/`convertUnit()`, the standalone unit-conversion
-  helpers above; depends only on `core.js`'s preset table, not on any chart family.
+  handling, number/time axis formatting, and the shared `_build()` that each constructor calls with
+  its own defaults and hook set.
+- `src/d3.easygraph.units.js` — the unit preset table (`d3.easygraph.presets`) and x/y/color config
+  resolution every chart family uses, plus the standalone `resolveUnit()`/`convertUnit()` API above;
+  depends only on `core.js`'s `_extend`, not on any chart family.
 - `src/d3.easygraph.line.js`, `.bars.js`, `.heatmap.js` — one constructor per chart family above,
   each implementing a small `prepareScales?`/`init?`/`domain`/`render`/`resize?`/`destroy?` hook
   interface (only `domain`/`render` are required; `prepareScales` is bars-only, for its band scale;

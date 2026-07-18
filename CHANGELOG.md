@@ -3,6 +3,17 @@
 All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0] - 2026-07-18
+
+### Changed
+- Presets (`d3.easygraph.presets`) and x/y/color config resolution (`_resolveProperty`) moved from
+  `core.js` into `units.js`, which now owns everything unit-related; `core.js` is pure chart
+  scaffolding.
+- Presets express their raw-to-display conversion as a `convert(v)` function instead of linear
+  `m`/`n` coefficients (`m * v + n`) — supports non-linear conversions, and reads as "how do I
+  convert this value" rather than a formula the caller has to remember. A preset with no
+  conversion of its own now gets the identity function (previously `m: 1, n: 0`).
+
 ## [0.4.0] - 2026-07-18
 
 ### Added

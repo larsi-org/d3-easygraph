@@ -3,14 +3,22 @@ const path = require('path');
 
 const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/units.html');
 
-test('resolveUnit fills in label/unit/m/n/range from a preset', async ({ page }) => {
+test('resolveUnit fills in label/unit/convert/range from a preset', async ({ page }) => {
   await page.goto(FIXTURE);
-  const resolved = await page.evaluate(() => d3.easygraph.resolveUnit({ preset: 'temperatureF' }));
+  const resolved = await page.evaluate(() => {
+    var r = d3.easygraph.resolveUnit({ preset: 'temperatureF' });
+    return { label: r.label, unit: r.unit, converted: r.convert(0), range: r.range };
+  });
   expect(resolved.label).toBe('Temperature');
   expect(resolved.unit).toBe('°F');
-  expect(resolved.m).toBe(1.8);
-  expect(resolved.n).toBe(32);
+  expect(resolved.converted).toBe(32); // 0°C -> 32°F
   expect(resolved.range).toEqual([-10, 110]);
+});
+
+test('resolveUnit defaults convert to the identity function when a preset has none', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const value = await page.evaluate(() => d3.easygraph.resolveUnit({ preset: 'pressureHpa' }).convert(1013.25));
+  expect(value).toBe(1013.25);
 });
 
 test('resolveUnit does not mutate the config object passed in', async ({ page }) => {
@@ -23,7 +31,7 @@ test('resolveUnit does not mutate the config object passed in', async ({ page })
   expect(original).toEqual({ preset: 'temperatureF' });
 });
 
-test('convertUnit applies a preset\'s m/n coefficients (°C to °F)', async ({ page }) => {
+test('convertUnit applies a preset\'s convert() function (°C to °F)', async ({ page }) => {
   await page.goto(FIXTURE);
   const [freezing, boiling] = await page.evaluate(() => [
     d3.easygraph.convertUnit(0, 'temperatureF'),
@@ -33,7 +41,7 @@ test('convertUnit applies a preset\'s m/n coefficients (°C to °F)', async ({ p
   expect(boiling).toBe(212);
 });
 
-test('convertUnit is a no-op (m=1, n=0) for presets without explicit coefficients', async ({ page }) => {
+test('convertUnit is a no-op (identity) for presets without an explicit convert()', async ({ page }) => {
   await page.goto(FIXTURE);
   const value = await page.evaluate(() => d3.easygraph.convertUnit(1013.25, 'pressureHpa'));
   expect(value).toBe(1013.25);

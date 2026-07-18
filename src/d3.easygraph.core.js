@@ -4,8 +4,9 @@
 // Copyright (c) 2015, Lars Schumann, larsi.org@gmail.com
 //
 // Shared scaffolding for every chart family: container sizing/resize, SVG/margin/
-// clip/title DOM, palette, number/time formatting, unit presets, and the shared
-// _build() that d3.easygraph.line/.bars/.heatmap call into with their own hooks.
+// clip/title DOM, palette, number/time formatting, and the shared _build() that
+// d3.easygraph.line/.bars/.heatmap call into with their own hooks. Unit presets and
+// x/y/color config resolution live in d3.easygraph.units.js, loaded right after this file.
 
 d3.easygraph = {};
 
@@ -15,35 +16,6 @@ d3.easygraph._extend = function(dst, src) {
     if (src.hasOwnProperty(key) && dst[key] === undefined) dst[key] = src[key];
   }
   return dst;
-};
-
-// static unit presets for x/y/color config, e.g. { preset: "temperatureF" }
-d3.easygraph.presets = {
-  pressureHpa:      { label: 'Pressure',         unit: 'hPa',        range: [ 950, 1050 ] },
-  pressureInhg:     { label: 'Pressure',         unit: 'inHg',       m: 0.02953,  range: [ 28, 31 ] },
-  relativeHumidity: { label: 'Relative Humidity', unit: '%',         range: [ 0, 100 ] },
-  temperatureC:     { label: 'Temperature',      unit: '\xB0C',      range: [ -25, 45 ] },
-  temperatureF:     { label: 'Temperature',      unit: '\xB0F',      m: 1.8, n: 32.0, range: [ -10, 110 ] },
-  dewPointC:        { label: 'Dew Point',        unit: '\xB0C',      range: [ -25, 45 ] },
-  dewPointF:        { label: 'Dew Point',        unit: '\xB0F',      m: 1.8, n: 32.0, range: [ -10, 110 ] },
-  windSpeed:        { label: 'Wind Speed',       unit: 'm/s',        range: [ 0, 20 ] },
-  windSpeedKmph:    { label: 'Wind Speed',       unit: 'kmph',       m: 3.6, range: [ 0, 80 ] },
-  windSpeedMph:     { label: 'Wind Speed',       unit: 'mph',        m: 2.23694, range: [ 0, 50 ] },
-  windDirection:    { label: 'Wind Direction',   unit: '\xB0North',  range: [ 0, 360 ] },
-  rainFallMm:       { label: 'Rain Fall',        unit: 'mm',         range: [ 0, 100 ] },
-  rainFallInches:   { label: 'Rain Fall',        unit: 'inches',     m: 1 / 25.4, range: [ 0, 100 ] },
-  clouds:           { label: 'Clouds',           unit: '\xD710th',   range: [ 0, 10 ] },
-  solarRadiation:   { label: 'Solar Radiation',  unit: 'W/m\xB2',    range: [ 0, 1500 ] },
-  electricVoltage:  { label: 'Voltage',          unit: 'V',          range: [ 100, 140 ] },
-  electricCurrent:  { label: 'Current',          unit: 'A',          range: [ 0, 10 ] },
-  electricPower:    { label: 'Power',            unit: 'W',          range: [ 0, 1500 ] }
-};
-
-// resolves a preset (if any) and generic fallbacks onto an x/y/color config object
-d3.easygraph._resolveProperty = function(prop, label) {
-  if (prop.preset) d3.easygraph._extend(prop, d3.easygraph.presets[prop.preset]);
-  d3.easygraph._extend(prop, { label: label, unit: '', scale: 'linear', noTick: false, m: 1.0, n: 0.0 });
-  return prop;
 };
 
 // accepts a CSS selector string, a DOM element, or a d3 selection; returns an
