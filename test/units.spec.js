@@ -69,6 +69,25 @@ test('convert() is a no-op (identity) for presets without a real conversion', as
   expect(value).toBe(1013.25);
 });
 
+test('convert(v, d) rounds the converted result to d decimal places', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const results = await page.evaluate(() => [
+    d3.easygraph.getUnit('temperatureF').convert(20.5, 0),  // 68.9 -> 69
+    d3.easygraph.getUnit('temperatureF').convert(20.5, 1),  // 68.9 -> 68.9
+    d3.easygraph.getUnit('pressureInhg').convert(1000, 2)   // 29.53 -> 29.53
+  ]);
+  expect(results[0]).toBe(69);
+  expect(results[1]).toBe(68.9);
+  expect(results[2]).toBe(29.53);
+});
+
+test('convert(v) without d stays unrounded, even for presets with a real conversion', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const value = await page.evaluate(() => d3.easygraph.getUnit('temperatureF').convert(20.55555));
+  expect(value).toBeCloseTo(68.99999, 4);
+  expect(value).not.toBe(69);
+});
+
 test('works with no chart or container on the page at all', async ({ page }) => {
   await page.goto(FIXTURE);
   await expect(page.locator('svg')).toHaveCount(0);

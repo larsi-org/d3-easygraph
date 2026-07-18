@@ -13,6 +13,10 @@ All notable changes to this project are documented here. Format loosely follows
   `sensors/report.php`, which each defined an identical local copy. Deliberately not yet
   preset/range-aware (a sensible default precision derived from a preset's `range` is still being
   decided) — same explicit-`n` behavior as the two pages' old local helper.
+- Every preset's `convert(v)` now optionally takes a second argument, `convert(v, d)`, rounding the
+  converted result to `d` decimal places (sugar for `round(convert(v), d)`). `convert(v)` alone is
+  unchanged and stays unrounded, so a consumer needing full precision (e.g. interpolating a
+  continuous color scale) isn't forced to lose it.
 
 ### Changed
 - Presets and config resolution split out of `core.js`: `d3.easygraph.presets`/`getUnit()` live in

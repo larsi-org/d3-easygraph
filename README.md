@@ -39,9 +39,10 @@ available standalone — no container, no chart construction:
 
 ```js
 d3.easygraph.getUnit("temperatureF");
-// => { label: "Temperature", unit: "°F", scale: "linear", convert: f(v), range: [-10, 110] }
+// => { label: "Temperature", unit: "°F", scale: "linear", convert: f(v, d), range: [-10, 110] }
 
-d3.easygraph.getUnit("temperatureF").convert(20); // => 68 (20°C to °F)
+d3.easygraph.getUnit("temperatureF").convert(20);      // => 68        (20°C to °F)
+d3.easygraph.getUnit("temperatureF").convert(20.44, 1); // => 68.8 (68.792, rounded to 1 decimal)
 ```
 
 `getUnit(name)` returns the named preset — a complete, ready-to-use `{ label, unit, scale,
@@ -50,8 +51,11 @@ for a falsy or unrecognized name. Every preset declares its own `convert(v)`; pr
 conversion (most of them — e.g. `relativeHumidity`, `windDirection`) just use the identity
 function. Handy for e.g. converting a raw value before coloring or labeling a map marker.
 
-`d3.easygraph.round(x, n)` rounds `x` to `n` decimal places (or the nearest integer if `n` is
-omitted) — a plain explicit-precision helper for now, not yet derived from a preset's `range`.
+`convert` optionally takes a second argument, `convert(v, d)`, rounding the converted result to
+`d` decimal places via `d3.easygraph.round` — sugar for `round(convert(v), d)` in one call.
+`convert(v)` alone stays unrounded, so a consumer that needs full precision (e.g. interpolating a
+continuous color scale) isn't forced to lose it. `d3.easygraph.round(x, n)` itself is also public —
+a plain explicit-precision helper, not yet derived from a preset's `range`.
 
 ## Usage
 
