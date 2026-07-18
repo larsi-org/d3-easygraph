@@ -62,7 +62,6 @@ already be loaded as globals — they're peer dependencies, not bundled.
 <script>
 var graph = d3.easygraph.line({
   container: "#graph",
-  label:     "Temperature",
   x:         { scale: "time" },
   y:         { preset: "temperatureC" },
   height:    320,
