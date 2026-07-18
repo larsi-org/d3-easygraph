@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/colorbrewer@1.7.0/index.js"></script>
+<link rel="stylesheet" href="../../dist/d3.easygraph.css">
+<script src="../../dist/d3.easygraph.min.js"></script>
+<style>#wrap { width: 600px; }</style>
+</head>
+<body>
+<div id="wrap"><div id="graph"></div></div>
+<script>
+window.testData = [
+  [ 1, 2, 3, 4, 5, 6 ],
+  [ 2, 3, 4, 5, 6, 7 ],
+  [ 3, 4, 5, 6, 7, 8 ],
+  [ 4, 5, 6, 7, 8, 9 ]
+];
+
+window.graph = d3.easygraph.heatmap({
+  container: "#graph",
+  label:     " ",
+  x:         { scale: "linear" },
+  height:    320,
+  margin:    { top: 10, right: 14, bottom: 30, left: 50 }
+});
+
+window.graph.update(window.testData, [0, 6], [0, 4]);
+</script>
+</body>
+</html>

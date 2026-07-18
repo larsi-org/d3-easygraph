@@ -33,7 +33,6 @@ d3.easygraph.line = function(config) {
     crosshairThreshold:  10,
     interpolate:         'linear'
   }, function(graph) {
-    var clipId = "clip-" + graph.id;
     var _cx, _cy, _bisect;
 
     return {
@@ -79,7 +78,7 @@ d3.easygraph.line = function(config) {
           graph.$crosshairLine = graph.$svg
             .append("line")
             .attr("class", "crosshair-line")
-            .attr("clip-path", "url(#" + clipId + ")")
+            .attr("clip-path", "url(#" + graph._clipId + ")")
             .attr("y1", 0)
             .attr("y2", graph.height)
             .style("display", "none");
@@ -174,7 +173,7 @@ d3.easygraph.line = function(config) {
           var dataAreas = graph.$group.selectAll(".data-areas").data(data);
           var areasEntered = dataAreas.enter().append("path")
             .attr("class",      "data-areas")
-            .attr("clip-path",  "url(#" + clipId + ")")
+            .attr("clip-path",  "url(#" + graph._clipId + ")")
             .attr("d",          graph.$area0)
             .style("fill",      function(d, i) { return graph.getPaletteColor(i); })
             .style("opacity",   1e-6);
@@ -192,7 +191,7 @@ d3.easygraph.line = function(config) {
           var dataLines = graph.$group.selectAll(".data-lines").data(data);
           var linesEntered = dataLines.enter().append("path")
             .attr("class",     "data-lines")
-            .attr("clip-path", "url(#" + clipId + ")")
+            .attr("clip-path", "url(#" + graph._clipId + ")")
             .attr("d",         graph.$line0)
             .style("stroke",   function(d, i) { return graph.getPaletteColor(i); })
             .style("opacity",  1e-6);
@@ -210,6 +209,10 @@ d3.easygraph.line = function(config) {
       resize: function() {
         if (graph.$pane) graph.$pane.attr("width", graph.width);
         if (graph.$xScaleRef) graph.$xScaleRef.range([0, graph.width]);
+      },
+
+      destroy: function() {
+        if (graph.$crosshairTip) graph.$crosshairTip.remove();
       }
     };
   });

@@ -19,9 +19,14 @@ Each chart family has its own constructor, taking only the config that family un
 | Bars | `d3.easygraph.bars(config)` | `orientation` (`'v'`\|`'h'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData` | Category axis uses a `d3.scaleBand()`. `orientation` is fixed for a chart's lifetime; `mode` can be toggled live. |
 | Heatmap | `d3.easygraph.heatmap(config)` | `color` (unit/preset config for the color scale) | A grid of colored cells over plain continuous x/y axes. |
 
-Shared config across all three: `id`, `label`, `x`/`y` (`scale`, `unit`, `label`, `noTick`, `preset`,
-`m`/`n`), `height`, `margin`, `colorPalette`, `duration`, `oneYear` (also used by heatmaps whose
-x-axis spans a full year, not just line charts).
+Shared config across all three: `container`, `label`, `x`/`y` (`scale`, `unit`, `label`, `noTick`,
+`preset`, `m`/`n`), `height`, `margin`, `colorPalette`, `duration`, `oneYear` (also used by heatmaps
+whose x-axis spans a full year, not just line charts).
+
+`container` accepts a CSS selector string, a DOM element, or a d3 selection. `height` must be a
+positive number and `container` must resolve to an element — both are checked at construction time,
+throwing a clear error instead of failing cryptically later. Every chart has a `graph.destroy()`
+that disconnects its resize observer and tears down its DOM.
 
 ## Usage
 
@@ -38,13 +43,13 @@ already be loaded as globals — they're peer dependencies, not bundled.
 
 <script>
 var graph = d3.easygraph.line({
-  id:     "graph",
-  label:  "Temperature",
-  x:      { scale: "time" },
-  y:      { preset: "temperatureC" },
-  height: 320,
-  margin: { top: 20, right: 20, bottom: 30, left: 50 },
-  lines:  true
+  container: "#graph",
+  label:     "Temperature",
+  x:         { scale: "time" },
+  y:         { preset: "temperatureC" },
+  height:    320,
+  margin:    { top: 20, right: 20, bottom: 30, left: 50 },
+  lines:     true
 });
 
 graph.update([
@@ -81,8 +86,9 @@ included in this repo):
   handling, number/time axis formatting, unit presets (`d3.easygraph.presets`), and the shared
   `_build()` that each constructor calls with its own defaults and hook set.
 - `src/d3.easygraph.line.js`, `.bars.js`, `.heatmap.js` — one constructor per chart family above,
-  each implementing a small `prepareScales?`/`init?`/`domain`/`render`/`resize?` hook interface
-  (only `domain`/`render` are required; `prepareScales` is bars-only, for its band scale).
+  each implementing a small `prepareScales?`/`init?`/`domain`/`render`/`resize?`/`destroy?` hook
+  interface (only `domain`/`render` are required; `prepareScales` is bars-only, for its band scale;
+  `destroy` is line-only, to remove its `document.body`-appended crosshair tooltip).
 
 ## Building
 
@@ -93,6 +99,20 @@ npm run build
 
 Bundles and minifies all four source files (via [terser](https://github.com/terser/terser),
 concatenated in dependency order — core first) into the single `dist/d3.easygraph.min.js`.
+
+## Testing
+
+```sh
+npm run build
+npx playwright install --with-deps chromium   # once per machine
+npm test
+```
+
+[Playwright](https://playwright.dev) specs in `test/` run against the built `dist/` (via static
+`test/fixtures/*.html` pages, loaded over `file://`), covering rendering, live resize, the
+`destroy()` teardown, and a couple of hard regressions (zoom baseline staying in sync with the
+container's width after a resize; resize never producing a negative bar width). CI runs the same
+suite on every push.
 
 ## License
 

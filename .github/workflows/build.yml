@@ -16,5 +16,11 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run tests
+        run: npm test
+
       - name: Verify dist/ is up to date with src/
         run: git diff --exit-code -- dist/

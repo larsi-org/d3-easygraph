@@ -46,15 +46,39 @@ d3.easygraph._resolveProperty = function(prop, label) {
   return prop;
 };
 
+// accepts a CSS selector string, a DOM element, or a d3 selection; returns an
+// Element or null
+function _resolveContainer(container) {
+  if (container == null) return null;
+  if (typeof container === 'string') return document.querySelector(container);
+  if (container.nodeType === 1) return container;
+  if (typeof container.node === 'function') return container.node();
+  return null;
+}
+
+// internal <clipPath> ids only need to be unique per page, not tied to the
+// caller's container reference
+var _nextClipId = 0;
+
 // shared constructor body — each family (line/bars/heatmap) calls this with its own
 // defaults and a moduleFactory(graph) returning { prepareScales?, init?, domain, render, resize? }
 d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
-  var graph = config;
+  var graph = config || {};
+
+  var containerEl = _resolveContainer(graph.container);
+  if (!containerEl) {
+    throw new Error('d3.easygraph: container not found (' + JSON.stringify(graph.container) + ')');
+  }
+
+  d3.easygraph._extend(graph, { margin: { top: 20, right: 20, bottom: 30, left: 50 } });
+  if (!(graph.height > 0)) {
+    throw new Error('d3.easygraph: height must be a positive number');
+  }
 
   // measures the container's current rendered width; returns false if unchanged
   // (within 1px) so callers can skip redundant layout/redraw work
   function _measureWidth() {
-    var w = document.getElementById(graph.id).getBoundingClientRect().width;
+    var w = containerEl.getBoundingClientRect().width;
     // ignore transient/degenerate layout passes (e.g. mid-reflow during a live
     // resize) that would otherwise drive graph.width negative
     if (w <= graph.margin.left + graph.margin.right) return false;
@@ -110,7 +134,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // a harmless no-op otherwise (bars/heatmap reposition via render(), not draw())
   graph.draw = function() {};
 
-  var clipId = "clip-" + graph.id;
+  graph._clipId = "d3-easygraph-clip-" + (_nextClipId++);
 
   d3.easygraph._extend(graph, familyDefaults);
   d3.easygraph._extend(graph, {
@@ -157,7 +181,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   if (graph.y.scale === 'linear' && !graph.y.$scale.bandwidth) graph.y.$axis.tickFormat(graph.numberFormat);
   if (graph.y.noTick)                                          graph.y.$axis.tickFormat(function() { return ''; });
 
-  graph.$svgRoot = d3.select("#" + graph.id)
+  graph.$svgRoot = d3.select(containerEl)
     .append("svg")
       .attr("width", graph._outerWidth)
       .attr("height", graph._outerHeight);
@@ -182,7 +206,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
 
   graph.$clipRect = graph.$svg
     .append("clipPath")
-      .attr("id", clipId)
+      .attr("id", graph._clipId)
     .append("rect")
       .attr("x", 0).attr("y", 0)
       .attr("width", graph.width).attr("height", graph.height);
@@ -219,9 +243,19 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     return true;
   };
 
-  new ResizeObserver(function() {
+  var resizeObserver = new ResizeObserver(function() {
     if (graph._layout() && graph._lastData) graph._reflow();
-  }).observe(document.getElementById(graph.id));
+  });
+  resizeObserver.observe(containerEl);
+
+  // disconnects the resize observer and tears down anything a module created
+  // outside graph.$svgRoot (e.g. line.js's crosshair tooltip); removing
+  // $svgRoot takes care of everything inside it (paths, listeners, the pane)
+  graph.destroy = function() {
+    resizeObserver.disconnect();
+    if (graph._module.destroy) graph._module.destroy();
+    graph.$svgRoot.remove();
+  };
 
   // re-renders in place after a resize, using the last data passed to update();
   // domains don't change here, only the pixel ranges _layout() just updated

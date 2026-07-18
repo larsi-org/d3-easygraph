@@ -1,6 +1,6 @@
 {
   "name": "d3-easygraph",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A batteries-included D3 v7 charting library: lines, areas, zoom, crosshair, stacked/grouped bars, and heatmaps, with a responsive container-driven width.",
   "main": "dist/d3.easygraph.min.js",
   "files": [
@@ -8,7 +8,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "terser src/d3.easygraph.core.js src/d3.easygraph.line.js src/d3.easygraph.bars.js src/d3.easygraph.heatmap.js -c -m --comments false -o dist/d3.easygraph.min.js && cp src/d3.easygraph.css dist/d3.easygraph.css"
+    "build": "terser src/d3.easygraph.core.js src/d3.easygraph.line.js src/d3.easygraph.bars.js src/d3.easygraph.heatmap.js -c -m --comments false -o dist/d3.easygraph.min.js && cp src/d3.easygraph.css dist/d3.easygraph.css",
+    "test": "playwright test"
   },
   "keywords": [
     "d3",
@@ -26,10 +27,11 @@
   },
   "homepage": "https://github.com/larsi-org/d3-easygraph",
   "peerDependencies": {
-    "d3": "^7.9.0",
-    "colorbrewer": "^1.7.0"
+    "colorbrewer": "^1.7.0",
+    "d3": "^7.9.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "terser": "^5.0.0"
   }
 }
