@@ -32,7 +32,23 @@ test('"default" is a real, explicitly-referenceable preset entry, equivalent to 
     ];
   });
   expect(explicit).toEqual(omitted);
-  expect(explicit).toEqual({ label: 'X', unit: '', scale: 'linear', noTick: false, converted: 5 });
+  expect(explicit).toEqual({ label: 'X', unit: '', scale: 'linear', noTick: undefined, converted: 5 });
+});
+
+test('every real preset declares its own scale: "linear" (not just via default)', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const scales = await page.evaluate(() =>
+    Object.keys(d3.easygraph.presets)
+      .filter((name) => name !== 'default')
+      .map((name) => d3.easygraph.presets[name].scale)
+  );
+  expect(scales.every((s) => s === 'linear')).toBe(true);
+});
+
+test('resolveUnit does not set noTick when the input config and preset are both silent on it', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const noTick = await page.evaluate(() => d3.easygraph.resolveUnit({ preset: 'temperatureF' }).noTick);
+  expect(noTick).toBeUndefined();
 });
 
 test('resolveUnit does not mutate the config object passed in', async ({ page }) => {

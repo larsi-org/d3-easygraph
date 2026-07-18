@@ -12,6 +12,12 @@ All notable changes to this project are documented here. Format loosely follows
   to omitting `preset` entirely.
 - `_resolveProperty`'s call-site `label` (e.g. "Property X") is now folded into that same merge —
   one `_extend` call instead of two — rather than being a separate step after `default`.
+- Every real preset now declares its own `scale: 'linear'` (it genuinely affects tick formatting —
+  `core.js` checks `scale === 'linear'` to decide whether to apply `numberFormat`, not just
+  "anything but time"), instead of relying solely on `default`'s copy. `default` keeps its own
+  `scale: 'linear'` too, as the fallback for properties with no preset at all.
+- Dropped `noTick: false` from `default` — it's an axis-rendering choice, not a unit concept, and
+  every read of it (`if (graph.x.noTick)`) already treats `undefined` the same as `false`.
 
 ## [0.5.0] - 2026-07-18
 

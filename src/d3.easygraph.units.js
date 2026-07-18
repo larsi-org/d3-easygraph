@@ -10,29 +10,33 @@
 
 function _identity(v) { return v; }
 
-// static unit presets for x/y/color config, e.g. { preset: "temperatureF" }. `default` isn't
-// a real preset — it's the generic fallback _resolveProperty merges in last, for whatever a
-// preset (or an unset property) didn't already supply.
+// static unit presets for x/y/color config, e.g. { preset: "temperatureF" }. Every preset is a
+// linear-scale physical quantity, so each declares `scale: 'linear'` itself rather than relying
+// solely on `default`'s copy (still needed there too, as the fallback for properties with no
+// preset at all — e.g. a bars chart's unlabeled value axis). `default` isn't a real preset — it's
+// the generic fallback _resolveProperty merges in last, for whatever a preset (or an unset
+// property) didn't already supply. `noTick` isn't a unit concept (it's purely an axis-rendering
+// choice), so it has no place here — undefined already behaves like `false` everywhere it's read.
 d3.easygraph.presets = {
-  default:          { unit: '',                  scale: 'linear',    noTick: false, convert: _identity },
-  pressureHpa:      { label: 'Pressure',         unit: 'hPa',        range: [ 950, 1050 ] },
-  pressureInhg:     { label: 'Pressure',         unit: 'inHg',       convert: function(v) { return v * 0.02953; },        range: [ 28, 31 ] },
-  relativeHumidity: { label: 'Relative Humidity', unit: '%',         range: [ 0, 100 ] },
-  temperatureC:     { label: 'Temperature',      unit: '\xB0C',      range: [ -25, 45 ] },
-  temperatureF:     { label: 'Temperature',      unit: '\xB0F',      convert: function(v) { return v * 1.8 + 32; },       range: [ -10, 110 ] },
-  dewPointC:        { label: 'Dew Point',        unit: '\xB0C',      range: [ -25, 45 ] },
-  dewPointF:        { label: 'Dew Point',        unit: '\xB0F',      convert: function(v) { return v * 1.8 + 32; },       range: [ -10, 110 ] },
-  windSpeed:        { label: 'Wind Speed',       unit: 'm/s',        range: [ 0, 20 ] },
-  windSpeedKmph:    { label: 'Wind Speed',       unit: 'kmph',       convert: function(v) { return v * 3.6; },            range: [ 0, 80 ] },
-  windSpeedMph:     { label: 'Wind Speed',       unit: 'mph',        convert: function(v) { return v * 2.23694; },        range: [ 0, 50 ] },
-  windDirection:    { label: 'Wind Direction',   unit: '\xB0North',  range: [ 0, 360 ] },
-  rainFallMm:       { label: 'Rain Fall',        unit: 'mm',         range: [ 0, 100 ] },
-  rainFallInches:   { label: 'Rain Fall',        unit: 'inches',     convert: function(v) { return v / 25.4; },           range: [ 0, 100 ] },
-  clouds:           { label: 'Clouds',           unit: '\xD710th',   range: [ 0, 10 ] },
-  solarRadiation:   { label: 'Solar Radiation',  unit: 'W/m\xB2',    range: [ 0, 1500 ] },
-  electricVoltage:  { label: 'Voltage',          unit: 'V',          range: [ 100, 140 ] },
-  electricCurrent:  { label: 'Current',          unit: 'A',          range: [ 0, 10 ] },
-  electricPower:    { label: 'Power',            unit: 'W',          range: [ 0, 1500 ] }
+  default:          { unit: '',                  scale: 'linear',    convert: _identity },
+  pressureHpa:      { label: 'Pressure',         unit: 'hPa',        scale: 'linear',    range: [ 950, 1050 ] },
+  pressureInhg:     { label: 'Pressure',         unit: 'inHg',       scale: 'linear',    convert: function(v) { return v * 0.02953; },        range: [ 28, 31 ] },
+  relativeHumidity: { label: 'Relative Humidity', unit: '%',         scale: 'linear',    range: [ 0, 100 ] },
+  temperatureC:     { label: 'Temperature',      unit: '\xB0C',      scale: 'linear',    range: [ -25, 45 ] },
+  temperatureF:     { label: 'Temperature',      unit: '\xB0F',      scale: 'linear',    convert: function(v) { return v * 1.8 + 32; },       range: [ -10, 110 ] },
+  dewPointC:        { label: 'Dew Point',        unit: '\xB0C',      scale: 'linear',    range: [ -25, 45 ] },
+  dewPointF:        { label: 'Dew Point',        unit: '\xB0F',      scale: 'linear',    convert: function(v) { return v * 1.8 + 32; },       range: [ -10, 110 ] },
+  windSpeed:        { label: 'Wind Speed',       unit: 'm/s',        scale: 'linear',    range: [ 0, 20 ] },
+  windSpeedKmph:    { label: 'Wind Speed',       unit: 'kmph',       scale: 'linear',    convert: function(v) { return v * 3.6; },            range: [ 0, 80 ] },
+  windSpeedMph:     { label: 'Wind Speed',       unit: 'mph',        scale: 'linear',    convert: function(v) { return v * 2.23694; },        range: [ 0, 50 ] },
+  windDirection:    { label: 'Wind Direction',   unit: '\xB0North',  scale: 'linear',    range: [ 0, 360 ] },
+  rainFallMm:       { label: 'Rain Fall',        unit: 'mm',         scale: 'linear',    range: [ 0, 100 ] },
+  rainFallInches:   { label: 'Rain Fall',        unit: 'inches',     scale: 'linear',    convert: function(v) { return v / 25.4; },           range: [ 0, 100 ] },
+  clouds:           { label: 'Clouds',           unit: '\xD710th',   scale: 'linear',    range: [ 0, 10 ] },
+  solarRadiation:   { label: 'Solar Radiation',  unit: 'W/m\xB2',    scale: 'linear',    range: [ 0, 1500 ] },
+  electricVoltage:  { label: 'Voltage',          unit: 'V',          scale: 'linear',    range: [ 100, 140 ] },
+  electricCurrent:  { label: 'Current',          unit: 'A',          scale: 'linear',    range: [ 0, 10 ] },
+  electricPower:    { label: 'Power',            unit: 'W',          scale: 'linear',    range: [ 0, 1500 ] }
 };
 
 // resolves a preset (if any), then the generic `default` fallback, onto an x/y/color config
@@ -46,9 +50,10 @@ d3.easygraph._resolveProperty = function(prop, label) {
   return prop;
 };
 
-// resolves a preset (and/or explicit label/unit/convert/range overrides) into a complete
-// { label, unit, scale, noTick, convert, range } config — the same resolution a chart's
-// x/y property goes through, without needing a graph
+// resolves a preset (and/or explicit label/unit/scale/convert/range overrides) into a complete
+// { label, unit, scale, convert, range } config — the same resolution a chart's x/y property
+// goes through, without needing a graph. `noTick`, if present on the input config, passes
+// through unchanged — it's an axis-rendering choice, not a unit concept this module resolves.
 d3.easygraph.resolveUnit = function(config) {
   return d3.easygraph._resolveProperty(d3.easygraph._extend({}, config || {}), (config && config.label) || '');
 };
