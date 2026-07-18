@@ -36,13 +36,13 @@ d3.easygraph.presets = {
 };
 
 // resolves a preset (if any), then the generic `default` fallback, onto an x/y/color config
-// object. `label` is call-site-specific (e.g. "Property X") so it's merged separately, not
-// part of `default` — otherwise it'd win over the real per-call label since _extend only
-// fills in currently-undefined keys.
+// object. `label` is call-site-specific (e.g. "Property X"), so it's folded into a fresh
+// { label: label, ...presets.default } before that single merge, rather than living in the
+// shared `default` entry itself — it still loses to a real label from the user or the preset,
+// since _extend only fills in currently-undefined keys.
 d3.easygraph._resolveProperty = function(prop, label) {
   if (prop.preset) d3.easygraph._extend(prop, d3.easygraph.presets[prop.preset]);
-  d3.easygraph._extend(prop, d3.easygraph.presets.default);
-  d3.easygraph._extend(prop, { label: label });
+  d3.easygraph._extend(prop, d3.easygraph._extend({ label: label }, d3.easygraph.presets.default));
   return prop;
 };
 

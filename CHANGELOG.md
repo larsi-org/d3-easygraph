@@ -10,6 +10,8 @@ All notable changes to this project are documented here. Format loosely follows
   unrecognized one) is now a real `default` entry at the top of `d3.easygraph.presets`, instead of
   an object literal hardcoded inside `_resolveProperty`. `{ preset: "default" }` is now equivalent
   to omitting `preset` entirely.
+- `_resolveProperty`'s call-site `label` (e.g. "Property X") is now folded into that same merge —
+  one `_extend` call instead of two — rather than being a separate step after `default`.
 
 ## [0.5.0] - 2026-07-18
 
