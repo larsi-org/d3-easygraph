@@ -24,8 +24,6 @@ d3.easygraph.presets = {
   relativeHumidity: { label: 'Relative Humidity', unit: '%',         scale: 'linear',    range: [ 0, 100 ] },
   temperatureC:     { label: 'Temperature',      unit: '\xB0C',      scale: 'linear',    range: [ -25, 45 ] },
   temperatureF:     { label: 'Temperature',      unit: '\xB0F',      scale: 'linear',    convert: function(v) { return v * 1.8 + 32; },       range: [ -10, 110 ] },
-  dewPointC:        { label: 'Dew Point',        unit: '\xB0C',      scale: 'linear',    range: [ -25, 45 ] },
-  dewPointF:        { label: 'Dew Point',        unit: '\xB0F',      scale: 'linear',    convert: function(v) { return v * 1.8 + 32; },       range: [ -10, 110 ] },
   windSpeed:        { label: 'Wind Speed',       unit: 'm/s',        scale: 'linear',    range: [ 0, 20 ] },
   windSpeedKmph:    { label: 'Wind Speed',       unit: 'kmph',       scale: 'linear',    convert: function(v) { return v * 3.6; },            range: [ 0, 80 ] },
   windSpeedMph:     { label: 'Wind Speed',       unit: 'mph',        scale: 'linear',    convert: function(v) { return v * 2.23694; },        range: [ 0, 50 ] },

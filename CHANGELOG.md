@@ -19,6 +19,11 @@ All notable changes to this project are documented here. Format loosely follows
 - Dropped `noTick: false` from `default` — it's an axis-rendering choice, not a unit concept, and
   every read of it (`if (graph.x.noTick)`) already treats `undefined` the same as `false`.
 
+### Removed
+- `dewPointC` and `dewPointF` presets — unused across every `Public/html` page and, after a DB
+  migration, the `larsi-sensors` database. Dew point readings that used `dewPointF` now use
+  `temperatureF` instead (same unit/conversion/range, no dedicated preset needed).
+
 ## [0.5.0] - 2026-07-18
 
 ### Changed
