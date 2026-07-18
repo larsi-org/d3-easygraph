@@ -5,53 +5,36 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added
+- `d3.easygraph.getUnit(name)` — returns a preset (or the generic `default` fallback, for a
+  falsy/unrecognized name) as a complete, ready-to-use `{ label, unit, scale, convert, range }`.
+  Usable standalone, no chart or container needed — e.g. converting a raw value for a map marker.
+
 ### Changed
-- The generic fallback `_resolveProperty` used to merge when a property has no preset (or an
-  unrecognized one) is now a real `default` entry at the top of `d3.easygraph.presets`, instead of
-  an object literal hardcoded inside `_resolveProperty`. `{ preset: "default" }` is now equivalent
-  to omitting `preset` entirely.
-- `_resolveProperty`'s call-site `label` (e.g. "Property X") is now folded into that same merge —
-  one `_extend` call instead of two — rather than being a separate step after `default`.
+- Presets and config resolution split out of `core.js`: `d3.easygraph.presets`/`getUnit()` live in
+  `units.js` — a small, easygraph-agnostic lookup with no config merging or chart concepts of its
+  own — while `_resolveProperty` (folding a preset plus the call-site label, e.g. "Property X",
+  onto a graph's x/y/color config) moved into `core.js`, the only actual consumer of that
+  resolution.
+- Presets express their raw-to-display conversion as a `convert(v)` function instead of linear
+  `m`/`n` coefficients — supports non-linear conversions, and reads as "how do I convert this
+  value" rather than a formula the caller has to remember. Every preset (including the generic
+  `default` fallback) now declares its own `convert` explicitly, so `getUnit()` always returns
+  something complete in one lookup.
 - Every real preset now declares its own `scale: 'linear'` (it genuinely affects tick formatting —
-  `core.js` checks `scale === 'linear'` to decide whether to apply `numberFormat`, not just
-  "anything but time"), instead of relying solely on `default`'s copy. `default` keeps its own
-  `scale: 'linear'` too, as the fallback for properties with no preset at all.
-- Dropped `noTick: false` from `default` — it's an axis-rendering choice, not a unit concept, and
-  every read of it (`if (graph.x.noTick)`) already treats `undefined` the same as `false`.
+  `core.js` checks `scale === 'linear'` specifically, not just "anything but time"), instead of
+  relying solely on `default`'s copy. `default` keeps its own copy too, as the fallback for
+  properties with no preset at all.
+- The generic fallback merged when a property has no preset (or an unrecognized one) is now a real
+  `default` entry in `d3.easygraph.presets`, not an object literal hardcoded inside the resolver.
+  `{ preset: "default" }` is equivalent to omitting `preset` entirely.
 
 ### Removed
 - `dewPointC` and `dewPointF` presets — unused across every `Public/html` page and, after a DB
   migration, the `larsi-sensors` database. Dew point readings that used `dewPointF` now use
   `temperatureF` instead (same unit/conversion/range, no dedicated preset needed).
-
-### Changed
-- `units.js` is now just the preset table plus one function, `d3.easygraph.getUnit(name)` —
-  returns a preset (or `default`) as a complete, ready-to-use object. No config merging, no chart
-  concepts — replaces `resolveUnit()`/`convertUnit()`, which did that folding. Config resolution
-  (`_resolveProperty`, folding a preset plus the call-site label onto a graph's x/y/color config)
-  moved into `core.js`, the only actual consumer of it.
-- Every preset (including `default`) now declares its own `convert` function explicitly, rather
-  than most relying on `default`'s identity function as a second-pass fallback — `getUnit()` always
-  returns a complete unit definition in one lookup, no merge needed.
-
-## [0.5.0] - 2026-07-18
-
-### Changed
-- Presets (`d3.easygraph.presets`) and x/y/color config resolution (`_resolveProperty`) moved from
-  `core.js` into `units.js`, which now owns everything unit-related; `core.js` is pure chart
-  scaffolding.
-- Presets express their raw-to-display conversion as a `convert(v)` function instead of linear
-  `m`/`n` coefficients (`m * v + n`) — supports non-linear conversions, and reads as "how do I
-  convert this value" rather than a formula the caller has to remember. A preset with no
-  conversion of its own now gets the identity function (previously `m: 1, n: 0`).
-
-## [0.4.0] - 2026-07-18
-
-### Added
-- `d3.easygraph.resolveUnit(config)` and `d3.easygraph.convertUnit(value, presetOrConfig)` —
-  standalone unit-conversion helpers built on the existing preset table, usable without
-  constructing any chart (e.g. for converting/labeling a raw value on a map marker). New
-  `src/d3.easygraph.units.js` module, depending only on `core.js`.
+- `noTick: false` from the generic fallback — it's an axis-rendering choice, not a unit concept,
+  and every read of it (`if (graph.x.noTick)`) already treats `undefined` the same as `false`.
 
 ## [0.3.0] - 2026-07-17
 
