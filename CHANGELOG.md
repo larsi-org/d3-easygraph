@@ -5,6 +5,12 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Changed
+- The generic fallback `_resolveProperty` used to merge when a property has no preset (or an
+  unrecognized one) is now a real `default` entry at the top of `d3.easygraph.presets`, instead of
+  an object literal hardcoded inside `_resolveProperty`. `{ preset: "default" }` is now equivalent
+  to omitting `preset` entirely.
+
 ## [0.5.0] - 2026-07-18
 
 ### Changed

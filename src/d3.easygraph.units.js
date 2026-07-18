@@ -8,9 +8,13 @@
 // all — useful for e.g. converting/labeling a raw value on a map marker or tooltip.
 // Depends only on core.js's d3.easygraph._extend.
 
-// static unit presets for x/y/color config, e.g. { preset: "temperatureF" }. `convert`
-// (raw -> display) defaults to the identity function when omitted (see _resolveProperty).
+function _identity(v) { return v; }
+
+// static unit presets for x/y/color config, e.g. { preset: "temperatureF" }. `default` isn't
+// a real preset — it's the generic fallback _resolveProperty merges in last, for whatever a
+// preset (or an unset property) didn't already supply.
 d3.easygraph.presets = {
+  default:          { unit: '',                  scale: 'linear',    noTick: false, convert: _identity },
   pressureHpa:      { label: 'Pressure',         unit: 'hPa',        range: [ 950, 1050 ] },
   pressureInhg:     { label: 'Pressure',         unit: 'inHg',       convert: function(v) { return v * 0.02953; },        range: [ 28, 31 ] },
   relativeHumidity: { label: 'Relative Humidity', unit: '%',         range: [ 0, 100 ] },
@@ -31,12 +35,14 @@ d3.easygraph.presets = {
   electricPower:    { label: 'Power',            unit: 'W',          range: [ 0, 1500 ] }
 };
 
-function _identity(v) { return v; }
-
-// resolves a preset (if any) and generic fallbacks onto an x/y/color config object
+// resolves a preset (if any), then the generic `default` fallback, onto an x/y/color config
+// object. `label` is call-site-specific (e.g. "Property X") so it's merged separately, not
+// part of `default` — otherwise it'd win over the real per-call label since _extend only
+// fills in currently-undefined keys.
 d3.easygraph._resolveProperty = function(prop, label) {
   if (prop.preset) d3.easygraph._extend(prop, d3.easygraph.presets[prop.preset]);
-  d3.easygraph._extend(prop, { label: label, unit: '', scale: 'linear', noTick: false, convert: _identity });
+  d3.easygraph._extend(prop, d3.easygraph.presets.default);
+  d3.easygraph._extend(prop, { label: label });
   return prop;
 };
 

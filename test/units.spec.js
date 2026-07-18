@@ -21,6 +21,20 @@ test('resolveUnit defaults convert to the identity function when a preset has no
   expect(value).toBe(1013.25);
 });
 
+test('"default" is a real, explicitly-referenceable preset entry, equivalent to no preset at all', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const [explicit, omitted] = await page.evaluate(() => {
+    var a = d3.easygraph.resolveUnit({ preset: 'default', label: 'X' });
+    var b = d3.easygraph.resolveUnit({ label: 'X' });
+    return [
+      { label: a.label, unit: a.unit, scale: a.scale, noTick: a.noTick, converted: a.convert(5) },
+      { label: b.label, unit: b.unit, scale: b.scale, noTick: b.noTick, converted: b.convert(5) }
+    ];
+  });
+  expect(explicit).toEqual(omitted);
+  expect(explicit).toEqual({ label: 'X', unit: '', scale: 'linear', noTick: false, converted: 5 });
+});
+
 test('resolveUnit does not mutate the config object passed in', async ({ page }) => {
   await page.goto(FIXTURE);
   const original = await page.evaluate(() => {
