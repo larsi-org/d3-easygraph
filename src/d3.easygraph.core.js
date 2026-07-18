@@ -4,9 +4,10 @@
 // Copyright (c) 2015, Lars Schumann, larsi.org@gmail.com
 //
 // Shared scaffolding for every chart family: container sizing/resize, SVG/margin/
-// clip/title DOM, palette, number/time formatting, and the shared _build() that
-// d3.easygraph.line/.bars/.heatmap call into with their own hooks. Unit presets and
-// x/y/color config resolution live in d3.easygraph.units.js, loaded right after this file.
+// clip/title DOM, palette, number/time formatting, x/y/color config resolution, and the
+// shared _build() that d3.easygraph.line/.bars/.heatmap call into with their own hooks.
+// Unit presets themselves (d3.easygraph.presets / getUnit()) live in d3.easygraph.units.js,
+// loaded right after this file — a plain data lookup with no chart concepts of its own.
 
 d3.easygraph = {};
 
@@ -16,6 +17,14 @@ d3.easygraph._extend = function(dst, src) {
     if (src.hasOwnProperty(key) && dst[key] === undefined) dst[key] = src[key];
   }
   return dst;
+};
+
+// resolves a preset (via units.js's getUnit(), which always returns a complete unit
+// definition) and the call-site label (e.g. "Property X") onto an x/y/color config object
+d3.easygraph._resolveProperty = function(prop, label) {
+  d3.easygraph._extend(prop, d3.easygraph.getUnit(prop.preset));
+  d3.easygraph._extend(prop, { label: label });
+  return prop;
 };
 
 // accepts a CSS selector string, a DOM element, or a d3 selection; returns an

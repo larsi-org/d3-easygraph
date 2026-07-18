@@ -30,21 +30,21 @@ that disconnects its resize observer and tears down its DOM.
 
 ## Unit conversion (no chart required)
 
-The same preset table and `convert(v)` function a chart's `x`/`y`/`color` config resolve against
-are also available standalone — no container, no chart construction:
+The same preset table a chart's `x`/`y`/`color` config resolves a `preset` name against is also
+available standalone — no container, no chart construction:
 
 ```js
-d3.easygraph.resolveUnit({ preset: "temperatureF" });
-// => { label: "Temperature", unit: "°F", scale: "linear", noTick: false, convert: f(v), range: [-10, 110] }
+d3.easygraph.getUnit("temperatureF");
+// => { label: "Temperature", unit: "°F", scale: "linear", convert: f(v), range: [-10, 110] }
 
-d3.easygraph.convertUnit(20, "temperatureF"); // => 68 (20°C to °F)
+d3.easygraph.getUnit("temperatureF").convert(20); // => 68 (20°C to °F)
 ```
 
-`resolveUnit(config)` fills in a preset's (or your own explicit `label`/`unit`/`convert`) blanks
-without mutating `config`; a preset with no conversion of its own (most of them — e.g.
-`relativeHumidity`, `windDirection`) gets the identity function. `convertUnit(value,
-presetOrConfig)` takes either a preset name string or a config object and calls its
-`convert(value)`. Handy for e.g. converting a raw value before coloring or labeling a map marker.
+`getUnit(name)` returns the named preset — a complete, ready-to-use `{ label, unit, scale,
+convert, range }` — or the generic `default` entry (empty unit, linear scale, identity `convert`)
+for a falsy or unrecognized name. Every preset declares its own `convert(v)`; presets with no real
+conversion (most of them — e.g. `relativeHumidity`, `windDirection`) just use the identity
+function. Handy for e.g. converting a raw value before coloring or labeling a map marker.
 
 ## Usage
 
@@ -101,11 +101,11 @@ included in this repo):
 ## Architecture
 
 - `src/d3.easygraph.core.js` — container sizing/resize, SVG/margin/clip/title scaffolding, palette
-  handling, number/time axis formatting, and the shared `_build()` that each constructor calls with
-  its own defaults and hook set.
-- `src/d3.easygraph.units.js` — the unit preset table (`d3.easygraph.presets`) and x/y/color config
-  resolution every chart family uses, plus the standalone `resolveUnit()`/`convertUnit()` API above;
-  depends only on `core.js`'s `_extend`, not on any chart family.
+  handling, number/time axis formatting, x/y/color config resolution, and the shared `_build()`
+  that each constructor calls with its own defaults and hook set.
+- `src/d3.easygraph.units.js` — just the unit preset table (`d3.easygraph.presets`) and
+  `getUnit(name)`, the standalone lookup above. No config merging, no chart concepts — `core.js` is
+  the only thing that folds a resolved preset onto a graph's config, via `getUnit()`.
 - `src/d3.easygraph.line.js`, `.bars.js`, `.heatmap.js` — one constructor per chart family above,
   each implementing a small `prepareScales?`/`init?`/`domain`/`render`/`resize?`/`destroy?` hook
   interface (only `domain`/`render` are required; `prepareScales` is bars-only, for its band scale;

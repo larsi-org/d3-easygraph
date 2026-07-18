@@ -24,6 +24,16 @@ All notable changes to this project are documented here. Format loosely follows
   migration, the `larsi-sensors` database. Dew point readings that used `dewPointF` now use
   `temperatureF` instead (same unit/conversion/range, no dedicated preset needed).
 
+### Changed
+- `units.js` is now just the preset table plus one function, `d3.easygraph.getUnit(name)` —
+  returns a preset (or `default`) as a complete, ready-to-use object. No config merging, no chart
+  concepts — replaces `resolveUnit()`/`convertUnit()`, which did that folding. Config resolution
+  (`_resolveProperty`, folding a preset plus the call-site label onto a graph's x/y/color config)
+  moved into `core.js`, the only actual consumer of it.
+- Every preset (including `default`) now declares its own `convert` function explicitly, rather
+  than most relying on `default`'s identity function as a second-pass fallback — `getUnit()` always
+  returns a complete unit definition in one lookup, no merge needed.
+
 ## [0.5.0] - 2026-07-18
 
 ### Changed
