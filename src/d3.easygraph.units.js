@@ -38,3 +38,11 @@ d3.easygraph.presets = {
 d3.easygraph.getUnit = function(name) {
   return d3.easygraph.presets[name] || d3.easygraph.presets.default;
 };
+
+// rounds x to n decimal places (n omitted or 0 rounds to the nearest integer). A plain,
+// explicit-precision helper for now — centralized here since every real consumer needs it
+// after convert(), not because precision is derived from a preset (yet); a preset-range-based
+// default precision is still undecided.
+d3.easygraph.round = function(x, n) {
+  return n ? Math.round(x * Math.pow(10, n)) / Math.pow(10, n) : Math.round(x);
+};

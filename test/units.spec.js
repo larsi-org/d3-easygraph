@@ -76,3 +76,14 @@ test('works with no chart or container on the page at all', async ({ page }) => 
   expect(value).toBeCloseTo(22.3694, 4);
   await expect(page.locator('svg')).toHaveCount(0);
 });
+
+test('round(x, n) rounds to n decimal places, or the nearest integer when n is omitted/0', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const results = await page.evaluate(() => [
+    d3.easygraph.round(68.549999, 1),
+    d3.easygraph.round(68.55, 0),
+    d3.easygraph.round(68.55),
+    d3.easygraph.round(29.9212, 2)
+  ]);
+  expect(results).toEqual([68.5, 69, 69, 29.92]);
+});

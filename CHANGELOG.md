@@ -9,6 +9,10 @@ All notable changes to this project are documented here. Format loosely follows
 - `d3.easygraph.getUnit(name)` — returns a preset (or the generic `default` fallback, for a
   falsy/unrecognized name) as a complete, ready-to-use `{ label, unit, scale, convert, range }`.
   Usable standalone, no chart or container needed — e.g. converting a raw value for a map marker.
+- `d3.easygraph.round(x, n)` — rounds to `n` decimal places, moved out of `weather/report.php` and
+  `sensors/report.php`, which each defined an identical local copy. Deliberately not yet
+  preset/range-aware (a sensible default precision derived from a preset's `range` is still being
+  decided) — same explicit-`n` behavior as the two pages' old local helper.
 
 ### Changed
 - Presets and config resolution split out of `core.js`: `d3.easygraph.presets`/`getUnit()` live in

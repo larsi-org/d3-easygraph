@@ -50,6 +50,9 @@ for a falsy or unrecognized name. Every preset declares its own `convert(v)`; pr
 conversion (most of them — e.g. `relativeHumidity`, `windDirection`) just use the identity
 function. Handy for e.g. converting a raw value before coloring or labeling a map marker.
 
+`d3.easygraph.round(x, n)` rounds `x` to `n` decimal places (or the nearest integer if `n` is
+omitted) — a plain explicit-precision helper for now, not yet derived from a preset's `range`.
+
 ## Usage
 
 d3-easygraph expects `d3` (v7) and [`colorbrewer`](https://www.npmjs.com/package/colorbrewer) to
