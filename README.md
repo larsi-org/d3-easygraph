@@ -55,7 +55,8 @@ function. Handy for e.g. converting a raw value before coloring or labeling a ma
 `d` decimal places via `d3.easygraph.round` — sugar for `round(convert(v), d)` in one call.
 `convert(v)` alone stays unrounded, so a consumer that needs full precision (e.g. interpolating a
 continuous color scale) isn't forced to lose it. `d3.easygraph.round(x, n)` itself is also public —
-a plain explicit-precision helper, not yet derived from a preset's `range`.
+a plain explicit-precision helper; precision is always caller-specified, not derived from a
+preset's `range`.
 
 ## Usage
 

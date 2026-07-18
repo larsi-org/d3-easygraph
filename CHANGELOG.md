@@ -10,9 +10,9 @@ All notable changes to this project are documented here. Format loosely follows
   falsy/unrecognized name) as a complete, ready-to-use `{ label, unit, scale, convert, range }`.
   Usable standalone, no chart or container needed — e.g. converting a raw value for a map marker.
 - `d3.easygraph.round(x, n)` — rounds to `n` decimal places, moved out of `weather/report.php` and
-  `sensors/report.php`, which each defined an identical local copy. Deliberately not yet
-  preset/range-aware (a sensible default precision derived from a preset's `range` is still being
-  decided) — same explicit-`n` behavior as the two pages' old local helper.
+  `sensors/report.php`, which each defined an identical local copy. Deliberately preset/range-
+  agnostic — precision is always caller-specified, not derived from a preset's `range` — same
+  explicit-`n` behavior as the two pages' old local helper.
 - Every preset's `convert(v)` now optionally takes a second argument, `convert(v, d)`, rounding the
   converted result to `d` decimal places (sugar for `round(convert(v), d)`). `convert(v)` alone is
   unchanged and stays unrounded, so a consumer needing full precision (e.g. interpolating a

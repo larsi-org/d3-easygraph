@@ -1,7 +1,7 @@
 {
   "name": "d3-easygraph",
   "version": "0.3.0",
-  "description": "A batteries-included D3 v7 charting library: lines, areas, zoom, crosshair, stacked/grouped bars, and heatmaps, with a responsive container-driven width.",
+  "description": "A batteries-included D3 v7 charting library: lines, areas, zoom, crosshair, stacked/grouped bars, and heatmaps, with a responsive container-driven width and standalone unit-preset conversion.",
   "main": "dist/d3.easygraph.min.js",
   "files": [
     "src",
@@ -17,7 +17,8 @@
     "charting",
     "chart",
     "visualization",
-    "svg"
+    "svg",
+    "unit-conversion"
   ],
   "author": "Lars Schumann <larsi.org@gmail.com>",
   "license": "MIT",
