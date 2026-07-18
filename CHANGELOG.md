@@ -19,6 +19,9 @@ All notable changes to this project are documented here. Format loosely follows
   continuous color scale) isn't forced to lose it.
 
 ### Changed
+- The 5 presets with a real conversion now reference a named formula function (e.g.
+  `_temperatureC2F`) instead of an inline anonymous one — reads more like a table of unit
+  conversions, easier to scan than 5 separate `function(v) { return ...; }` literals.
 - Presets and config resolution split out of `core.js`: `d3.easygraph.presets`/`getUnit()` live in
   `units.js` — a small, easygraph-agnostic lookup with no config merging or chart concepts of its
   own — while `_resolveProperty` (folding a preset onto a graph's x/y/color config) moved into
