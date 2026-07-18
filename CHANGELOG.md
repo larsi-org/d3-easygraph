@@ -3,6 +3,14 @@
 All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.0] - 2026-07-18
+
+### Added
+- `d3.easygraph.resolveUnit(config)` and `d3.easygraph.convertUnit(value, presetOrConfig)` —
+  standalone unit-conversion helpers built on the existing preset table, usable without
+  constructing any chart (e.g. for converting/labeling a raw value on a map marker). New
+  `src/d3.easygraph.units.js` module, depending only on `core.js`.
+
 ## [0.3.0] - 2026-07-17
 
 ### Added

@@ -28,6 +28,23 @@ positive number and `container` must resolve to an element — both are checked 
 throwing a clear error instead of failing cryptically later. Every chart has a `graph.destroy()`
 that disconnects its resize observer and tears down its DOM.
 
+## Unit conversion (no chart required)
+
+The same preset table and `m`/`n` linear-conversion coefficients a chart's `x`/`y`/`color` config
+resolve against are also available standalone — no container, no chart construction:
+
+```js
+d3.easygraph.resolveUnit({ preset: "temperatureF" });
+// => { label: "Temperature", unit: "°F", scale: "linear", noTick: false, m: 1.8, n: 32, range: [-10, 110] }
+
+d3.easygraph.convertUnit(20, "temperatureF"); // => 68 (20°C to °F)
+```
+
+`resolveUnit(config)` fills in a preset's (or your own explicit `label`/`unit`/`m`/`n`) blanks
+without mutating `config`. `convertUnit(value, presetOrConfig)` takes either a preset name string
+or a config object and applies its `m`/`n` coefficients: `m * value + n`. Handy for e.g. converting
+a raw value before coloring or labeling a map marker.
+
 ## Usage
 
 d3-easygraph expects `d3` (v7) and [`colorbrewer`](https://www.npmjs.com/package/colorbrewer) to
@@ -85,6 +102,8 @@ included in this repo):
 - `src/d3.easygraph.core.js` — container sizing/resize, SVG/margin/clip/title scaffolding, palette
   handling, number/time axis formatting, unit presets (`d3.easygraph.presets`), and the shared
   `_build()` that each constructor calls with its own defaults and hook set.
+- `src/d3.easygraph.units.js` — `resolveUnit()`/`convertUnit()`, the standalone unit-conversion
+  helpers above; depends only on `core.js`'s preset table, not on any chart family.
 - `src/d3.easygraph.line.js`, `.bars.js`, `.heatmap.js` — one constructor per chart family above,
   each implementing a small `prepareScales?`/`init?`/`domain`/`render`/`resize?`/`destroy?` hook
   interface (only `domain`/`render` are required; `prepareScales` is bars-only, for its band scale;
@@ -97,7 +116,7 @@ npm install
 npm run build
 ```
 
-Bundles and minifies all four source files (via [terser](https://github.com/terser/terser),
+Bundles and minifies all five source files (via [terser](https://github.com/terser/terser),
 concatenated in dependency order — core first) into the single `dist/d3.easygraph.min.js`.
 
 ## Testing
