@@ -28,6 +28,10 @@ positive number and `container` must resolve to an element — both are checked 
 throwing a clear error instead of failing cryptically later. Every chart has a `graph.destroy()`
 that disconnects its resize observer and tears down its DOM.
 
+`label` is optional. A `y`/`color` `preset` supplies one automatically (e.g. `temperatureF` →
+"Temperature"); with no preset and no `label` of your own, the chart's title just renders blank —
+there's no generic placeholder to opt out of.
+
 ## Unit conversion (no chart required)
 
 The same preset table a chart's `x`/`y`/`color` config resolves a `preset` name against is also
