@@ -5,6 +5,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-18
+
 ### Added
 - `d3.easygraph.getUnit(name)` — returns a preset (or the generic `default` fallback, for a
   falsy/unrecognized name) as a complete, ready-to-use `{ label, unit, scale, convert, range }`.
