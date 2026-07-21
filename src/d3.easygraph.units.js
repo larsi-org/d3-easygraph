@@ -4,11 +4,14 @@
 // Copyright (c) 2015, Lars Schumann, larsi.org@gmail.com
 //
 // A small, easygraph-agnostic unit-preset lookup: a static table of physical-quantity unit
-// definitions (label, unit, scale, convert, range) and one function to fetch one by name. No
-// config merging, no chart concepts — just data, reusable well beyond charting (e.g. converting
-// a raw value for a map marker). Chart config resolution (folding a preset, plus a call-site
-// label fallback, onto a graph's x/y/color config) lives in core.js, the only actual consumer
-// that needs it.
+// definitions (label, unit, scale, convert) and one function to fetch one by name. No config
+// merging, no chart concepts — just data, reusable well beyond charting (e.g. converting a raw
+// value for a map marker). Chart config resolution (folding a preset, plus a call-site label
+// fallback, onto a graph's x/y/color config) lives in core.js, the only actual consumer that
+// needs it. Deliberately no default `range` per preset (removed 2026-07) -- a sensible axis
+// range is data-dependent (what a station/sensor actually observes), not a property of the
+// physical quantity itself, so a generic one-size-fits-all range was never the right fit; a
+// chart with no `range` in its `y` config auto-scales from whatever data is currently loaded.
 
 // rounds x to n decimal places (n omitted or 0 rounds to the nearest integer)
 d3.easygraph.round = function(x, n) {
@@ -41,22 +44,22 @@ var _roundedIdentity = _withRounding(_identity);
 // quantity needs no conversion), so getUnit() never needs a second fallback merge to fill gaps
 d3.easygraph.presets = {
   default:          {                             unit: '',          scale: 'linear', convert: _roundedIdentity },
-  pressureHpa:      { label: 'Pressure',          unit: 'hPa',       scale: 'linear', convert: _roundedIdentity,                  range: [ 950, 1050 ] },
-  pressureInhg:     { label: 'Pressure',          unit: 'inHg',      scale: 'linear', convert: _withRounding(_pressureHpa2Inhg),  range: [  28,   31 ] },
-  relativeHumidity: { label: 'Relative Humidity', unit: '%',         scale: 'linear', convert: _roundedIdentity,                  range: [   0,  100 ] },
-  temperatureC:     { label: 'Temperature',       unit: '\xB0C',     scale: 'linear', convert: _roundedIdentity,                  range: [ -25,   45 ] },
-  temperatureF:     { label: 'Temperature',       unit: '\xB0F',     scale: 'linear', convert: _withRounding(_temperatureC2F),    range: [ -10,  110 ] },
-  windSpeed:        { label: 'Wind Speed',        unit: 'm/s',       scale: 'linear', convert: _roundedIdentity,                  range: [   0,   20 ] },
-  windSpeedKmph:    { label: 'Wind Speed',        unit: 'kmph',      scale: 'linear', convert: _withRounding(_windSpeedMs2Kmph),  range: [   0,   80 ] },
-  windSpeedMph:     { label: 'Wind Speed',        unit: 'mph',       scale: 'linear', convert: _withRounding(_windSpeedMs2Mph),   range: [   0,   50 ] },
-  windDirection:    { label: 'Wind Direction',    unit: '\xB0North', scale: 'linear', convert: _roundedIdentity,                  range: [   0,  360 ] },
-  rainFallMm:       { label: 'Rain Fall',         unit: 'mm',        scale: 'linear', convert: _roundedIdentity,                  range: [   0,  100 ] },
-  rainFallInches:   { label: 'Rain Fall',         unit: 'inches',    scale: 'linear', convert: _withRounding(_rainFallMm2Inches), range: [   0,  100 ] },
-  clouds:           { label: 'Clouds',            unit: '\xD710th',  scale: 'linear', convert: _roundedIdentity,                  range: [   0,   10 ] },
-  solarRadiation:   { label: 'Solar Radiation',   unit: 'W/m\xB2',   scale: 'linear', convert: _roundedIdentity,                  range: [   0, 1500 ] },
-  electricVoltage:  { label: 'Voltage',           unit: 'V',         scale: 'linear', convert: _roundedIdentity,                  range: [ 100,  140 ] },
-  electricCurrent:  { label: 'Current',           unit: 'A',         scale: 'linear', convert: _roundedIdentity,                  range: [   0,   10 ] },
-  electricPower:    { label: 'Power',             unit: 'W',         scale: 'linear', convert: _roundedIdentity,                  range: [   0, 1500 ] }
+  clouds:           { label: 'Clouds',            unit: '\xD710th',  scale: 'linear', convert: _roundedIdentity },
+  electricCurrent:  { label: 'Current',           unit: 'A',         scale: 'linear', convert: _roundedIdentity },
+  electricPower:    { label: 'Power',             unit: 'W',         scale: 'linear', convert: _roundedIdentity },
+  electricVoltage:  { label: 'Voltage',           unit: 'V',         scale: 'linear', convert: _roundedIdentity },
+  pressureHpa:      { label: 'Pressure',          unit: 'hPa',       scale: 'linear', convert: _roundedIdentity },
+  pressureInhg:     { label: 'Pressure',          unit: 'inHg',      scale: 'linear', convert: _withRounding(_pressureHpa2Inhg) },
+  rainFallMm:       { label: 'Rain Fall',         unit: 'mm',        scale: 'linear', convert: _roundedIdentity },
+  rainFallInches:   { label: 'Rain Fall',         unit: 'inches',    scale: 'linear', convert: _withRounding(_rainFallMm2Inches) },
+  relativeHumidity: { label: 'Relative Humidity', unit: '%',         scale: 'linear', convert: _roundedIdentity },
+  solarRadiation:   { label: 'Solar Radiation',   unit: 'W/m\xB2',   scale: 'linear', convert: _roundedIdentity },
+  temperatureC:     { label: 'Temperature',       unit: '\xB0C',     scale: 'linear', convert: _roundedIdentity },
+  temperatureF:     { label: 'Temperature',       unit: '\xB0F',     scale: 'linear', convert: _withRounding(_temperatureC2F) },
+  windSpeed:        { label: 'Wind Speed',        unit: 'm/s',       scale: 'linear', convert: _roundedIdentity },
+  windSpeedKmph:    { label: 'Wind Speed',        unit: 'kmph',      scale: 'linear', convert: _withRounding(_windSpeedMs2Kmph) },
+  windSpeedMph:     { label: 'Wind Speed',        unit: 'mph',       scale: 'linear', convert: _withRounding(_windSpeedMs2Mph) },
+  windDirection:    { label: 'Wind Direction',    unit: '\xB0North', scale: 'linear', convert: _roundedIdentity },
 };
 
 // returns the named preset, or presets.default if name is falsy or unrecognized

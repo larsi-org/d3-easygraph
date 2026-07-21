@@ -3,17 +3,24 @@ const path = require('path');
 
 const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/units.html');
 
-test('getUnit returns a preset\'s complete label/unit/scale/convert/range', async ({ page }) => {
+test('getUnit returns a preset\'s complete label/unit/scale/convert', async ({ page }) => {
   await page.goto(FIXTURE);
   const resolved = await page.evaluate(() => {
     var u = d3.easygraph.getUnit('temperatureF');
-    return { label: u.label, unit: u.unit, scale: u.scale, converted: u.convert(0), range: u.range };
+    return { label: u.label, unit: u.unit, scale: u.scale, converted: u.convert(0) };
   });
   expect(resolved.label).toBe('Temperature');
   expect(resolved.unit).toBe('°F');
   expect(resolved.scale).toBe('linear');
   expect(resolved.converted).toBe(32); // 0°C -> 32°F
-  expect(resolved.range).toEqual([-10, 110]);
+});
+
+test('presets have no range property -- a sensible axis range is data-dependent, not a fixed property of the quantity', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const ranges = await page.evaluate(() =>
+    Object.keys(d3.easygraph.presets).map((name) => d3.easygraph.presets[name].range)
+  );
+  expect(ranges.every((r) => r === undefined)).toBe(true);
 });
 
 test('getUnit falls back to the "default" preset for a falsy or unrecognized name', async ({ page }) => {

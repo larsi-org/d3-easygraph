@@ -5,6 +5,13 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Removed
+- `range` from every preset (`d3.easygraph.presets`) and from `getUnit()`'s returned shape — a
+  sensible axis range is data-dependent (what a station/sensor actually observes), not a fixed
+  property of a physical quantity, so a generic one-size-fits-all range was never the right fit.
+  A chart with no `range` of its own in its `x`/`y` config auto-scales from whatever data is
+  currently loaded, same as it always did for the `default` preset (which never had one).
+
 ## [0.4.0] - 2026-07-18
 
 ### Added

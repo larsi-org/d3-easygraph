@@ -56,7 +56,7 @@ test('omitted margin falls back to the default', async ({ page }) => {
   expect(margin).toEqual({ top: 20, right: 20, bottom: 30, left: 50 });
 });
 
-test('a preset fills in label/unit/range onto x/y config', async ({ page }) => {
+test('a preset fills in label/unit onto x/y config, but never a range -- that stays caller-supplied or unset', async ({ page }) => {
   await page.goto(FIXTURE);
   const y = await page.evaluate(() => {
     var g = d3.easygraph.line({ container: '#graph', height: 200, y: { preset: 'temperatureC' } });
@@ -66,7 +66,7 @@ test('a preset fills in label/unit/range onto x/y config', async ({ page }) => {
   });
   expect(y.label).toBe('Temperature');
   expect(y.unit).toBe('°C');
-  expect(y.range).toEqual([-25, 45]);
+  expect(y.range).toBeUndefined();
 });
 
 test('label is optional: no label, no preset, no placeholder text needed -- the title renders blank', async ({ page }) => {
