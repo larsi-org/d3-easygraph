@@ -120,6 +120,8 @@ included in this repo):
   [Horizontal Bars](https://larsi.org/easygraph/h.php),
   [Sensitivity](https://larsi.org/easygraph/data_sensitivity.php) (`colorPerData`)
 - **Heatmap** — [Hourly Data Heat Map](https://larsi.org/easygraph/data_hourly_heatmap.php)
+- **Scatter** — [Weather](https://larsi.org/weather/)'s "Pressure & Wind" tab (`voronoi: true`,
+  `color.clip`, overlaid on a D3-drawn US map)
 
 ## Architecture
 
@@ -129,10 +131,11 @@ included in this repo):
 - `src/d3.easygraph.units.js` — just the unit preset table (`d3.easygraph.presets`) and
   `getUnit(name)`, the standalone lookup above. No config merging, no chart concepts — `core.js` is
   the only thing that folds a resolved preset onto a graph's config, via `getUnit()`.
-- `src/d3.easygraph.line.js`, `.bars.js`, `.heatmap.js` — one constructor per chart family above,
-  each implementing a small `prepareScales?`/`init?`/`domain`/`render`/`resize?`/`destroy?` hook
-  interface (only `domain`/`render` are required; `prepareScales` is bars-only, for its band scale;
-  `destroy` is line-only, to remove its `document.body`-appended crosshair tooltip).
+- `src/d3.easygraph.line.js`, `.bars.js`, `.heatmap.js`, `.scatter.js` — one constructor per chart
+  family above, each implementing a small `prepareScales?`/`init?`/`domain`/`render`/`resize?`/
+  `destroy?` hook interface (only `domain`/`render` are required; `prepareScales` is bars-only, for
+  its band scale; `destroy` is line-only, to remove its `document.body`-appended crosshair
+  tooltip).
 
 ## Building
 
@@ -141,7 +144,7 @@ npm install
 npm run build
 ```
 
-Bundles and minifies all five source files (via [terser](https://github.com/terser/terser),
+Bundles and minifies all six source files (via [terser](https://github.com/terser/terser),
 concatenated in dependency order — core first) into the single `dist/d3.easygraph.min.js`.
 
 ## Testing
