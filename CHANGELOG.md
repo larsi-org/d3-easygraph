@@ -5,6 +5,13 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added
+- `d3.easygraph.scatter(config)` — a new chart family: colored circles at arbitrary
+  `{ x, y, value }` points, colored via `color` (same preset/palette-based scale resolution as
+  `heatmap`'s `color` config). Deliberately geography-agnostic — no projection or map concept
+  of its own; a caller plotting e.g. stations on a map projects lat/lng to pixel x/y itself and
+  overlays `scatter`'s own container on top of a base map it draws separately.
+
 ### Removed
 - `range` from every preset (`d3.easygraph.presets`) and from `getUnit()`'s returned shape — a
   sensible axis range is data-dependent (what a station/sensor actually observes), not a fixed

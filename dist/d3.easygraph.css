@@ -8,5 +8,6 @@ rect.pane{cursor:move;fill:none;pointer-events:all}
 .data-lines{fill:none;stroke-width:1.5px}
 .data-bars{stroke:none;stroke:#333;stroke-width:1.5px}
 .heatmap_cells{shape-rendering:crispEdges}
+.scatter-point{stroke:#333;stroke-width:0.5px}
 line.crosshair-line{stroke:#aaa;stroke-width:1px;stroke-dasharray:4,2;pointer-events:none}
 .easygraph-crosshair-tip{position:absolute;background:rgba(255,255,255,0.92);border:1px solid #ccc;border-radius:4px;padding:4px 8px;pointer-events:none;font-size:12px;white-space:nowrap;z-index:1000}
