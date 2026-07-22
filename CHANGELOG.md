@@ -11,6 +11,12 @@ All notable changes to this project are documented here. Format loosely follows
   `heatmap`'s `color` config). Deliberately geography-agnostic — no projection or map concept
   of its own; a caller plotting e.g. stations on a map projects lat/lng to pixel x/y itself and
   overlays `scatter`'s own container on top of a base map it draws separately.
+- `scatter`'s `voronoi: true` — fills the region closer to a point than any other with that
+  point's own color (`d3.Delaunay`/`.voronoi()`, already part of the full `d3@7` bundle, no new
+  dependency), rendered behind the points. Still pure computational geometry on the given x/y
+  points, so this stays geography-agnostic too. Cells default to semi-transparent
+  (`voronoiOpacity`, `0.6`) so a layer underneath (e.g. a base map) stays visible through the
+  fill.
 
 ### Removed
 - `range` from every preset (`d3.easygraph.presets`) and from `getUnit()`'s returned shape — a
