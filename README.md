@@ -18,11 +18,20 @@ Each chart family has its own constructor, taking only the config that family un
 | Line / area | `d3.easygraph.line(config)` | `lines`, `areas`, `zoom`, `crosshair`, `crosshairThreshold`, `interpolate` | Continuous (time or linear) x axis. Zoom and crosshair can be synced across multiple charts via `d3.easygraph.syncZoom`/`syncCrosshair`. |
 | Bars | `d3.easygraph.bars(config)` | `orientation` (`'v'`\|`'h'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData` | Category axis uses a `d3.scaleBand()`. `orientation` is fixed for a chart's lifetime; `mode` can be toggled live. |
 | Heatmap | `d3.easygraph.heatmap(config)` | `color` (unit/preset config for the color scale) | A grid of colored cells over plain continuous x/y axes. |
-| Scatter | `d3.easygraph.scatter(config)` | `color` (unit/preset config for the color scale), `radius`, `voronoi`, `voronoiOpacity` | Colored circles at arbitrary `{ x, y, value }` points over plain continuous x/y axes. No geography built in — plot pre-projected pixel coordinates (e.g. lat/lng run through your own `d3.geoProjection`) to overlay points on a map you draw yourself. `voronoi: true` fills the region closer to each point than any other with that point's own color (via `d3.Delaunay`/`.voronoi()`, already part of the full `d3@7` bundle) — semi-transparent by default (`voronoiOpacity`, `0.6`) so a layer underneath stays visible. |
+| Scatter | `d3.easygraph.scatter(config)` | `color` (unit/preset config for the color scale), `radius`, `voronoi`, `voronoiOpacity` | Colored circles at arbitrary `{ x, y, value }` points over plain continuous x/y axes. No geography built in — plot pre-projected pixel coordinates (e.g. lat/lng run through your own `d3.geoProjection`) to overlay points on a map you draw yourself. `voronoi: true` fills the region closer to each point than any other with that point's own color (via `d3.Delaunay`/`.voronoi()`, already part of the full `d3@7` bundle) — semi-transparent by default (`voronoiOpacity`, `0.6`) so a layer underneath stays visible. `color`'s domain (like `x`/`y`'s, when data-driven) accepts `clip` — see below. |
 
 Shared config across all four: `container`, `label`, `x`/`y` (`scale`, `unit`, `label`, `noTick`,
-`preset`, `convert`), `height`, `margin`, `colorPalette`, `duration`, `oneYear` (also used by
-heatmaps whose x-axis spans a full year, not just line charts).
+`preset`, `convert`, `clip`), `height`, `margin`, `colorPalette`, `duration`, `oneYear` (also used
+by heatmaps whose x-axis spans a full year, not just line charts).
+
+Any `x`/`y`/`color` config accepts `clip: [loQuantile, hiQuantile]` (e.g. `[0.05, 0.95]`) — when
+that property's domain would otherwise come straight from the data (no explicit `xRange`/`yRange`
+passed to `update()`, or `color`, whose domain is always data-driven), it's built from those
+quantiles instead of the true min/max, so a single extreme outlier doesn't stretch the whole scale
+so far that every other value compresses into one end of it. Omitting `clip` (the default) keeps
+the exact same true-min/max behavior. `color` clamps values past the clipped domain to the
+nearest end color; `x`/`y` don't clamp — an out-of-clip point just draws past the axis edge.
+Bars' value axis always includes zero, so `clip` has no effect there.
 
 `container` accepts a CSS selector string, a DOM element, or a d3 selection. `height` must be a
 positive number and `container` must resolve to an element — both are checked at construction time,

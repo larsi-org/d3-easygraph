@@ -69,6 +69,20 @@ test('a preset fills in label/unit onto x/y config, but never a range -- that st
   expect(y.range).toBeUndefined();
 });
 
+test('_clippedExtent returns the true min/max when no clip is given', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const extent = await page.evaluate(() => d3.easygraph._clippedExtent([0, 10, 20, 30, 1000]));
+  expect(extent).toEqual([0, 1000]);
+});
+
+test('_clippedExtent narrows to the given quantiles when a clip is given', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const extent = await page.evaluate(() => d3.easygraph._clippedExtent([0, 10, 20, 30, 1000], [0, 0.5]));
+  // median of [0,10,20,30,1000] is 20 -- the outlier no longer reaches the upper bound
+  expect(extent[0]).toBe(0);
+  expect(extent[1]).toBe(20);
+});
+
 test('label is optional: no label, no preset, no placeholder text needed -- the title renders blank', async ({ page }) => {
   await page.goto(FIXTURE);
   const title = await page.evaluate(() => {

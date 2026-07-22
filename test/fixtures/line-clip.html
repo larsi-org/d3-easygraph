@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/colorbrewer@1.7.0/index.js"></script>
+<link rel="stylesheet" href="../../dist/d3.easygraph.css">
+<script src="../../dist/d3.easygraph.min.js"></script>
+<style>#wrap { width: 600px; }</style>
+</head>
+<body>
+<div id="wrap"><div id="graph"></div></div>
+<script>
+window.testData = [[
+  { x: 0, y: 0   },
+  { x: 1, y: 10  },
+  { x: 2, y: 20  },
+  { x: 3, y: 30  },
+  { x: 4, y: 40  },
+  { x: 5, y: 50  },
+  { x: 6, y: 60  },
+  { x: 7, y: 70  },
+  { x: 8, y: 80  },
+  { x: 9, y: 1000 }
+]];
+
+window.graph = d3.easygraph.line({
+  container:  "#graph",
+  label:      " ",
+  x:          { scale: "linear" },
+  y:          { scale: "linear", clip: [0, 0.9] },
+  height:     320,
+  margin:     { top: 20, right: 20, bottom: 30, left: 50 },
+  lines:      true
+});
+
+// no yRange -- domain is computed from the data itself, so the clip actually engages
+window.graph.update(window.testData);
+</script>
+</body>
+</html>

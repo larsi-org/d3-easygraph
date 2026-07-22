@@ -17,6 +17,16 @@ All notable changes to this project are documented here. Format loosely follows
   points, so this stays geography-agnostic too. Cells default to semi-transparent
   (`voronoiOpacity`, `0.6`) so a layer underneath (e.g. a base map) stays visible through the
   fill.
+- `clip` on any `x`/`y`/`color` config (e.g. `color: { clip: [0.05, 0.95] }`) — when the domain
+  for that property would otherwise come from the data itself (no explicit `xRange`/`yRange`
+  passed to `update()`, or `color`'s domain, which is always data-driven), it's built from the
+  given quantiles instead of the true min/max. A single extreme outlier no longer stretches the
+  whole scale so far that every other value compresses into one end of it. Omitting `clip` (the
+  default everywhere) keeps the exact same true-min/max behavior as before. `color` clamps
+  values outside the clipped domain to the nearest end color instead of extrapolating past the
+  palette; `x`/`y` don't clamp — a point outside the clip just draws past the axis edge, since
+  clipping an axis is a "zoom to the dense region" choice, not a "hide/relocate this point" one.
+  Bars' value axis always includes zero regardless of data, so `clip` has no effect there.
 
 ### Removed
 - `range` from every preset (`d3.easygraph.presets`) and from `getUnit()`'s returned shape — a

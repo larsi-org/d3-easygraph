@@ -16,12 +16,11 @@ var _curveMap = {
   'cardinal':    d3.curveCardinal
 };
 
-// returns [min, max] across a nested array using acc
-function _nestedExtent(data, acc) {
-  return [
-    d3.min(data, function(a) { return d3.min(a, acc); }),
-    d3.max(data, function(a) { return d3.max(a, acc); })
-  ];
+// flattens a nested array (one series per row) into a single flat array of values via acc
+function _nestedValues(data, acc) {
+  var values = [];
+  data.forEach(function(series) { series.forEach(function(d) { values.push(acc(d)); }); });
+  return values;
 }
 
 d3.easygraph.line = function(config) {
@@ -143,18 +142,21 @@ d3.easygraph.line = function(config) {
       },
 
       domain: function(data, xRange, yRange) {
-        var xDomain = xRange || _nestedExtent(data, function(d) { return d.x; });
+        var xDomain = xRange || d3.easygraph._clippedExtent(_nestedValues(data, function(d) { return d.x; }), graph.x.clip);
 
         var yDomain;
         if (yRange) {
           yDomain = yRange;
         } else if (graph.areas) {
+          // areas' band comes from each point's own precomputed min/max, not a plain value
+          // per point -- clip doesn't have a single value array to work from here, so this
+          // path always uses the true extent regardless of graph.y.clip
           yDomain = [
             d3.min(data, function(a) { return d3.min(a, function(d) { return d.min; }); }),
             d3.max(data, function(a) { return d3.max(a, function(d) { return d.max; }); })
           ];
         } else {
-          yDomain = _nestedExtent(data, function(d) { return d.y; });
+          yDomain = d3.easygraph._clippedExtent(_nestedValues(data, function(d) { return d.y; }), graph.y.clip);
         }
 
         return { x: xDomain, y: yDomain };

@@ -3,6 +3,7 @@ const path = require('path');
 
 const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter.html');
 const VORONOI_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-voronoi.html');
+const CLIP_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-clip.html');
 
 test('renders one point per data item', async ({ page }) => {
   await page.goto(FIXTURE);
@@ -96,4 +97,35 @@ test('cells render semi-transparent so an underlying layer stays visible', async
   );
   expect(Number(opacity)).toBeCloseTo(0.6, 1);
   expect(Number(opacity)).toBeLessThan(1);
+});
+
+test('x/y clip narrows the data-driven domain away from a single outlier point', async ({ page }) => {
+  await page.goto(CLIP_FIXTURE);
+  const domains = await page.evaluate(() => ({
+    x: window.graph.x.$scale.domain(),
+    y: window.graph.y.$scale.domain()
+  }));
+  // fixture's outlier point sits at x=100/y=100, far past every other point (0-8)
+  expect(domains.x[1]).toBeLessThan(50);
+  expect(domains.y[1]).toBeLessThan(50);
+});
+
+test('color clip narrows the domain away from a single outlier value, clamped rather than extrapolated', async ({ page }) => {
+  await page.goto(CLIP_FIXTURE);
+  const result = await page.evaluate(() => {
+    var scale = window.graph.color.$scale;
+    var domain = scale.domain();
+    var domainMax = domain[domain.length - 1];
+    return {
+      domainMax:      domainMax,
+      // fixture's outlier value (1000) is past the clipped domain -- clamp(true) means it
+      // resolves to exactly the same color as the domain's own top edge, not an
+      // extrapolated one past it
+      outlierColor:   scale(1000),
+      domainEdgeColor: scale(domainMax)
+    };
+  });
+  // fixture's outlier value is 1000, far past every other value (0-80)
+  expect(result.domainMax).toBeLessThan(500);
+  expect(result.outlierColor).toBe(result.domainEdgeColor);
 });

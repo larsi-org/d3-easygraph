@@ -21,8 +21,9 @@ d3.easygraph.scatter = function(config) {
 
   return d3.easygraph._build(config, { radius: 4, voronoi: false, voronoiOpacity: 0.6 }, function(graph) {
     function render(data) {
-      var dataMin = d3.min(data, function(d) { return d.value; }),
-          dataMax = d3.max(data, function(d) { return d.value; }),
+      var extent  = d3.easygraph._clippedExtent(data.map(function(d) { return d.value; }), graph.color.clip),
+          dataMin = extent[0],
+          dataMax = extent[1],
           dataDlt = dataMax - dataMin,
           n       = graph.PALETTE_COLORS.length;
 
@@ -62,17 +63,23 @@ d3.easygraph.scatter = function(config) {
 
     return {
       init: function() {
-        graph.color.$scale = d3.scaleLinear().range(graph.PALETTE_COLORS);
+        // clamp(true): a color clip narrows the domain but the palette still has to cover
+        // every point, including the ones outside it -- clamp so those draw as the nearest
+        // end color instead of extrapolating past the palette into an unintended hue
+        graph.color.$scale = d3.scaleLinear().range(graph.PALETTE_COLORS).clamp(true);
         graph.$cellsGroup  = graph.$group.append("g").attr("class", "scatter-cells");
         graph.$pointsGroup = graph.$group.append("g").attr("class", "scatter-points");
       },
 
       // a caller plotting pre-projected pixel coordinates (e.g. a map overlay) always passes
-      // explicit xRange/yRange; this fallback only guards against one that doesn't
+      // explicit xRange/yRange; this fallback only guards against one that doesn't. Unlike
+      // color, x/y are never clamped -- a clip here means "zoom the axis to this range", and
+      // a point outside it should draw past the edge (or get clipped by the chart's own
+      // clip-path), not get dragged back onto it.
       domain: function(data, xRange, yRange) {
         return {
-          x: xRange || d3.extent(data, function(d) { return d.x; }),
-          y: yRange || d3.extent(data, function(d) { return d.y; })
+          x: xRange || d3.easygraph._clippedExtent(data.map(function(d) { return d.x; }), graph.x.clip),
+          y: yRange || d3.easygraph._clippedExtent(data.map(function(d) { return d.y; }), graph.y.clip)
         };
       },
 

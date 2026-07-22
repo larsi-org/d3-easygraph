@@ -17,8 +17,9 @@ d3.easygraph.heatmap = function(config) {
           heatmapCellW = graph.width  / heatmapCols,
           heatmapCellH = graph.height / heatmapRows;
 
-      var dataMin = d3.min(data, function(a) { return d3.min(a); }),
-          dataMax = d3.max(data, function(a) { return d3.max(a); }),
+      var extent  = d3.easygraph._clippedExtent(d3.merge(data), graph.color.clip),
+          dataMin = extent[0],
+          dataMax = extent[1],
           dataDlt = dataMax - dataMin,
           n       = graph.PALETTE_COLORS.length;
 
@@ -46,7 +47,10 @@ d3.easygraph.heatmap = function(config) {
 
     return {
       init: function() {
-        graph.color.$scale = d3.scaleLinear().range(graph.PALETTE_COLORS);
+        // clamp(true): a color clip narrows the domain but the palette still has to cover
+        // every cell, including the ones outside it -- clamp so those draw as the nearest
+        // end color instead of extrapolating past the palette into an unintended hue
+        graph.color.$scale = d3.scaleLinear().range(graph.PALETTE_COLORS).clamp(true);
       },
 
       // both real heatmap pages always pass explicit xRange/yRange; this

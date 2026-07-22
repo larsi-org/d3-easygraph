@@ -28,6 +28,18 @@ d3.easygraph._resolveProperty = function(prop) {
   return prop;
 };
 
+// [min, max] across a flat array of numbers, optionally clipped to the given
+// [loQuantile, hiQuantile] (e.g. [0.05, 0.95]) instead of the true min/max -- a single
+// extreme outlier no longer stretches the whole domain so far that everything else
+// compresses into one end of it. Any x/y/color config accepts a `clip` of this shape;
+// omitting it (the default everywhere) keeps the exact same true-min/max behavior as
+// before this existed.
+d3.easygraph._clippedExtent = function(values, clip) {
+  if (!clip) return d3.extent(values);
+  var sorted = values.slice().sort(function(a, b) { return a - b; });
+  return [d3.quantileSorted(sorted, clip[0]), d3.quantileSorted(sorted, clip[1])];
+};
+
 // accepts a CSS selector string, a DOM element, or a d3 selection; returns an
 // Element or null
 function _resolveContainer(container) {

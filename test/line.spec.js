@@ -2,6 +2,7 @@ const { test, expect } = require('@playwright/test');
 const path = require('path');
 
 const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/line.html');
+const CLIP_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/line-clip.html');
 
 test('renders lines and areas with the right element counts', async ({ page }) => {
   await page.goto(FIXTURE);
@@ -39,6 +40,13 @@ test('zoom then resize keeps $xScaleRef range in sync (regression)', async ({ pa
     window.graph.width
   ]);
   expect(xScaleRefMax).toBe(graphWidth);
+});
+
+test('y clip narrows the data-driven domain away from a single outlier point', async ({ page }) => {
+  await page.goto(CLIP_FIXTURE);
+  const yMax = await page.evaluate(() => window.graph.y.$scale.domain()[1]);
+  // fixture's outlier point is y=1000, far past every other point (0-80)
+  expect(yMax).toBeLessThan(500);
 });
 
 test('destroy() removes the svg and the crosshair tooltip; a later resize does not throw', async ({ page }) => {
