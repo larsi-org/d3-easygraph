@@ -5,6 +5,16 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added
+- `line`/`areas` charts now treat a data point with `y: null` (or, for areas, `min`/`max: null`) as
+  a gap — the line/area breaks into a separate subpath there instead of drawing a straight segment
+  through the missing value. Previously an unset `y` produced malformed (`NaN`) path data, which
+  browsers generally render as a hard stop rather than a resumable gap, silently dropping the rest
+  of the series past the first missing point. A series with no null points renders exactly as
+  before. Lets a caller break a circular quantity (e.g. compass bearing) at its own wraparound
+  points by inserting a `null`-y point there, rather than the line falsely cutting straight across
+  the chart from 359° to 0°.
+
 ## [0.5.0] - 2026-07-23
 
 ### Added

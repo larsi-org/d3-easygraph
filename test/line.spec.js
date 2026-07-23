@@ -3,6 +3,7 @@ const path = require('path');
 
 const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/line.html');
 const CLIP_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/line-clip.html');
+const GAP_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/line-gap.html');
 
 test('renders lines and areas with the right element counts', async ({ page }) => {
   await page.goto(FIXTURE);
@@ -65,4 +66,17 @@ test('destroy() removes the svg and the crosshair tooltip; a later resize does n
   await page.waitForTimeout(200);
 
   expect(errors).toEqual([]);
+});
+
+test('a null-y point breaks the line and area into separate subpaths (gap)', async ({ page }) => {
+  await page.goto(GAP_FIXTURE);
+
+  const [lineD, areaD] = await page.evaluate(() => [
+    document.querySelector('path.data-lines').getAttribute('d'),
+    document.querySelector('path.data-areas').getAttribute('d')
+  ]);
+
+  // one gap among 4 real points -> two subpaths -> 2 "move to" commands
+  expect((lineD.match(/M/g) || []).length).toBe(2);
+  expect((areaD.match(/M/g) || []).length).toBe(2);
 });

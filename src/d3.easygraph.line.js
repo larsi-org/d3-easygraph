@@ -40,14 +40,16 @@ d3.easygraph.line = function(config) {
         _cy = function(d) { return graph.y.$scale(d.y); };
 
         var _curve = _curveMap[graph.interpolate] || d3.curveLinear;
-        graph.$area0 = d3.area().curve(_curve).x(_cx)
+        var _definedLine = function(d) { return d.y != null; };
+        var _definedArea = function(d) { return d.min != null && d.max != null; };
+        graph.$area0 = d3.area().curve(_curve).defined(_definedArea).x(_cx)
           .y0(function(d) { return graph.y.$scale(0); })
           .y1(function(d) { return graph.y.$scale(0); });
-        graph.$area  = d3.area().curve(_curve).x(_cx)
+        graph.$area  = d3.area().curve(_curve).defined(_definedArea).x(_cx)
           .y0(function(d) { return graph.y.$scale(d.min); })
           .y1(function(d) { return graph.y.$scale(d.max); });
-        graph.$line0 = d3.line().curve(_curve).x(_cx).y(function(d) { return graph.y.$scale(0); });
-        graph.$line  = d3.line().curve(_curve).x(_cx).y(_cy);
+        graph.$line0 = d3.line().curve(_curve).defined(_definedLine).x(_cx).y(function(d) { return graph.y.$scale(0); });
+        graph.$line  = d3.line().curve(_curve).defined(_definedLine).x(_cx).y(_cy);
 
         graph.draw = function() {
           graph.$svg.select("g.x.axis").call(graph.x.$axis);
