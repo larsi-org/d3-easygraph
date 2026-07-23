@@ -14,12 +14,44 @@
 // the full d3@7 bundle, no new dependency. Still pure computational geometry on the given x/y
 // points, so this stays geography-agnostic too. Cells render semi-transparent (voronoiOpacity,
 // default 0.6) so anything layered underneath (e.g. a base map) stays visible through the fill.
+//
+// arrows: true draws a directional glyph (shaft + two-line chevron head) on top of a point
+// instead of/alongside its circle, for data where a second, vector-shaped quantity (e.g. wind:
+// speed + direction) needs to overlay a scalar one (e.g. pressure, still driving `value`'s
+// color) at the same position. Only points carrying both `angle` (radians) and `magnitude`
+// (raw units, mapped to pixel length via arrowMinLength/arrowMaxLength) get a glyph -- a point
+// missing either just renders its circle with no arrow, same as any other optional field
+// elsewhere in this library. `angle` is plain trigonometric convention (0 = +x/right,
+// increasing counter-clockwise... but SVG y grows downward, so an unrotated glyph in *screen*
+// terms points right and sweeps clockwise as angle increases) -- a caller with compass-bearing
+// data (0 = north, clockwise) converts via `angle = (bearingDegrees - 90) * Math.PI / 180`.
 
 d3.easygraph.scatter = function(config) {
   config.color = config.color || {};
   d3.easygraph._resolveProperty(config.color);
 
-  return d3.easygraph._build(config, { radius: 4, voronoi: false, voronoiOpacity: 0.6 }, function(graph) {
+  return d3.easygraph._build(config, {
+    radius: 4, voronoi: false, voronoiOpacity: 0.6,
+    arrows: false, arrowColor: '#000', arrowMinLength: 6, arrowMaxLength: 24,
+    arrowHeadLength: 6, arrowHeadAngle: Math.PI / 7
+  }, function(graph) {
+    function arrowPath(lengthScale) {
+      return function(d) {
+        var cx = graph.x.$scale(d.x), cy = graph.y.$scale(d.y);
+        var len  = lengthScale(d.magnitude);
+        var tipX = cx + len * Math.cos(d.angle), tipY = cy + len * Math.sin(d.angle);
+        // barbs splay backward from the tip, straddling the reverse direction by
+        // +-arrowHeadAngle -- the classic two-stroke chevron arrowhead
+        var back = d.angle + Math.PI;
+        var b1X = tipX + graph.arrowHeadLength * Math.cos(back - graph.arrowHeadAngle);
+        var b1Y = tipY + graph.arrowHeadLength * Math.sin(back - graph.arrowHeadAngle);
+        var b2X = tipX + graph.arrowHeadLength * Math.cos(back + graph.arrowHeadAngle);
+        var b2Y = tipY + graph.arrowHeadLength * Math.sin(back + graph.arrowHeadAngle);
+        return "M" + cx + "," + cy + "L" + tipX + "," + tipY +
+               "M" + b1X + "," + b1Y + "L" + tipX + "," + tipY + "L" + b2X + "," + b2Y;
+      };
+    }
+
     function render(data) {
       var extent  = d3.easygraph._clippedExtent(data.map(function(d) { return d.value; }), graph.color.clip),
           dataMin = extent[0],
@@ -59,6 +91,28 @@ d3.easygraph.scatter = function(config) {
         .attr("cy", function(d) { return graph.y.$scale(d.y); })
         .attr("r",  graph.radius)
         .style("fill", function(d) { return graph.color.$scale(d.value); });
+
+      // Arrows live in their own group, appended after the points' group in init() (not on
+      // first render()), so they draw on top of the points regardless of whether arrows gets
+      // toggled on/off after points already exist -- same z-order-stability reasoning as
+      // cells vs. points above, just the opposite end (arrows are the topmost layer, cells
+      // the bottommost).
+      var vectorData = (graph.arrows && data.length)
+        ? data.filter(function(d) { return d.angle != null && d.magnitude != null; })
+        : [];
+      var magnitudes = vectorData.map(function(d) { return d.magnitude; });
+      var lengthScale = d3.scaleLinear()
+        .domain(magnitudes.length ? d3.extent(magnitudes) : [0, 1])
+        .range([graph.arrowMinLength, graph.arrowMaxLength])
+        .clamp(true);
+
+      var arrows = graph.$arrowsGroup.selectAll(".scatter-arrow").data(vectorData);
+      var arrowsEnter = arrows.enter().append("path").attr("class", "scatter-arrow");
+      arrows.exit().remove();
+      arrows = arrowsEnter.merge(arrows);
+      arrows
+        .attr("d", arrowPath(lengthScale))
+        .style("stroke", graph.arrowColor);
     }
 
     return {
@@ -69,6 +123,7 @@ d3.easygraph.scatter = function(config) {
         graph.color.$scale = d3.scaleLinear().range(graph.PALETTE_COLORS).clamp(true);
         graph.$cellsGroup  = graph.$group.append("g").attr("class", "scatter-cells");
         graph.$pointsGroup = graph.$group.append("g").attr("class", "scatter-points");
+        graph.$arrowsGroup = graph.$group.append("g").attr("class", "scatter-arrows");
       },
 
       // a caller plotting pre-projected pixel coordinates (e.g. a map overlay) always passes

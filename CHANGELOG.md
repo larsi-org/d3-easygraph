@@ -5,6 +5,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-23
+
 ### Added
 - `d3.easygraph.scatter(config)` — a new chart family: colored circles at arbitrary
   `{ x, y, value }` points, colored via `color` (same preset/palette-based scale resolution as
@@ -27,6 +29,14 @@ All notable changes to this project are documented here. Format loosely follows
   palette; `x`/`y` don't clamp — a point outside the clip just draws past the axis edge, since
   clipping an axis is a "zoom to the dense region" choice, not a "hide/relocate this point" one.
   Bars' value axis always includes zero regardless of data, so `clip` has no effect there.
+- `scatter`'s `arrows: true` — draws a directional glyph (shaft + two-line chevron head) on top
+  of any point that carries both `angle` (radians, screen convention: 0 = +x/right, increasing
+  clockwise since svg y grows downward) and `magnitude` (raw units, mapped to pixel length via
+  `arrowMinLength`/`arrowMaxLength`, default `[6, 24]`). Lets one data series carry two
+  independent quantities at the same position — a scalar via `value`'s existing color scale,
+  and a vector via the new arrow — matching e.g. a synoptic map's pressure-as-color +
+  wind-as-arrow look. A point missing either field just renders its circle with no arrow, same
+  as any other optional field elsewhere in this library.
 
 ### Removed
 - `range` from every preset (`d3.easygraph.presets`) and from `getUnit()`'s returned shape — a

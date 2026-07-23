@@ -4,6 +4,7 @@ const path = require('path');
 const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter.html');
 const VORONOI_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-voronoi.html');
 const CLIP_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-clip.html');
+const ARROWS_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-arrows.html');
 
 test('renders one point per data item', async ({ page }) => {
   await page.goto(FIXTURE);
@@ -128,4 +129,64 @@ test('color clip narrows the domain away from a single outlier value, clamped ra
   // fixture's outlier value is 1000, far past every other value (0-80)
   expect(result.domainMax).toBeLessThan(500);
   expect(result.outlierColor).toBe(result.domainEdgeColor);
+});
+
+test('arrows defaults to off -- no arrow glyphs rendered', async ({ page }) => {
+  await page.goto(FIXTURE);
+  await expect(page.locator('path.scatter-arrow')).toHaveCount(0);
+});
+
+test('arrows: true renders one glyph per point that has both angle and magnitude, skipping the rest', async ({ page }) => {
+  await page.goto(ARROWS_FIXTURE);
+  // 3 points in the fixture, only 2 carry angle/magnitude
+  await expect(page.locator('circle.scatter-point')).toHaveCount(3);
+  await expect(page.locator('path.scatter-arrow')).toHaveCount(2);
+});
+
+test('arrows render after (on top of, in z-order) points', async ({ page }) => {
+  await page.goto(ARROWS_FIXTURE);
+  const arrowsAfterPoints = await page.evaluate(() => {
+    var pointsGroup = document.querySelector('g.scatter-points');
+    var arrowsGroup = document.querySelector('g.scatter-arrows');
+    return !!(pointsGroup && arrowsGroup &&
+      (pointsGroup.compareDocumentPosition(arrowsGroup) & Node.DOCUMENT_POSITION_FOLLOWING));
+  });
+  expect(arrowsAfterPoints).toBe(true);
+});
+
+test('an angle=0 arrow points along +x (screen right) from its own point', async ({ page }) => {
+  await page.goto(ARROWS_FIXTURE);
+  const shape = await page.evaluate(() => {
+    var d = document.querySelectorAll('path.scatter-arrow')[0].getAttribute('d');
+    // "M{cx},{cy}L{tipX},{tipY}M..." -- pull the shaft's start/end points back out
+    var m = d.match(/^M([\d.\-]+),([\d.\-]+)L([\d.\-]+),([\d.\-]+)/);
+    return { cx: +m[1], cy: +m[2], tipX: +m[3], tipY: +m[4] };
+  });
+  expect(shape.tipX).toBeGreaterThan(shape.cx);
+  expect(shape.tipY).toBeCloseTo(shape.cy, 0);
+});
+
+test('an angle=PI/2 arrow points along +y (screen down) from its own point', async ({ page }) => {
+  await page.goto(ARROWS_FIXTURE);
+  const shape = await page.evaluate(() => {
+    var d = document.querySelectorAll('path.scatter-arrow')[1].getAttribute('d');
+    var m = d.match(/^M([\d.\-]+),([\d.\-]+)L([\d.\-]+),([\d.\-]+)/);
+    return { cx: +m[1], cy: +m[2], tipX: +m[3], tipY: +m[4] };
+  });
+  expect(shape.tipY).toBeGreaterThan(shape.cy);
+  expect(shape.tipX).toBeCloseTo(shape.cx, 0);
+});
+
+test('magnitude scales arrow shaft length -- a bigger magnitude draws a longer shaft', async ({ page }) => {
+  await page.goto(ARROWS_FIXTURE);
+  const lengths = await page.evaluate(() => {
+    return [...document.querySelectorAll('path.scatter-arrow')].map((el) => {
+      var d = el.getAttribute('d');
+      var m = d.match(/^M([\d.\-]+),([\d.\-]+)L([\d.\-]+),([\d.\-]+)/);
+      var cx = +m[1], cy = +m[2], tipX = +m[3], tipY = +m[4];
+      return Math.hypot(tipX - cx, tipY - cy);
+    });
+  });
+  // fixture's first point has magnitude 5, second has magnitude 20
+  expect(lengths[1]).toBeGreaterThan(lengths[0]);
 });
