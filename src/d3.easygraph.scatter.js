@@ -35,20 +35,23 @@
 // user actually zooms in for labels to appear past that point.
 //
 // graph.rescale(k): for a caller layering an external SVG-transform zoom on top (e.g. a
-// zoomable map background) -- shrinks point radius, arrow length/head, and label font size (and
-// offset) by 1/k so they stay a constant on-screen size instead of growing with the zoom
-// transform, and re-evaluates labelMinZoom against the new k. Re-renders graph._lastData
-// (already tracked by core.js's update() for the resize-reflow case) rather than needing the
-// caller to keep its own copy of the current data just to pass back in.
+// zoomable map background) -- shrinks every on-screen size (point radius and stroke-width,
+// arrow length/head/stroke-width, label font size and offset) by 1/k so they stay constant
+// instead of growing with the zoom transform, and re-evaluates labelMinZoom against the new k.
+// Stroke-width matters as much as radius/length here: left unscaled (e.g. a plain CSS rule), a
+// high enough k inflates it past the already-shrunk radius/length, and a point or arrow
+// collapses into a solid blob -- exactly the same failure mode fixed sizes would have. Re-renders
+// graph._lastData (already tracked by core.js's update() for the resize-reflow case) rather than
+// needing the caller to keep its own copy of the current data just to pass back in.
 
 d3.easygraph.scatter = function(config) {
   config.color = config.color || {};
   d3.easygraph._resolveProperty(config.color);
 
   return d3.easygraph._build(config, {
-    radius: 4, voronoi: false, voronoiOpacity: 0.6,
-    arrows: false, arrowColor: '#000', arrowMinLength: 6, arrowMaxLength: 24,
-    arrowHeadLength: 6, arrowHeadAngle: Math.PI / 7,
+    radius: 4, pointStrokeWidth: 0.5, voronoi: false, voronoiOpacity: 0.6,
+    arrows: false, arrowColor: '#000', arrowStrokeWidth: 1.5,
+    arrowMinLength: 6, arrowMaxLength: 24, arrowHeadLength: 6, arrowHeadAngle: Math.PI / 7,
     labels: false, labelSize: 10, labelOffset: 8, labelMinZoom: 1
   }, function(graph) {
     function arrowPath(lengthScale, headLength) {
@@ -115,7 +118,8 @@ d3.easygraph.scatter = function(config) {
         .attr("cx", function(d) { return graph.x.$scale(d.x); })
         .attr("cy", function(d) { return graph.y.$scale(d.y); })
         .attr("r",  graph.radius / k)
-        .style("fill", function(d) { return graph.color.$scale(d.value); });
+        .style("fill", function(d) { return graph.color.$scale(d.value); })
+        .style("stroke-width", (graph.pointStrokeWidth / k) + "px");
 
       // Arrows live in their own group, appended after the points' group in init() (not on
       // first render()), so they draw on top of the points regardless of whether arrows gets
@@ -137,7 +141,8 @@ d3.easygraph.scatter = function(config) {
       arrows = arrowsEnter.merge(arrows);
       arrows
         .attr("d", arrowPath(lengthScale, graph.arrowHeadLength / k))
-        .style("stroke", graph.arrowColor);
+        .style("stroke", graph.arrowColor)
+        .style("stroke-width", (graph.arrowStrokeWidth / k) + "px");
 
       // Labels live in their own group, appended after arrows in init() (not on first
       // render()), so they draw on top of everything else regardless of what else gets

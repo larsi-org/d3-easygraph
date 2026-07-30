@@ -1,4 +1,7 @@
 /* d3.easygraph.css */
+/* .scatter-point/.scatter-arrow stroke-width is set inline by scatter.js's render(), not here
+   -- it has to divide by the current zoom factor (graph.rescale()) to stay a constant on-screen
+   size, which a static CSS rule can't do. */
 rect.pane{cursor:move;fill:none;pointer-events:all}
 #title{text-anchor:middle;font-size:16px;fill:#333}
 .tick{font-size:12px}
@@ -8,9 +11,9 @@ rect.pane{cursor:move;fill:none;pointer-events:all}
 .data-lines{fill:none;stroke-width:1.5px}
 .data-bars{stroke:none;stroke:#333;stroke-width:1.5px}
 .heatmap_cells{shape-rendering:crispEdges}
-.scatter-point{stroke:#333;stroke-width:0.5px}
+.scatter-point{stroke:#333}
 .scatter-cell{stroke:none}
-.scatter-arrow{fill:none;stroke-width:1.5px;stroke-linecap:round}
+.scatter-arrow{fill:none;stroke-linecap:round}
 .scatter-label{fill:#333;font-family:sans-serif;pointer-events:none}
 line.crosshair-line{stroke:#aaa;stroke-width:1px;stroke-dasharray:4,2;pointer-events:none}
 .easygraph-crosshair-tip{position:absolute;background:rgba(255,255,255,0.92);border:1px solid #ccc;border-radius:4px;padding:4px 8px;pointer-events:none;font-size:12px;white-space:nowrap;z-index:1000}

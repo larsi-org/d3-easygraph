@@ -288,3 +288,27 @@ test('labelMinZoom hides labels below the threshold and shows them once it\'s re
   expect(belowThreshold).toBe(0);
   expect(atThreshold).toBe(2);
 });
+
+test('rescale(k) shrinks point stroke-width by 1/k too, not just radius', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const before = await page.evaluate(() => document.querySelector('circle.scatter-point').style.strokeWidth);
+  const after = await page.evaluate(() => {
+    window.graph.rescale(2);
+    return document.querySelector('circle.scatter-point').style.strokeWidth;
+  });
+  // default pointStrokeWidth is 0.5
+  expect(before).toBe('0.5px');
+  expect(after).toBe('0.25px');
+});
+
+test('rescale(k) shrinks arrow stroke-width by 1/k too, not just shaft length', async ({ page }) => {
+  await page.goto(ARROWS_FIXTURE);
+  const before = await page.evaluate(() => document.querySelector('path.scatter-arrow').style.strokeWidth);
+  const after = await page.evaluate(() => {
+    window.graph.rescale(2);
+    return document.querySelector('path.scatter-arrow').style.strokeWidth;
+  });
+  // default arrowStrokeWidth is 1.5
+  expect(before).toBe('1.5px');
+  expect(after).toBe('0.75px');
+});

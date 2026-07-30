@@ -13,12 +13,14 @@ All notable changes to this project are documented here. Format loosely follows
   a full US-wide map) — pass a higher `labelMinZoom` and labels appear only once `rescale(k)` is
   called with a high enough `k` as the user zooms in. `rescale(k)` shrinks label font size (and
   offset) by `1/k` too, same as point radius and arrow length below.
-- `scatter` gains `graph.rescale(k)`: shrinks point radius and arrow length/head by `1/k` and
-  re-renders. For a caller layering its own SVG-transform zoom on top of a scatter overlay (e.g. a
-  zoomable map background) — without this, points and arrows would grow along with the zoom
-  transform instead of staying a constant size on screen the way map markers normally do. Reuses
-  `graph._lastData` (already tracked by `update()`) rather than requiring the caller to keep its
-  own copy of the current data just to pass back in.
+- `scatter` gains `graph.rescale(k)`: shrinks point radius/stroke-width and arrow
+  length/head/stroke-width by `1/k` and re-renders. For a caller layering its own SVG-transform
+  zoom on top of a scatter overlay (e.g. a zoomable map background) — without this, points and
+  arrows would grow along with the zoom transform instead of staying a constant size on screen
+  the way map markers normally do. Stroke-width matters as much as radius/length here: left
+  unscaled, a high enough `k` inflates it past the already-shrunk radius/length and a point or
+  arrow collapses into a solid blob. Reuses `graph._lastData` (already tracked by `update()`)
+  rather than requiring the caller to keep its own copy of the current data just to pass back in.
 - `scatter` accepts a fixed `color.domain: [min, max]` (e.g. altitude in feet) that beats out the
   usual per-render extent/clip computed from that render's own data. Previously a color scale was
   always data-driven (true min/max, or a percentile `clip` of it), which for something like
