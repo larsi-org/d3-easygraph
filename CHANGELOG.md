@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- `scatter` gains `graph.rescale(k)`: shrinks point radius and arrow length/head by `1/k` and
+  re-renders. For a caller layering its own SVG-transform zoom on top of a scatter overlay (e.g. a
+  zoomable map background) — without this, points and arrows would grow along with the zoom
+  transform instead of staying a constant size on screen the way map markers normally do. Reuses
+  `graph._lastData` (already tracked by `update()`) rather than requiring the caller to keep its
+  own copy of the current data just to pass back in.
 - `scatter` accepts a fixed `color.domain: [min, max]` (e.g. altitude in feet) that beats out the
   usual per-render extent/clip computed from that render's own data. Previously a color scale was
   always data-driven (true min/max, or a percentile `clip` of it), which for something like

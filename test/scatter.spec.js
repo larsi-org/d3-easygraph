@@ -201,3 +201,43 @@ test('magnitude scales arrow shaft length -- a bigger magnitude draws a longer s
   // fixture's first point has magnitude 5, second has magnitude 20
   expect(lengths[1]).toBeGreaterThan(lengths[0]);
 });
+
+test('rescale(k) shrinks point radius by 1/k, for a caller layering its own zoom transform', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const before = await page.evaluate(() => +document.querySelector('circle.scatter-point').getAttribute('r'));
+  const after = await page.evaluate(() => {
+    window.graph.rescale(2);
+    return +document.querySelector('circle.scatter-point').getAttribute('r');
+  });
+  // fixture uses the default radius (4) -- rescale(2) should halve it
+  expect(before).toBe(4);
+  expect(after).toBe(2);
+});
+
+test('rescale(1) (or never calling it) leaves radius at its normal, unscaled size', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    window.graph.rescale(2);
+    window.graph.rescale(1);
+    return +document.querySelector('circle.scatter-point').getAttribute('r');
+  });
+  expect(r).toBe(4);
+});
+
+test('rescale(k) shrinks arrow shaft length by 1/k too', async ({ page }) => {
+  await page.goto(ARROWS_FIXTURE);
+  function shaftLength() {
+    var d = document.querySelector('path.scatter-arrow').getAttribute('d');
+    var m = d.match(/^M([\d.\-]+),([\d.\-]+)L([\d.\-]+),([\d.\-]+)/);
+    return Math.hypot(+m[3] - +m[1], +m[4] - +m[2]);
+  }
+  const before = await page.evaluate(shaftLength);
+  const after = await page.evaluate(() => {
+    window.graph.rescale(2);
+    return document.querySelector('path.scatter-arrow').getAttribute('d');
+  }).then((d) => {
+    var m = d.match(/^M([\d.\-]+),([\d.\-]+)L([\d.\-]+),([\d.\-]+)/);
+    return Math.hypot(+m[3] - +m[1], +m[4] - +m[2]);
+  });
+  expect(after).toBeCloseTo(before / 2, 5);
+});
