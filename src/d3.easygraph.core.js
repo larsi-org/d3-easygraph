@@ -135,17 +135,21 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     x:            {},
     y:            {},
     colorPalette: 'D3_category10',
+    colorClasses: null, // request a specific class count (e.g. 4) from a colorbrewer
+                         // palette instead of the largest available -- ignored for the
+                         // D3_category*/LS_* palettes above, which aren't classed data
     duration:     500,
     oneYear:      false
   });
 
   var REVERSE_SUFFIX = "_reversed";
-  if (graph.colorPalette.endsWith(REVERSE_SUFFIX)) {
-    graph.PALETTE_COLORS = graph.colorbrewerPalettes[graph.colorPalette.slice(0, -REVERSE_SUFFIX.length)].slice(0);
-    graph.PALETTE_COLORS.reverse();
-  } else {
-    graph.PALETTE_COLORS = graph.colorbrewerPalettes[graph.colorPalette].slice(0);
-  }
+  var reversedPalette = graph.colorPalette.endsWith(REVERSE_SUFFIX);
+  var paletteName = reversedPalette ? graph.colorPalette.slice(0, -REVERSE_SUFFIX.length) : graph.colorPalette;
+
+  graph.PALETTE_COLORS = (graph.colorClasses && colorbrewer[paletteName] && colorbrewer[paletteName][graph.colorClasses])
+    ? colorbrewer[paletteName][graph.colorClasses].slice(0)
+    : graph.colorbrewerPalettes[paletteName].slice(0);
+  if (reversedPalette) graph.PALETTE_COLORS.reverse();
 
   d3.easygraph._resolveProperty(graph.x);
   d3.easygraph._resolveProperty(graph.y);

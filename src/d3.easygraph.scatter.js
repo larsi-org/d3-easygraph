@@ -43,6 +43,14 @@
 // collapses into a solid blob -- exactly the same failure mode fixed sizes would have. Re-renders
 // graph._lastData (already tracked by core.js's update() for the resize-reflow case) rather than
 // needing the caller to keep its own copy of the current data just to pass back in.
+//
+// color.quantize: true swaps the usual continuous color gradient for PALETTE_COLORS.length
+// discrete, equal-width bands over the domain -- for data where a handful of clearly separated
+// ranges reads better than a smooth interpolation (e.g. aircraft altitude: low/climbing bands
+// vs. a cruise band, rather than every altitude getting its own subtly different shade). Pair
+// with core.js's colorClasses to pick how many colors come out of a colorbrewer palette (which
+// otherwise always resolves to its largest available class count) -- e.g. colorPalette: "Blues",
+// colorClasses: 4 for four bands from light to dark.
 
 d3.easygraph.scatter = function(config) {
   config.color = config.color || {};
@@ -87,7 +95,15 @@ d3.easygraph.scatter = function(config) {
           dataDlt = dataMax - dataMin,
           n       = graph.PALETTE_COLORS.length;
 
-      graph.color.$scale.domain(d3.range(n).map(function(i) { return dataMin + i * dataDlt / (n - 1); }));
+      // color.quantize: true (see init() below) uses a d3.scaleQuantize instead of the
+      // usual continuous scaleLinear -- its domain is just the two-element [min, max], not
+      // n evenly-spaced stops, since it divides that range into PALETTE_COLORS.length
+      // equal-width bands on its own.
+      if (graph.color.quantize) {
+        graph.color.$scale.domain([dataMin, dataMax]);
+      } else {
+        graph.color.$scale.domain(d3.range(n).map(function(i) { return dataMin + i * dataDlt / (n - 1); }));
+      }
 
       // Cells live in their own group, appended before the points' group in init() (not on
       // first render()), so z-order (cells behind points) stays correct regardless of
@@ -175,8 +191,15 @@ d3.easygraph.scatter = function(config) {
       init: function() {
         // clamp(true): a color clip narrows the domain but the palette still has to cover
         // every point, including the ones outside it -- clamp so those draw as the nearest
-        // end color instead of extrapolating past the palette into an unintended hue
-        graph.color.$scale = d3.scaleLinear().range(graph.PALETTE_COLORS).clamp(true);
+        // end color instead of extrapolating past the palette into an unintended hue.
+        // color.quantize: true swaps this for a quantize scale -- PALETTE_COLORS.length
+        // discrete, equal-width color bands over the domain (e.g. altitude in clearly
+        // separated bands) instead of one continuous gradient between them. A quantize
+        // scale has no clamp() of its own to call -- values outside its domain still map
+        // to the nearest end band by definition, same effect as clamp(true) above.
+        graph.color.$scale = graph.color.quantize
+          ? d3.scaleQuantize().range(graph.PALETTE_COLORS)
+          : d3.scaleLinear().range(graph.PALETTE_COLORS).clamp(true);
         graph.$cellsGroup  = graph.$group.append("g").attr("class", "scatter-cells");
         graph.$pointsGroup = graph.$group.append("g").attr("class", "scatter-points");
         graph.$arrowsGroup = graph.$group.append("g").attr("class", "scatter-arrows");

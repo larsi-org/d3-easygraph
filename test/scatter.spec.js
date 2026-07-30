@@ -5,6 +5,7 @@ const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter.html');
 const VORONOI_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-voronoi.html');
 const CLIP_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-clip.html');
 const COLOR_DOMAIN_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-color-domain.html');
+const QUANTIZE_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-quantize.html');
 const ARROWS_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-arrows.html');
 const LABELS_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-labels.html');
 const LABELS_MINZOOM_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-labels-minzoom.html');
@@ -142,6 +143,24 @@ test('color.domain fixes the scale to an explicit range, ignoring both the data 
   // data or the clip won out instead of the fixed domain, this would be nowhere near 0-40000
   expect(first).toBe(0);
   expect(last).toBe(40000);
+});
+
+test('color.quantize: true buckets points into PALETTE_COLORS.length discrete color bands, not a continuous gradient', async ({ page }) => {
+  await page.goto(QUANTIZE_FIXTURE);
+  const fills = await page.evaluate(() =>
+    [...document.querySelectorAll('circle.scatter-point')].map((c) => getComputedStyle(c).fill)
+  );
+  // 5 points across 4 bands (colorClasses: 4) -- exactly 4 distinct colors, not 5
+  expect(new Set(fills).size).toBe(4);
+  // the two points in the same 30-40k band (32000 and 38000) get the identical color, not
+  // two subtly different shades the way a continuous gradient would produce
+  expect(fills[3]).toBe(fills[4]);
+});
+
+test('colorClasses picks a specific class count from a colorbrewer palette instead of its largest available', async ({ page }) => {
+  await page.goto(QUANTIZE_FIXTURE);
+  const paletteLength = await page.evaluate(() => window.graph.PALETTE_COLORS.length);
+  expect(paletteLength).toBe(4);
 });
 
 test('arrows defaults to off -- no arrow glyphs rendered', async ({ page }) => {

@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- `scatter` accepts `color.quantize: true`, swapping the usual continuous color gradient for
+  `PALETTE_COLORS.length` discrete, equal-width bands over the domain — for data where a handful
+  of clearly separated ranges reads better than a smooth interpolation (e.g. aircraft altitude:
+  a low/climbing band vs. a distinct cruise band, rather than every altitude getting its own
+  subtly different shade). Pairs with the new core `colorClasses` config (any chart family, not
+  scatter-specific) to pick a specific class count out of a colorbrewer palette — which otherwise
+  always resolves to its largest available class count — e.g. `colorPalette: "Blues",
+  colorClasses: 4` for four bands from light to dark.
 - `scatter` accepts `labels: true` to draw each point's `label` (a string) offset above-right of
   its circle — same optional-field pattern as `arrows`, a point missing `label` just renders
   without one. `labelMinZoom` (default 1, i.e. always on) hides every label below that zoom
