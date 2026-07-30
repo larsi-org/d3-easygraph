@@ -4,6 +4,7 @@ const path = require('path');
 const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter.html');
 const VORONOI_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-voronoi.html');
 const CLIP_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-clip.html');
+const COLOR_DOMAIN_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-color-domain.html');
 const ARROWS_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-arrows.html');
 
 test('renders one point per data item', async ({ page }) => {
@@ -129,6 +130,16 @@ test('color clip narrows the domain away from a single outlier value, clamped ra
   // fixture's outlier value is 1000, far past every other value (0-80)
   expect(result.domainMax).toBeLessThan(500);
   expect(result.outlierColor).toBe(result.domainEdgeColor);
+});
+
+test('color.domain fixes the scale to an explicit range, ignoring both the data and clip', async ({ page }) => {
+  await page.goto(COLOR_DOMAIN_FIXTURE);
+  const domain = await page.evaluate(() => window.graph.color.$scale.domain());
+  const first = domain[0], last = domain[domain.length - 1];
+  // fixture's data values are all 40-60, and clip is set alongside domain -- if either the
+  // data or the clip won out instead of the fixed domain, this would be nowhere near 0-40000
+  expect(first).toBe(0);
+  expect(last).toBe(40000);
 });
 
 test('arrows defaults to off -- no arrow glyphs rendered', async ({ page }) => {

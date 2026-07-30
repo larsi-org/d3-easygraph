@@ -53,7 +53,11 @@ d3.easygraph.scatter = function(config) {
     }
 
     function render(data) {
-      var extent  = d3.easygraph._clippedExtent(data.map(function(d) { return d.value; }), graph.color.clip),
+      // color.domain: true, [min, max] (e.g. altitude in feet) beats out this call's own
+      // data -- clip is meaningless alongside it and ignored, since there's no data-driven
+      // extent left to clip. Omit domain (the default) for the usual per-render extent/clip
+      // behavior.
+      var extent  = graph.color.domain || d3.easygraph._clippedExtent(data.map(function(d) { return d.value; }), graph.color.clip),
           dataMin = extent[0],
           dataMax = extent[1],
           dataDlt = dataMax - dataMin,

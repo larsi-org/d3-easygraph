@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- `scatter` accepts a fixed `color.domain: [min, max]` (e.g. altitude in feet) that beats out the
+  usual per-render extent/clip computed from that render's own data. Previously a color scale was
+  always data-driven (true min/max, or a percentile `clip` of it), which for something like
+  altitude meant the color mapping shifted between renders as the current set of points changed —
+  the same value could read as light blue in one snapshot and dark blue in the next. `clip` is
+  ignored when `domain` is set, since there's no data-driven extent left to clip.
 - `line`/`areas` charts now treat a data point with `y: null` (or, for areas, `min`/`max: null`) as
   a gap — the line/area breaks into a separate subpath there instead of drawing a straight segment
   through the missing value. Previously an unset `y` produced malformed (`NaN`) path data, which
