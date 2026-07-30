@@ -26,9 +26,18 @@
 // terms points right and sweeps clockwise as angle increases) -- a caller with compass-bearing
 // data (0 = north, clockwise) converts via `angle = (bearingDegrees - 90) * Math.PI / 180`.
 //
+// labels: true draws each point's `label` (a string) offset above-right of its circle -- same
+// optional-field pattern as arrows: a point missing `label` just renders without one. Meant for
+// a caller with too many points to label all of them usefully at once (e.g. a full US-wide
+// map) -- labelMinZoom (default 1, i.e. always on) hides every label below that zoom factor
+// entirely, rather than rendering an unreadable wall of overlapping text at the zoomed-out
+// default view; a caller passes a higher labelMinZoom and only calls graph.rescale(k) as the
+// user actually zooms in for labels to appear past that point.
+//
 // graph.rescale(k): for a caller layering an external SVG-transform zoom on top (e.g. a
-// zoomable map background) -- shrinks point radius and arrow length/head by 1/k so they stay
-// a constant on-screen size instead of growing with the zoom transform. Re-renders graph._lastData
+// zoomable map background) -- shrinks point radius, arrow length/head, and label font size (and
+// offset) by 1/k so they stay a constant on-screen size instead of growing with the zoom
+// transform, and re-evaluates labelMinZoom against the new k. Re-renders graph._lastData
 // (already tracked by core.js's update() for the resize-reflow case) rather than needing the
 // caller to keep its own copy of the current data just to pass back in.
 
@@ -39,7 +48,8 @@ d3.easygraph.scatter = function(config) {
   return d3.easygraph._build(config, {
     radius: 4, voronoi: false, voronoiOpacity: 0.6,
     arrows: false, arrowColor: '#000', arrowMinLength: 6, arrowMaxLength: 24,
-    arrowHeadLength: 6, arrowHeadAngle: Math.PI / 7
+    arrowHeadLength: 6, arrowHeadAngle: Math.PI / 7,
+    labels: false, labelSize: 10, labelOffset: 8, labelMinZoom: 1
   }, function(graph) {
     function arrowPath(lengthScale, headLength) {
       return function(d) {
@@ -128,6 +138,25 @@ d3.easygraph.scatter = function(config) {
       arrows
         .attr("d", arrowPath(lengthScale, graph.arrowHeadLength / k))
         .style("stroke", graph.arrowColor);
+
+      // Labels live in their own group, appended after arrows in init() (not on first
+      // render()), so they draw on top of everything else regardless of what else gets
+      // toggled on/off after points already exist -- same z-order-stability reasoning as
+      // cells/points/arrows above.
+      var labelData = (graph.labels && k >= graph.labelMinZoom && data.length)
+        ? data.filter(function(d) { return d.label != null; })
+        : [];
+      var offset = graph.labelOffset / k;
+
+      var labels = graph.$labelsGroup.selectAll(".scatter-label").data(labelData);
+      var labelsEnter = labels.enter().append("text").attr("class", "scatter-label");
+      labels.exit().remove();
+      labels = labelsEnter.merge(labels);
+      labels
+        .attr("x", function(d) { return graph.x.$scale(d.x) + offset; })
+        .attr("y", function(d) { return graph.y.$scale(d.y) - offset; })
+        .style("font-size", (graph.labelSize / k) + "px")
+        .text(function(d) { return d.label; });
     }
 
     // See this file's own header comment for what this is and why it re-renders
@@ -146,6 +175,7 @@ d3.easygraph.scatter = function(config) {
         graph.$cellsGroup  = graph.$group.append("g").attr("class", "scatter-cells");
         graph.$pointsGroup = graph.$group.append("g").attr("class", "scatter-points");
         graph.$arrowsGroup = graph.$group.append("g").attr("class", "scatter-arrows");
+        graph.$labelsGroup = graph.$group.append("g").attr("class", "scatter-labels");
       },
 
       // a caller plotting pre-projected pixel coordinates (e.g. a map overlay) always passes

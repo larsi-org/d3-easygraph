@@ -6,6 +6,8 @@ const VORONOI_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-voron
 const CLIP_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-clip.html');
 const COLOR_DOMAIN_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-color-domain.html');
 const ARROWS_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-arrows.html');
+const LABELS_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-labels.html');
+const LABELS_MINZOOM_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatter-labels-minzoom.html');
 
 test('renders one point per data item', async ({ page }) => {
   await page.goto(FIXTURE);
@@ -240,4 +242,49 @@ test('rescale(k) shrinks arrow shaft length by 1/k too', async ({ page }) => {
     return Math.hypot(+m[3] - +m[1], +m[4] - +m[2]);
   });
   expect(after).toBeCloseTo(before / 2, 5);
+});
+
+test('labels defaults to off -- no label text rendered', async ({ page }) => {
+  await page.goto(FIXTURE);
+  await expect(page.locator('text.scatter-label')).toHaveCount(0);
+});
+
+test('labels: true renders one text per point that has a label, skipping the rest', async ({ page }) => {
+  await page.goto(LABELS_FIXTURE);
+  const texts = await page.evaluate(() =>
+    [...document.querySelectorAll('text.scatter-label')].map((el) => el.textContent)
+  );
+  // fixture has 3 points -- 2 with a label ("AAA", "BBB"), 1 without
+  expect(texts.sort()).toEqual(['AAA', 'BBB']);
+});
+
+test('rescale(k) shrinks label font size by 1/k', async ({ page }) => {
+  await page.goto(LABELS_FIXTURE);
+  const before = await page.evaluate(() =>
+    document.querySelector('text.scatter-label').style.fontSize
+  );
+  const after = await page.evaluate(() => {
+    window.graph.rescale(2);
+    return document.querySelector('text.scatter-label').style.fontSize;
+  });
+  // fixture sets labelSize: 10
+  expect(before).toBe('10px');
+  expect(after).toBe('5px');
+});
+
+test('labelMinZoom hides labels below the threshold and shows them once it\'s reached', async ({ page }) => {
+  await page.goto(LABELS_MINZOOM_FIXTURE);
+  const atDefaultZoom = await page.locator('text.scatter-label').count();
+  const belowThreshold = await page.evaluate(() => {
+    window.graph.rescale(2.9);
+    return document.querySelectorAll('text.scatter-label').length;
+  });
+  const atThreshold = await page.evaluate(() => {
+    window.graph.rescale(3);
+    return document.querySelectorAll('text.scatter-label').length;
+  });
+  // fixture sets labelMinZoom: 3; default zoom (k=1, never having called rescale) is below it
+  expect(atDefaultZoom).toBe(0);
+  expect(belowThreshold).toBe(0);
+  expect(atThreshold).toBe(2);
 });

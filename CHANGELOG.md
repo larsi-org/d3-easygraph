@@ -6,6 +6,13 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- `scatter` accepts `labels: true` to draw each point's `label` (a string) offset above-right of
+  its circle — same optional-field pattern as `arrows`, a point missing `label` just renders
+  without one. `labelMinZoom` (default 1, i.e. always on) hides every label below that zoom
+  factor entirely, for a caller with too many points to label all of them usefully at once (e.g.
+  a full US-wide map) — pass a higher `labelMinZoom` and labels appear only once `rescale(k)` is
+  called with a high enough `k` as the user zooms in. `rescale(k)` shrinks label font size (and
+  offset) by `1/k` too, same as point radius and arrow length below.
 - `scatter` gains `graph.rescale(k)`: shrinks point radius and arrow length/head by `1/k` and
   re-renders. For a caller layering its own SVG-transform zoom on top of a scatter overlay (e.g. a
   zoomable map background) — without this, points and arrows would grow along with the zoom
