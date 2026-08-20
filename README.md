@@ -95,6 +95,23 @@ you've already named here. `d3.easygraph.colorbrewerPalettes` (the full resolved
 [colors]}` map `resolvePalette` reads from) is public too, for a caller that wants to list every
 available palette name (see the [Colorbrewer demo page](https://larsi.org/graphics/colorbrewer/)).
 
+`resolvePalette`/`colorScale` are both name-based lookups — for a caller that instead needs an
+arbitrary, caller-chosen *count* of colors with no natural name (a polygon's side count, an IFS's
+transform count), `categoricalPalette(count)` generates one instead of looking one up:
+
+```js
+d3.easygraph.categoricalPalette(5);
+// => [[217,38,38], [181,217,38], [38,217,110], [38,110,217], [181,38,217]] -- 5 evenly-spaced hues
+```
+
+Evenly spaced hues around the color wheel, for unordered categorical data (a vertex id, a
+transform id) — not the right fit for *ordered* data, where two adjacent categories landing on
+similar hues near the wheel's wraparound would misleadingly suggest they're related; use
+`colorScale` with a sequential scheme for that instead. Returns `[r, g, b]` number triples rather
+than the CSS-string colors everywhere else on this page — built for consumers that write colors
+directly into a `Canvas` `ImageData` buffer (larsi.org's point-cloud fractal renderers) and need
+the numbers as-is, not a string to re-parse.
+
 ## Usage
 
 d3-easygraph expects `d3` (v7) and [`colorbrewer`](https://www.npmjs.com/package/colorbrewer) to
@@ -161,9 +178,10 @@ included in this repo):
 - `src/d3.easygraph.units.js` — just the unit preset table (`d3.easygraph.presets`) and
   `getUnit(name)`, the standalone lookup above. No config merging, no chart concepts — `core.js` is
   the only thing that folds a resolved preset onto a graph's config, via `getUnit()`.
-- `src/d3.easygraph.colors.js` — `colorbrewerPalettes`/`resolvePalette`/`colorScale`, the standalone
-  palette lookup above. Same division of labor as units.js: no chart concepts here, `core.js` is
-  the only thing that folds a resolved palette onto `graph.PALETTE_COLORS`.
+- `src/d3.easygraph.colors.js` — `colorbrewerPalettes`/`resolvePalette`/`colorScale` (named lookup)
+  and `categoricalPalette` (generated), the standalone palette functions above. Same division of
+  labor as units.js: no chart concepts here, `core.js` is the only thing that folds a resolved
+  palette onto `graph.PALETTE_COLORS`.
 - `src/d3.easygraph.line.js`, `.bars.js`, `.heatmap.js`, `.scatter.js` — one constructor per chart
   family above, each implementing a small `prepareScales?`/`init?`/`domain`/`render`/`resize?`/
   `destroy?` hook interface (only `domain`/`render` are required; `prepareScales` is bars-only, for

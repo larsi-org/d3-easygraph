@@ -17,6 +17,14 @@ All notable changes to this project are documented here. Format loosely follows
   rebuilt on every chart construction; `graph.colorbrewerPalettes` stays around as an alias for
   existing callers that read it off a live chart instance. All three now live in their own
   `src/d3.easygraph.colors.js`, the same standalone-lookup shape as `units.js`.
+- `d3.easygraph.categoricalPalette(count)`, generating `count` evenly-spaced hues around the
+  color wheel as `[r, g, b]` triples (not the CSS-string colors the rest of `colors.js` returns —
+  built for consumers writing directly into a `Canvas` `ImageData` buffer). Added after finding
+  larsi.org's 2D and 3D point-cloud fractal renderers (`lib/larsi.org/point-cloud-renderer-
+  {2,3}d.js`) each carrying an identical hand-rolled HSL→RGB generator, kept duplicated between
+  them on purpose since there was no shared, dependency-free home for it — this is that home now
+  that both files already load d3-easygraph anyway. Verified byte-identical output against the
+  code it replaced across every tested count.
 - `scatter` accepts `color.quantize: true`, swapping the usual continuous color gradient for
   `PALETTE_COLORS.length` discrete, equal-width bands over the domain — for data where a handful
   of clearly separated ranges reads better than a smooth interpolation (e.g. aircraft altitude:

@@ -3,15 +3,15 @@
 // http://creativecommons.org/licenses/by-sa/3.0/
 // Copyright (c) 2015, Lars Schumann, larsi.org@gmail.com
 //
-// A small, easygraph-agnostic palette lookup: colorbrewerPalettes/resolvePalette/colorScale
-// have no chart concepts of their own — no graph, no container, no SVG — so they're reusable
-// well beyond charting (e.g. coloring a Leaflet marker or a parcoords line). Same shape as
-// d3.easygraph.units.js's standalone preset table, just not quite as dependency-free: units.js
-// needs nothing but its own data, while this file expects `d3` (scaleLinear/scaleQuantize/range)
-// and the `colorbrewer` global, same as core.js does. Chart config resolution (folding
-// colorPalette/colorClasses onto graph.PALETTE_COLORS) lives in core.js, the only actual chart
-// consumer that needs it — same division of labor as units.js's getUnit() vs. core.js's
-// _resolveProperty().
+// A small, easygraph-agnostic palette lookup: colorbrewerPalettes/resolvePalette/colorScale/
+// categoricalPalette have no chart concepts of their own — no graph, no container, no SVG — so
+// they're reusable well beyond charting (e.g. coloring a Leaflet marker, a parcoords line, or a
+// canvas point cloud). Same shape as d3.easygraph.units.js's standalone preset table, just not
+// quite as dependency-free: units.js needs nothing but its own data, while this file expects `d3`
+// (scaleLinear/scaleQuantize/range/hsl/rgb) and the `colorbrewer` global, same as core.js does.
+// Chart config resolution (folding colorPalette/colorClasses onto graph.PALETTE_COLORS) lives in
+// core.js, the only actual chart consumer that needs it — same division of labor as units.js's
+// getUnit() vs. core.js's _resolveProperty().
 
 // Every colorbrewer palette resolved to its largest class count, flattened to a plain
 // {name: [colors]} map, plus D3's own categorical schemes and a handful of hand-picked
@@ -69,4 +69,24 @@ d3.easygraph.colorScale = function(paletteName, domain, options) {
   var n = colors.length;
   var stops = d3.range(n).map(function(i) { return domain[0] + i * (domain[1] - domain[0]) / (n - 1); });
   return d3.scaleLinear().range(colors).domain(stops).clamp(true);
+};
+
+// Evenly spaced hues around the color wheel, one per index -- for unordered categorical data (a
+// vertex id, a transform id) with no inherent ordering to respect, unlike colorScale's sequential/
+// diverging schemes above (which is why a sequential scheme, not this, is the right fit for
+// ordered data -- see larsi.org's Lorenz Attractor page, which samples colorScale('YlGnBu', ...)
+// instead of this for exactly that reason). Generated rather than looked up by name, since the
+// count needed is caller-specific and unbounded (a polygon's side count, an IFS's transform
+// count) rather than one of a fixed set of named schemes. Returns [r, g, b] number triples,
+// unlike the CSS-string colors everywhere else in this file: its consumers
+// (lib/larsi.org/point-cloud-renderer-{2,3}d.js on larsi.org) write per-point colors directly
+// into a Canvas ImageData byte buffer and need the numbers as-is, not a string to re-parse.
+// Built via d3.hsl()/d3.rgb() since this file already depends on d3.
+d3.easygraph.categoricalPalette = function(count) {
+  var palette = [];
+  for (var i = 0; i < count; i++) {
+    var c = d3.rgb(d3.hsl((i * 360 / count) % 360, 0.7, 0.5));
+    palette.push([Math.round(c.r), Math.round(c.g), Math.round(c.b)]);
+  }
+  return palette;
 };

@@ -56,3 +56,32 @@ test('colorScale quantize:true builds a quantize scale with PALETTE_COLORS.lengt
   });
   expect(bandCount).toBe(colorCount);
 });
+
+test('categoricalPalette returns count [r, g, b] triples, evenly spaced around the hue wheel', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const { length, isTripleOfNumbers, firstIsRed, distinctCount } = await page.evaluate(() => {
+    var palette = d3.easygraph.categoricalPalette(5);
+    var distinct = new Set(palette.map(function(c) { return c.join(','); }));
+    return {
+      length: palette.length,
+      isTripleOfNumbers: palette.every(function(c) {
+        return Array.isArray(c) && c.length === 3 && c.every(function(v) { return typeof v === 'number'; });
+      }),
+      firstIsRed: palette[0][0] > palette[0][1] && palette[0][0] > palette[0][2], // hue 0 = red
+      distinctCount: distinct.size,
+    };
+  });
+  expect(length).toBe(5);
+  expect(isTripleOfNumbers).toBe(true);
+  expect(firstIsRed).toBe(true);
+  expect(distinctCount).toBe(5); // 5 evenly-spaced hues should all be visually distinct colors
+});
+
+test('categoricalPalette(count) is deterministic -- same count always produces the same colors', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const { a, b } = await page.evaluate(() => ({
+    a: d3.easygraph.categoricalPalette(7),
+    b: d3.easygraph.categoricalPalette(7),
+  }));
+  expect(a).toEqual(b);
+});
