@@ -15,7 +15,8 @@ All notable changes to this project are documented here. Format loosely follows
   unknowing reimplementation of a palette already in `colorbrewerPalettes`. `colorbrewerPalettes`
   itself is now computed once at load time (`d3.easygraph.colorbrewerPalettes`) instead of
   rebuilt on every chart construction; `graph.colorbrewerPalettes` stays around as an alias for
-  existing callers that read it off a live chart instance.
+  existing callers that read it off a live chart instance. All three now live in their own
+  `src/d3.easygraph.colors.js`, the same standalone-lookup shape as `units.js`.
 - `scatter` accepts `color.quantize: true`, swapping the usual continuous color gradient for
   `PALETTE_COLORS.length` discrete, equal-width bands over the domain — for data where a handful
   of clearly separated ranges reads better than a smooth interpolation (e.g. aircraft altitude:

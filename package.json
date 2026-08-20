@@ -8,7 +8,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "terser src/d3.easygraph.core.js src/d3.easygraph.units.js src/d3.easygraph.line.js src/d3.easygraph.bars.js src/d3.easygraph.heatmap.js src/d3.easygraph.scatter.js -c -m --comments false -o dist/d3.easygraph.min.js && cp src/d3.easygraph.css dist/d3.easygraph.css",
+    "build": "terser src/d3.easygraph.core.js src/d3.easygraph.units.js src/d3.easygraph.colors.js src/d3.easygraph.line.js src/d3.easygraph.bars.js src/d3.easygraph.heatmap.js src/d3.easygraph.scatter.js -c -m --comments false -o dist/d3.easygraph.min.js && cp src/d3.easygraph.css dist/d3.easygraph.css",
     "test": "playwright test"
   },
   "keywords": [

@@ -155,12 +155,15 @@ included in this repo):
 
 ## Architecture
 
-- `src/d3.easygraph.core.js` — container sizing/resize, SVG/margin/clip/title scaffolding, palette
-  handling, number/time axis formatting, x/y/color config resolution, and the shared `_build()`
-  that each constructor calls with its own defaults and hook set.
+- `src/d3.easygraph.core.js` — container sizing/resize, SVG/margin/clip/title scaffolding,
+  number/time axis formatting, x/y/color config resolution, and the shared `_build()` that each
+  constructor calls with its own defaults and hook set.
 - `src/d3.easygraph.units.js` — just the unit preset table (`d3.easygraph.presets`) and
   `getUnit(name)`, the standalone lookup above. No config merging, no chart concepts — `core.js` is
   the only thing that folds a resolved preset onto a graph's config, via `getUnit()`.
+- `src/d3.easygraph.colors.js` — `colorbrewerPalettes`/`resolvePalette`/`colorScale`, the standalone
+  palette lookup above. Same division of labor as units.js: no chart concepts here, `core.js` is
+  the only thing that folds a resolved palette onto `graph.PALETTE_COLORS`.
 - `src/d3.easygraph.line.js`, `.bars.js`, `.heatmap.js`, `.scatter.js` — one constructor per chart
   family above, each implementing a small `prepareScales?`/`init?`/`domain`/`render`/`resize?`/
   `destroy?` hook interface (only `domain`/`render` are required; `prepareScales` is bars-only, for

@@ -4,10 +4,13 @@
 // Copyright (c) 2015, Lars Schumann, larsi.org@gmail.com
 //
 // Shared scaffolding for every chart family: container sizing/resize, SVG/margin/
-// clip/title DOM, palette, number/time formatting, x/y/color config resolution, and the
+// clip/title DOM, number/time formatting, x/y/color config resolution, and the
 // shared _build() that d3.easygraph.line/.bars/.heatmap call into with their own hooks.
-// Unit presets themselves (d3.easygraph.presets / getUnit()) live in d3.easygraph.units.js,
-// loaded right after this file — a plain data lookup with no chart concepts of its own.
+// Two standalone lookups live in their own files, loaded right after this one — unit presets
+// (d3.easygraph.presets / getUnit()) in d3.easygraph.units.js, color palettes
+// (colorbrewerPalettes / resolvePalette / colorScale) in d3.easygraph.colors.js — neither has
+// any chart concepts of its own; this file is the only thing that folds either onto a graph's
+// config.
 
 d3.easygraph = {};
 
@@ -38,64 +41,6 @@ d3.easygraph._clippedExtent = function(values, clip) {
   if (!clip) return d3.extent(values);
   var sorted = values.slice().sort(function(a, b) { return a - b; });
   return [d3.quantileSorted(sorted, clip[0]), d3.quantileSorted(sorted, clip[1])];
-};
-
-// Every colorbrewer palette resolved to its largest class count, flattened to a plain
-// {name: [colors]} map, plus D3's own categorical schemes and a handful of hand-picked
-// extras (LS_*) for cases colorbrewer doesn't cover. Computed once at load time (not
-// rebuilt per chart instance) since it depends only on the colorbrewer global, not on any
-// particular graph's config.
-d3.easygraph.colorbrewerPalettes = (function() {
-  var palettes = {};
-  for (var name in colorbrewer) {
-    if (colorbrewer.hasOwnProperty(name)) {
-      var sizes = Object.keys(colorbrewer[name]).map(Number);
-      palettes[name] = colorbrewer[name][Math.max.apply(null, sizes)];
-    }
-  }
-  palettes.D3_category10   = ["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"];
-  palettes.D3_category20   = ["#1f77b4","#aec7e8","#ff7f0e","#ffbb78","#2ca02c","#98df8a","#d62728","#ff9896","#9467bd","#c5b0d5","#8c564b","#c49c94","#e377c2","#f7b6d2","#7f7f7f","#c7c7c7","#bcbd22","#dbdb8d","#17becf","#9edae5"];
-  palettes.D3_category20b  = ["#393b79","#5254a3","#6b6ecf","#9c9ede","#637939","#8ca252","#b5cf6b","#cedb9c","#8c6d31","#bd9e39","#e7ba52","#e7cb94","#843c39","#ad494a","#d6616b","#e7969c","#7b4173","#a55194","#ce6dbd","#de9ed6"];
-  palettes.D3_category20c  = ["#3182bd","#6baed6","#9ecae1","#c6dbef","#e6550d","#fd8d3c","#fdae6b","#fdd0a2","#31a354","#74c476","#a1d99b","#c7e9c0","#756bb1","#9e9ac8","#bcbddc","#dadaeb","#636363","#969696","#bdbdbd","#d9d9d9"];
-  palettes.LS_SustainZones = ["#F66","#6F6","#66F","#EE6","#6FF","#F6F","#B22","#2B2","#22B","#AA2","#2BB","#B2B","#D44","#4D4","#44D","#CC4","#4DD","#D4D","#900","#090","#009","#880","#099","#909"];
-  palettes.LS_RdGnBu       = ["#F00","#0F0","#00F"];
-  palettes.LS_BuMaRd       = ["#00F","#F0F","#F00"];
-  palettes.LS_BuRdYl       = ["#00F","#F00","#FF0"];
-  palettes.LS_BuCyGnYlRd   = ["#00F","#0FF","#0F0","#FF0","#F00"];
-  palettes.LS_Gy           = ["#000","#FFF"];
-  return palettes;
-})();
-
-// Resolves a colorPalette name (optionally suffixed "_reversed") + optional colorClasses (a
-// specific colorbrewer class count instead of the largest, ignored for the D3_category*/LS_*
-// extras above, which aren't classed data) to a plain color array. This is what _build() uses
-// internally for graph.PALETTE_COLORS, exposed standalone so a caller that isn't building a
-// whole chart (a Leaflet marker layer, a parcoords line color) can still resolve a named
-// palette without one.
-d3.easygraph.resolvePalette = function(paletteName, colorClasses) {
-  var REVERSE_SUFFIX = "_reversed";
-  var reversed = paletteName.endsWith(REVERSE_SUFFIX);
-  var name = reversed ? paletteName.slice(0, -REVERSE_SUFFIX.length) : paletteName;
-  var colors = (colorClasses && colorbrewer[name] && colorbrewer[name][colorClasses])
-    ? colorbrewer[name][colorClasses].slice(0)
-    : d3.easygraph.colorbrewerPalettes[name].slice(0);
-  if (reversed) colors.reverse();
-  return colors;
-};
-
-// Builds a ready color(value) scale from a palette name + [min, max] domain -- the same
-// n-evenly-spaced-stops + clamp()/quantize() construction .heatmap()/.scatter() build for
-// their own graph.color.$scale, exposed standalone for a non-chart caller with its own
-// already-known domain (heatmap/scatter instead recompute their domain from live data on
-// every render, via their own extent/clip handling, so they don't call this directly).
-// options: { classes, quantize }.
-d3.easygraph.colorScale = function(paletteName, domain, options) {
-  options = options || {};
-  var colors = d3.easygraph.resolvePalette(paletteName, options.classes);
-  if (options.quantize) return d3.scaleQuantize().range(colors).domain(domain);
-  var n = colors.length;
-  var stops = d3.range(n).map(function(i) { return domain[0] + i * (domain[1] - domain[0]) / (n - 1); });
-  return d3.scaleLinear().range(colors).domain(stops).clamp(true);
 };
 
 // accepts a CSS selector string, a DOM element, or a d3 selection; returns an
@@ -141,8 +86,8 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   }
 
   // kept on the instance for backward compatibility (graphics/colorbrewer/index.php on the
-  // main site reads it off a live chart) -- the real, load-time-computed copy now lives at
-  // d3.easygraph.colorbrewerPalettes above.
+  // main site reads it off a live chart) -- the real, load-time-computed copy lives in
+  // d3.easygraph.colors.js.
   graph.colorbrewerPalettes = d3.easygraph.colorbrewerPalettes;
 
   // multi-format tick labels for one-year time axes
