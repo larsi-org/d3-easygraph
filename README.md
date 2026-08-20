@@ -97,10 +97,10 @@ available palette name (see the [Colorbrewer demo page](https://larsi.org/graphi
 
 `resolvePalette`/`colorScale` are both name-based lookups — for a caller that instead needs an
 arbitrary, caller-chosen *count* of colors with no natural name (a polygon's side count, an IFS's
-transform count), `categoricalPalette(count)` generates one instead of looking one up:
+transform count), `hueWheelPalette(count)` generates one instead of looking one up:
 
 ```js
-d3.easygraph.categoricalPalette(5);
+d3.easygraph.hueWheelPalette(5);
 // => [[217,38,38], [181,217,38], [38,217,110], [38,110,217], [181,38,217]] -- 5 evenly-spaced hues
 ```
 
@@ -179,7 +179,7 @@ included in this repo):
   `getUnit(name)`, the standalone lookup above. No config merging, no chart concepts — `core.js` is
   the only thing that folds a resolved preset onto a graph's config, via `getUnit()`.
 - `src/d3.easygraph.colors.js` — `colorbrewerPalettes`/`resolvePalette`/`colorScale` (named lookup)
-  and `categoricalPalette` (generated), the standalone palette functions above. Same division of
+  and `hueWheelPalette` (generated), the standalone palette functions above. Same division of
   labor as units.js: no chart concepts here, `core.js` is the only thing that folds a resolved
   palette onto `graph.PALETTE_COLORS`.
 - `src/d3.easygraph.line.js`, `.bars.js`, `.heatmap.js`, `.scatter.js` — one constructor per chart

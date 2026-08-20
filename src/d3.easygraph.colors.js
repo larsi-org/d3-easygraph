@@ -4,7 +4,7 @@
 // Copyright (c) 2015, Lars Schumann, larsi.org@gmail.com
 //
 // A small, easygraph-agnostic palette lookup: colorbrewerPalettes/resolvePalette/colorScale/
-// categoricalPalette have no chart concepts of their own — no graph, no container, no SVG — so
+// hueWheelPalette have no chart concepts of their own — no graph, no container, no SVG — so
 // they're reusable well beyond charting (e.g. coloring a Leaflet marker, a parcoords line, or a
 // canvas point cloud). Same shape as d3.easygraph.units.js's standalone preset table, just not
 // quite as dependency-free: units.js needs nothing but its own data, while this file expects `d3`
@@ -82,7 +82,7 @@ d3.easygraph.colorScale = function(paletteName, domain, options) {
 // (lib/larsi.org/point-cloud-renderer-{2,3}d.js on larsi.org) write per-point colors directly
 // into a Canvas ImageData byte buffer and need the numbers as-is, not a string to re-parse.
 // Built via d3.hsl()/d3.rgb() since this file already depends on d3.
-d3.easygraph.categoricalPalette = function(count) {
+d3.easygraph.hueWheelPalette = function(count) {
   var palette = [];
   for (var i = 0; i < count; i++) {
     var c = d3.rgb(d3.hsl((i * 360 / count) % 360, 0.7, 0.5));
