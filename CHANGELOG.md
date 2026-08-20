@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- `d3.easygraph.resolvePalette(name, classes)` and `d3.easygraph.colorScale(name, domain,
+  options)`, standalone counterparts to the `colorPalette`/`colorClasses` resolution a chart
+  already does internally for its own `PALETTE_COLORS` — usable without building a chart at all.
+  Added after finding three pages on the main site each hand-rolling their own sequential/
+  diverging color scale (a Leaflet marker layer, a `d3.parcoords()` line color) instead of
+  reusing a palette already named here — one of them (`LS_BuMaRd`) turned out to be an exact,
+  unknowing reimplementation of a palette already in `colorbrewerPalettes`. `colorbrewerPalettes`
+  itself is now computed once at load time (`d3.easygraph.colorbrewerPalettes`) instead of
+  rebuilt on every chart construction; `graph.colorbrewerPalettes` stays around as an alias for
+  existing callers that read it off a live chart instance.
 - `scatter` accepts `color.quantize: true`, swapping the usual continuous color gradient for
   `PALETTE_COLORS.length` discrete, equal-width bands over the domain — for data where a handful
   of clearly separated ranges reads better than a smooth interpolation (e.g. aircraft altitude:

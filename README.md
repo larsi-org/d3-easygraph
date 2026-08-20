@@ -73,6 +73,28 @@ sensor actually observes), not a fixed property of the physical quantity, so cha
 continuous color scale) isn't forced to lose it. `d3.easygraph.round(x, n)` itself is also public —
 a plain explicit-precision helper.
 
+## Color palettes (no chart required)
+
+The same `colorPalette`/`colorClasses` resolution a chart's `PALETTE_COLORS` goes through
+internally is also available standalone — no container, no chart construction:
+
+```js
+d3.easygraph.resolvePalette("RdYlBu");            // => ["#a50026", "#d73027", ..., "#313695"]
+d3.easygraph.resolvePalette("RdYlBu_reversed");    // same colors, reversed order
+d3.easygraph.resolvePalette("Blues", 4);           // the 4-class Blues, not its largest class count
+
+d3.easygraph.colorScale("RdYlBu_reversed", [dataMin, dataMax]);
+// => a ready d3.scaleLinear, clamped, with RdYlBu_reversed's colors spread evenly across the domain
+d3.easygraph.colorScale("Blues", [dataMin, dataMax], { classes: 4, quantize: true });
+// => a d3.scaleQuantize instead — PALETTE_COLORS.length discrete, equal-width bands
+```
+
+Handy for coloring something that isn't a d3-easygraph chart at all — a Leaflet marker layer, a
+`d3.parcoords()` line — without hand-rolling a separate color scale or duplicating a palette
+you've already named here. `d3.easygraph.colorbrewerPalettes` (the full resolved `{name:
+[colors]}` map `resolvePalette` reads from) is public too, for a caller that wants to list every
+available palette name (see the [Colorbrewer demo page](https://larsi.org/graphics/colorbrewer/)).
+
 ## Usage
 
 d3-easygraph expects `d3` (v7) and [`colorbrewer`](https://www.npmjs.com/package/colorbrewer) to
