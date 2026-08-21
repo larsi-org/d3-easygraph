@@ -18,11 +18,12 @@
 // directly from d3-scale-chromatic's d3.scheme* exports (already part of the full d3@7 bundle
 // every caller already loads) rather than a second copy via the standalone `colorbrewer`
 // package -- verified byte-identical against colorbrewer's own data for every name/class-count
-// here except PuOr (COLORBREWER_REVERSED below), which d3 stores in the opposite color order.
+// here except PuOr, which d3 stores in the opposite color order; left as d3's native order since
+// nothing here resolves "PuOr" by name today (the _reversed suffix below covers whichever
+// direction a future caller wants).
 var COLORBREWER_SEQUENTIAL = ["BuGn","BuPu","GnBu","OrRd","PuBu","PuBuGn","PuRd","RdPu","YlGn","YlGnBu","YlOrBr","YlOrRd","Blues","Greens","Greys","Oranges","Purples","Reds"];
 var COLORBREWER_DIVERGING  = ["BrBG","PiYG","PRGn","PuOr","RdBu","RdGy","RdYlBu","RdYlGn","Spectral"];
 var COLORBREWER_QUALITATIVE = ["Accent","Dark2","Paired","Pastel1","Pastel2","Set1","Set2","Set3"];
-var COLORBREWER_REVERSED = { PuOr: true };
 
 // Sequential/diverging schemes are d3 arrays indexed by class count (classes 3..11, with the
 // leading indices unused); qualitative schemes are a single flat array (d3 doesn't carry
@@ -32,16 +33,12 @@ var COLORBREWER_REVERSED = { PuOr: true };
 function colorbrewerScheme(name, classes) {
   var scheme = d3["scheme" + name];
   if (!scheme) return undefined;
-  var colors;
   if (COLORBREWER_QUALITATIVE.indexOf(name) !== -1) {
-    colors = scheme.slice(0, classes || scheme.length);
-  } else {
-    var sizes = Object.keys(scheme).map(Number);
-    var n = (classes && scheme[classes]) ? classes : Math.max.apply(null, sizes);
-    colors = scheme[n].slice(0);
+    return scheme.slice(0, classes || scheme.length);
   }
-  if (COLORBREWER_REVERSED[name]) colors.reverse();
-  return colors;
+  var sizes = Object.keys(scheme).map(Number);
+  var n = (classes && scheme[classes]) ? classes : Math.max.apply(null, sizes);
+  return scheme[n].slice(0);
 }
 
 // Every colorbrewer palette (see colorbrewerScheme above) at its largest class count, flattened

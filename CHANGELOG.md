@@ -67,8 +67,9 @@ All notable changes to this project are documented here. Format loosely follows
 - `colorbrewerPalettes` is now sourced directly from `d3-scale-chromatic`'s `d3.scheme*` exports
   (already part of the full `d3@7` bundle every caller already loads) instead of the standalone
   `colorbrewer` npm package. Verified byte-identical against colorbrewer's own data for every
-  name/class-count except `PuOr`, which d3 stores in the opposite color order (corrected in
-  `colors.js`). Drops the `colorbrewer` dependency entirely — nothing else needs to change on the
+  name/class-count except `PuOr`, which d3 stores in the opposite color order — left as-is since
+  nothing resolves "PuOr" by name today (`_reversed` covers whichever direction a future caller
+  wants). Drops the `colorbrewer` dependency entirely — nothing else needs to change on the
   consuming side, since `d3` was already required.
 
 ### Fixed
