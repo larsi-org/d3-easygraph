@@ -63,6 +63,15 @@ All notable changes to this project are documented here. Format loosely follows
   points by inserting a `null`-y point there, rather than the line falsely cutting straight across
   the chart from 359° to 0°.
 
+### Changed
+- `colorbrewer` is now bundled directly into `dist/d3.easygraph.min.js` at build time instead of
+  being a separate runtime `<script>` dependency a page had to load first. Its data hasn't changed
+  in years (it's a fixed, curated palette set, not actively-developed software) and nothing outside
+  `colors.js` ever touched the raw `colorbrewer` global directly, so there was no reason to keep
+  shipping it as a second request. Moved from `peerDependencies` to `devDependencies` — a consuming
+  page no longer needs to load `colorbrewer` itself at all. See `THIRD_PARTY_LICENSES.md` for its
+  license.
+
 ### Fixed
 - `line`'s zoom pane now sets `touch-action: none`. Without it, a pinch or drag gesture starting on
   the pane could still be hijacked by iOS's native pinch-to-zoom/pan and zoom the whole page instead

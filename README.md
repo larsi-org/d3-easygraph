@@ -114,14 +114,15 @@ the numbers as-is, not a string to re-parse.
 
 ## Usage
 
-d3-easygraph expects `d3` (v7) and [`colorbrewer`](https://www.npmjs.com/package/colorbrewer) to
-already be loaded as globals — they're peer dependencies, not bundled.
+d3-easygraph expects `d3` (v7) to already be loaded as a global — it's a peer dependency, not
+bundled. [`colorbrewer`](https://www.npmjs.com/package/colorbrewer) is bundled directly into
+`dist/d3.easygraph.min.js` (see `THIRD_PARTY_LICENSES.md`), so it doesn't need its own `<script>`
+tag.
 
 ```html
 <div id="graph"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/colorbrewer@1.7.0/index.js"></script>
 <link rel="stylesheet" href="dist/d3.easygraph.css">
 <script src="dist/d3.easygraph.min.js"></script>
 

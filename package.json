@@ -8,7 +8,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "terser src/d3.easygraph.core.js src/d3.easygraph.units.js src/d3.easygraph.colors.js src/d3.easygraph.line.js src/d3.easygraph.bars.js src/d3.easygraph.heatmap.js src/d3.easygraph.scatter.js -c -m --comments false -o dist/d3.easygraph.min.js && cp src/d3.easygraph.css dist/d3.easygraph.css",
+    "build": "terser node_modules/colorbrewer/index.js src/d3.easygraph.core.js src/d3.easygraph.units.js src/d3.easygraph.colors.js src/d3.easygraph.line.js src/d3.easygraph.bars.js src/d3.easygraph.heatmap.js src/d3.easygraph.scatter.js -c -m --comments false -o dist/d3.easygraph.min.js && cp src/d3.easygraph.css dist/d3.easygraph.css",
     "test": "playwright test"
   },
   "keywords": [
@@ -28,11 +28,11 @@
   },
   "homepage": "https://github.com/larsi-org/d3-easygraph",
   "peerDependencies": {
-    "colorbrewer": "^1.7.0",
     "d3": "^7.9.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
+    "colorbrewer": "^1.7.0",
     "terser": "^5.0.0"
   }
 }
