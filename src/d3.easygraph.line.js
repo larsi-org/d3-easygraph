@@ -70,6 +70,12 @@ d3.easygraph.line = function(config) {
               .attr("class", "pane")
               .attr("width", graph.width)
               .attr("height", graph.height)
+              // Without this, iOS's native pinch-to-zoom/pan can still hijack a touch gesture
+              // on this pane and zoom the whole page instead of the chart, even though d3.zoom()
+              // already calls preventDefault() internally -- that alone isn't reliable against
+              // the OS-level gesture recognizer, on any iOS browser (all of them run on the
+              // system WebKit engine, so this isn't Safari-specific).
+              .style("touch-action", "none")
               .call(graph.$zoom);
         }
 

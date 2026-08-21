@@ -43,6 +43,12 @@ test('zoom then resize keeps $xScaleRef range in sync (regression)', async ({ pa
   expect(xScaleRefMax).toBe(graphWidth);
 });
 
+test('zoom pane has touch-action: none so iOS cannot hijack the gesture to zoom the whole page', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const touchAction = await page.evaluate(() => getComputedStyle(window.graph.$pane.node()).touchAction);
+  expect(touchAction).toBe('none');
+});
+
 test('y clip narrows the data-driven domain away from a single outlier point', async ({ page }) => {
   await page.goto(CLIP_FIXTURE);
   const yMax = await page.evaluate(() => window.graph.y.$scale.domain()[1]);

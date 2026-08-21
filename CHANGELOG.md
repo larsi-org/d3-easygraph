@@ -63,6 +63,14 @@ All notable changes to this project are documented here. Format loosely follows
   points by inserting a `null`-y point there, rather than the line falsely cutting straight across
   the chart from 359° to 0°.
 
+### Fixed
+- `line`'s zoom pane now sets `touch-action: none`. Without it, a pinch or drag gesture starting on
+  the pane could still be hijacked by iOS's native pinch-to-zoom/pan and zoom the whole page instead
+  of the chart, even though `d3.zoom()` already calls `preventDefault()` internally — that alone
+  isn't reliable against the OS-level gesture recognizer, on any iOS browser (Safari, Chrome-for-iOS,
+  etc. — Apple requires all of them to run on the system WebKit engine). Found on an iPad testing
+  charts across larsi.org's weather/sensors/epw report pages.
+
 ## [0.5.0] - 2026-07-23
 
 ### Added
