@@ -8,25 +8,54 @@
 // they're reusable well beyond charting (e.g. coloring a Leaflet marker, a parcoords line, or a
 // canvas point cloud). Same shape as d3.easygraph.units.js's standalone preset table, just not
 // quite as dependency-free: units.js needs nothing but its own data, while this file expects `d3`
-// (scaleLinear/scaleQuantize/range/hsl/rgb) and the `colorbrewer` global, same as core.js does.
+// (scaleLinear/scaleQuantize/range/hsl/rgb, and — as of 2026-08 — its bundled d3-scale-chromatic
+// schemes), same as core.js does.
 // Chart config resolution (folding colorPalette/colorClasses onto graph.PALETTE_COLORS) lives in
 // core.js, the only actual chart consumer that needs it — same division of labor as units.js's
 // getUnit() vs. core.js's _resolveProperty().
 
-// Every colorbrewer palette resolved to its largest class count, flattened to a plain
-// {name: [colors]} map, plus D3's own categorical schemes and a handful of hand-picked
-// extras (LS_*) for cases colorbrewer doesn't cover. Computed once at load time (not
-// rebuilt per chart instance) since it depends only on the colorbrewer global, not on any
-// particular graph's config.
+// The named ColorBrewer palettes, grouped the same way colorbrewer.schemeGroups does. Sourced
+// directly from d3-scale-chromatic's d3.scheme* exports (already part of the full d3@7 bundle
+// every caller already loads) rather than a second copy via the standalone `colorbrewer`
+// package -- verified byte-identical against colorbrewer's own data for every name/class-count
+// here except PuOr (COLORBREWER_REVERSED below), which d3 stores in the opposite color order.
+var COLORBREWER_SEQUENTIAL = ["BuGn","BuPu","GnBu","OrRd","PuBu","PuBuGn","PuRd","RdPu","YlGn","YlGnBu","YlOrBr","YlOrRd","Blues","Greens","Greys","Oranges","Purples","Reds"];
+var COLORBREWER_DIVERGING  = ["BrBG","PiYG","PRGn","PuOr","RdBu","RdGy","RdYlBu","RdYlGn","Spectral"];
+var COLORBREWER_QUALITATIVE = ["Accent","Dark2","Paired","Pastel1","Pastel2","Set1","Set2","Set3"];
+var COLORBREWER_REVERSED = { PuOr: true };
+
+// Sequential/diverging schemes are d3 arrays indexed by class count (classes 3..11, with the
+// leading indices unused); qualitative schemes are a single flat array (d3 doesn't carry
+// per-class-count variants for these) -- but colorbrewer's own smaller-class variants are
+// verified literal prefixes of its largest set, so slicing the flat array reproduces them
+// exactly. `classes` omitted (or not available) resolves to the largest/full set.
+function colorbrewerScheme(name, classes) {
+  var scheme = d3["scheme" + name];
+  if (!scheme) return undefined;
+  var colors;
+  if (COLORBREWER_QUALITATIVE.indexOf(name) !== -1) {
+    colors = scheme.slice(0, classes || scheme.length);
+  } else {
+    var sizes = Object.keys(scheme).map(Number);
+    var n = (classes && scheme[classes]) ? classes : Math.max.apply(null, sizes);
+    colors = scheme[n].slice(0);
+  }
+  if (COLORBREWER_REVERSED[name]) colors.reverse();
+  return colors;
+}
+
+// Every colorbrewer palette (see colorbrewerScheme above) at its largest class count, flattened
+// to a plain {name: [colors]} map, plus D3's own categorical schemes and a handful of
+// hand-picked extras (LS_*) for cases colorbrewer doesn't cover -- D3_category20/20b/20c were
+// removed from d3-scale-chromatic itself as of D3 v5, so these stay hardcoded rather than
+// sourced from `d3.scheme*`. Computed once at load time (not rebuilt per chart instance) since
+// it depends only on the `d3` global, not on any particular graph's config.
 d3.easygraph.colorbrewerPalettes = (function() {
   var palettes = {};
-  for (var name in colorbrewer) {
-    if (colorbrewer.hasOwnProperty(name)) {
-      var sizes = Object.keys(colorbrewer[name]).map(Number);
-      palettes[name] = colorbrewer[name][Math.max.apply(null, sizes)];
-    }
-  }
-  palettes.D3_category10   = ["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"];
+  COLORBREWER_SEQUENTIAL.concat(COLORBREWER_DIVERGING, COLORBREWER_QUALITATIVE).forEach(function(name) {
+    palettes[name] = colorbrewerScheme(name);
+  });
+  palettes.D3_category10   = d3.schemeCategory10.slice(0);
   palettes.D3_category20   = ["#1f77b4","#aec7e8","#ff7f0e","#ffbb78","#2ca02c","#98df8a","#d62728","#ff9896","#9467bd","#c5b0d5","#8c564b","#c49c94","#e377c2","#f7b6d2","#7f7f7f","#c7c7c7","#bcbd22","#dbdb8d","#17becf","#9edae5"];
   palettes.D3_category20b  = ["#393b79","#5254a3","#6b6ecf","#9c9ede","#637939","#8ca252","#b5cf6b","#cedb9c","#8c6d31","#bd9e39","#e7ba52","#e7cb94","#843c39","#ad494a","#d6616b","#e7969c","#7b4173","#a55194","#ce6dbd","#de9ed6"];
   palettes.D3_category20c  = ["#3182bd","#6baed6","#9ecae1","#c6dbef","#e6550d","#fd8d3c","#fdae6b","#fdd0a2","#31a354","#74c476","#a1d99b","#c7e9c0","#756bb1","#9e9ac8","#bcbddc","#dadaeb","#636363","#969696","#bdbdbd","#d9d9d9"];
@@ -49,9 +78,7 @@ d3.easygraph.resolvePalette = function(paletteName, colorClasses) {
   var REVERSE_SUFFIX = "_reversed";
   var reversed = paletteName.endsWith(REVERSE_SUFFIX);
   var name = reversed ? paletteName.slice(0, -REVERSE_SUFFIX.length) : paletteName;
-  var colors = (colorClasses && colorbrewer[name] && colorbrewer[name][colorClasses])
-    ? colorbrewer[name][colorClasses].slice(0)
-    : d3.easygraph.colorbrewerPalettes[name].slice(0);
+  var colors = colorbrewerScheme(name, colorClasses) || d3.easygraph.colorbrewerPalettes[name].slice(0);
   if (reversed) colors.reverse();
   return colors;
 };

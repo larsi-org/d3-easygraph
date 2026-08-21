@@ -64,13 +64,12 @@ All notable changes to this project are documented here. Format loosely follows
   the chart from 359° to 0°.
 
 ### Changed
-- `colorbrewer` is now bundled directly into `dist/d3.easygraph.min.js` at build time instead of
-  being a separate runtime `<script>` dependency a page had to load first. Its data hasn't changed
-  in years (it's a fixed, curated palette set, not actively-developed software) and nothing outside
-  `colors.js` ever touched the raw `colorbrewer` global directly, so there was no reason to keep
-  shipping it as a second request. Moved from `peerDependencies` to `devDependencies` — a consuming
-  page no longer needs to load `colorbrewer` itself at all. See `THIRD_PARTY_LICENSES.md` for its
-  license.
+- `colorbrewerPalettes` is now sourced directly from `d3-scale-chromatic`'s `d3.scheme*` exports
+  (already part of the full `d3@7` bundle every caller already loads) instead of the standalone
+  `colorbrewer` npm package. Verified byte-identical against colorbrewer's own data for every
+  name/class-count except `PuOr`, which d3 stores in the opposite color order (corrected in
+  `colors.js`). Drops the `colorbrewer` dependency entirely — nothing else needs to change on the
+  consuming side, since `d3` was already required.
 
 ### Fixed
 - `line`'s zoom pane now sets `touch-action: none`. Without it, a pinch or drag gesture starting on

@@ -115,9 +115,8 @@ the numbers as-is, not a string to re-parse.
 ## Usage
 
 d3-easygraph expects `d3` (v7) to already be loaded as a global — it's a peer dependency, not
-bundled. [`colorbrewer`](https://www.npmjs.com/package/colorbrewer) is bundled directly into
-`dist/d3.easygraph.min.js` (see `THIRD_PARTY_LICENSES.md`), so it doesn't need its own `<script>`
-tag.
+bundled. Its named color palettes are sourced from `d3`'s own bundled `d3-scale-chromatic`
+schemes, so nothing else needs to be loaded for those.
 
 ```html
 <div id="graph"></div>
