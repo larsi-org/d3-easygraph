@@ -6,41 +6,41 @@ const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/colors.html');
 test('resolvePalette matches colorPalettes for a bare name', async ({ page }) => {
   await page.goto(FIXTURE);
   const { resolved, direct } = await page.evaluate(() => ({
-    resolved: d3.easygraph.resolvePalette('RdYlBu'),
-    direct:   d3.easygraph.colorPalettes['RdYlBu'],
+    resolved: d3.easygraph.resolvePalette('Diverging.RdYlBu'),
+    direct:   d3.easygraph.colorPalettes['Diverging.RdYlBu'],
   }));
   expect(resolved).toEqual(direct);
 });
 
-test('resolvePalette "_reversed" suffix reverses the color order without mutating the original', async ({ page }) => {
+test('resolvePalette ".reversed" suffix reverses the color order without mutating the original', async ({ page }) => {
   await page.goto(FIXTURE);
   const { forward, reversed } = await page.evaluate(() => ({
-    forward:  d3.easygraph.resolvePalette('RdYlBu'),
-    reversed: d3.easygraph.resolvePalette('RdYlBu_reversed'),
+    forward:  d3.easygraph.resolvePalette('Diverging.RdYlBu'),
+    reversed: d3.easygraph.resolvePalette('Diverging.RdYlBu.reversed'),
   }));
   expect(reversed).toEqual(forward.slice().reverse());
 });
 
 test('resolvePalette colorClasses picks a specific class count instead of the largest', async ({ page }) => {
   await page.goto(FIXTURE);
-  const four = await page.evaluate(() => d3.easygraph.resolvePalette('Blues', 4));
+  const four = await page.evaluate(() => d3.easygraph.resolvePalette('Sequential.Blues', 4));
   expect(four.length).toBe(4);
 });
 
-test('D3_category10 matches d3.schemeCategory10 -- still the default colorPalette, unrenamed', async ({ page }) => {
+test('Qualitative.Category10 matches d3.schemeCategory10 -- still the default colorPalette, unrenamed', async ({ page }) => {
   await page.goto(FIXTURE);
   const { resolved, d3native } = await page.evaluate(() => ({
-    resolved: d3.easygraph.resolvePalette('D3_category10'),
+    resolved: d3.easygraph.resolvePalette('Qualitative.Category10'),
     d3native: d3.schemeCategory10,
   }));
   expect(resolved).toEqual(d3native);
 });
 
-test('D3_tableau10 and D3_observable10 resolve to d3-scale-chromatic\'s own schemes', async ({ page }) => {
+test('Qualitative.Tableau10 and Qualitative.Observable10 resolve to d3-scale-chromatic\'s own schemes', async ({ page }) => {
   await page.goto(FIXTURE);
   const { tableau, observable, d3Tableau, d3Observable } = await page.evaluate(() => ({
-    tableau:    d3.easygraph.resolvePalette('D3_tableau10'),
-    observable: d3.easygraph.resolvePalette('D3_observable10'),
+    tableau:    d3.easygraph.resolvePalette('Qualitative.Tableau10'),
+    observable: d3.easygraph.resolvePalette('Qualitative.Observable10'),
     d3Tableau:    d3.schemeTableau10,
     d3Observable: d3.schemeObservable10,
   }));
@@ -51,8 +51,8 @@ test('D3_tableau10 and D3_observable10 resolve to d3-scale-chromatic\'s own sche
 test('colorScale builds a clamped linear scale spanning the palette across the given domain', async ({ page }) => {
   await page.goto(FIXTURE);
   const { first, last, belowMin, aboveMax } = await page.evaluate(() => {
-    var scale = d3.easygraph.colorScale('RdYlBu_reversed', [0, 100]);
-    var colors = d3.easygraph.resolvePalette('RdYlBu_reversed');
+    var scale = d3.easygraph.colorScale('Diverging.RdYlBu.reversed', [0, 100]);
+    var colors = d3.easygraph.resolvePalette('Diverging.RdYlBu.reversed');
     // d3.scaleLinear's color interpolation normalizes output to an "rgb(...)" string even at an
     // exact stop, so compare parsed color values (d3.rgb) rather than the raw strings.
     return {
@@ -71,8 +71,8 @@ test('colorScale builds a clamped linear scale spanning the palette across the g
 test('colorScale quantize:true builds a quantize scale with PALETTE_COLORS.length discrete bands', async ({ page }) => {
   await page.goto(FIXTURE);
   const { colorCount, bandCount } = await page.evaluate(() => {
-    var colors = d3.easygraph.resolvePalette('Blues', 4);
-    var scale  = d3.easygraph.colorScale('Blues', [0, 100], { classes: 4, quantize: true });
+    var colors = d3.easygraph.resolvePalette('Sequential.Blues', 4);
+    var scale  = d3.easygraph.colorScale('Sequential.Blues', [0, 100], { classes: 4, quantize: true });
     return { colorCount: colors.length, bandCount: scale.range().length };
   });
   expect(bandCount).toBe(colorCount);

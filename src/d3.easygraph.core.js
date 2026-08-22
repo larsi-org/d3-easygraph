@@ -121,10 +121,10 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   d3.easygraph._extend(graph, {
     x:            {},
     y:            {},
-    colorPalette: 'D3_category10',
-    colorClasses: null, // request a specific class count (e.g. 4) from a colorbrewer
-                         // palette instead of the largest available -- ignored for the
-                         // D3_category*/LS_* palettes above, which aren't classed data
+    colorPalette: 'Qualitative.Category10',
+    colorClasses: null, // request a specific class count (e.g. 4) from a Sequential/Diverging
+                         // palette instead of the largest available -- ignored for Qualitative
+                         // and the hardcoded extras, which aren't classed data
     duration:     500,
     oneYear:      false
   });

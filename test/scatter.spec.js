@@ -157,7 +157,7 @@ test('color.quantize: true buckets points into PALETTE_COLORS.length discrete co
   expect(fills[3]).toBe(fills[4]);
 });
 
-test('colorClasses picks a specific class count from a colorbrewer palette instead of its largest available', async ({ page }) => {
+test('colorClasses picks a specific class count from a Sequential palette instead of its largest available', async ({ page }) => {
   await page.goto(QUANTIZE_FIXTURE);
   const paletteLength = await page.evaluate(() => window.graph.PALETTE_COLORS.length);
   expect(paletteLength).toBe(4);

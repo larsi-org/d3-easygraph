@@ -6,22 +6,20 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
-- `D3_tableau10` and `D3_observable10` palettes, alongside the existing `D3_category10`/`20`/
-  `20b`/`20c` -- d3-scale-chromatic's other categorical schemes, free to add since they're already
-  part of the same `d3@7` bundle. `D3_category10` (also core.js's default `colorPalette`) is no
-  longer a special-cased line of its own; all three d3-native schemes now come from one
-  name-to-scheme map (`D3_CATEGORICAL` in `colors.js`) alongside colorbrewer's own palettes.
+- `Qualitative.Tableau10` and `Qualitative.Observable10`, alongside `Qualitative.Category10`/
+  `20`/`20b`/`20c` -- d3-scale-chromatic's other categorical schemes, free to add since they're
+  already part of the same `d3@7` bundle.
 - `d3.easygraph.resolvePalette(name, classes)` and `d3.easygraph.colorScale(name, domain,
   options)`, standalone counterparts to the `colorPalette`/`colorClasses` resolution a chart
   already does internally for its own `PALETTE_COLORS` — usable without building a chart at all.
   Added after finding three pages on the main site each hand-rolling their own sequential/
   diverging color scale (a Leaflet marker layer, a `d3.parcoords()` line color) instead of
-  reusing a palette already named here — one of them (`LS_BuMaRd`) turned out to be an exact,
-  unknowing reimplementation of a palette already in `colorbrewerPalettes`. `colorbrewerPalettes`
-  itself is now computed once at load time (`d3.easygraph.colorbrewerPalettes`) instead of
-  rebuilt on every chart construction; `graph.colorbrewerPalettes` stays around as an alias for
-  existing callers that read it off a live chart instance. All three now live in their own
-  `src/d3.easygraph.colors.js`, the same standalone-lookup shape as `units.js`.
+  reusing a palette already named here — one of them turned out to be an exact, unknowing
+  reimplementation of a palette already in `colorPalettes`. `colorPalettes` itself is now
+  computed once at load time (`d3.easygraph.colorPalettes`) instead of rebuilt on every chart
+  construction; `graph.colorPalettes` stays around as an alias for existing callers that read it
+  off a live chart instance. All three now live in their own `src/d3.easygraph.colors.js`, the
+  same standalone-lookup shape as `units.js`.
 - `d3.easygraph.hueWheelPalette(count)`, generating `count` evenly-spaced hues around the
   color wheel as `[r, g, b]` triples (not the CSS-string colors the rest of `colors.js` returns —
   built for consumers writing directly into a `Canvas` `ImageData` buffer). Added after finding
@@ -35,9 +33,9 @@ All notable changes to this project are documented here. Format loosely follows
   of clearly separated ranges reads better than a smooth interpolation (e.g. aircraft altitude:
   a low/climbing band vs. a distinct cruise band, rather than every altitude getting its own
   subtly different shade). Pairs with the new core `colorClasses` config (any chart family, not
-  scatter-specific) to pick a specific class count out of a colorbrewer palette — which otherwise
-  always resolves to its largest available class count — e.g. `colorPalette: "Blues",
-  colorClasses: 4` for four bands from light to dark.
+  scatter-specific) to pick a specific class count out of a Sequential/Diverging palette — which
+  otherwise always resolves to its largest available class count — e.g.
+  `colorPalette: "Sequential.Blues", colorClasses: 4` for four bands from light to dark.
 - `scatter` accepts `labels: true` to draw each point's `label` (a string) offset above-right of
   its circle — same optional-field pattern as `arrows`, a point missing `label` just renders
   without one. `labelMinZoom` (default 1, i.e. always on) hides every label below that zoom
@@ -69,15 +67,27 @@ All notable changes to this project are documented here. Format loosely follows
   the chart from 359° to 0°.
 
 ### Changed
+- Every palette name is now `Kind.Name` — `Sequential.Blues`, `Diverging.RdYlBu`,
+  `Qualitative.Set1` — instead of being prefixed by *source* (a bare colorbrewer name,
+  `D3_category10`, `LS_SustainZones`). Nobody choosing a palette cares whether the data came from
+  colorbrewer, d3-scale-chromatic, or was hand-picked; what matters is what kind of quantity it's
+  meant to represent, which the new prefix says directly. The `LS_*` extras got sorted into the
+  kind that matches how each was actually designed/used: `Gy` → `Sequential`; `BuMaRd`,
+  `BuCyGnYlRd` → `Diverging` (both were tried as alternatives to `RdBu` on the same value-gradient
+  heatmap); `SustainZones`, `RdGnBu` → `Qualitative` (`SustainZones` was designed to give thermal
+  zones in a model visually distinct colors, not represent a gradient; `RdGnBu` colors 3 distinct
+  line series, also categorical use). `core.js`'s default `colorPalette` is now
+  `Qualitative.Category10`. The `_reversed` suffix is now `.reversed`, matching the new
+  dot-separated naming (`Diverging.RdYlBu.reversed`).
 - `d3.easygraph.colorbrewerPalettes` (and the matching `graph.colorbrewerPalettes` instance copy)
   renamed to `colorPalettes`. "Colorbrewer" stopped accurately describing it once D3's own
-  categorical schemes and the hand-picked `LS_*` extras were folded in alongside the actual
-  ColorBrewer data.
-- `colorbrewerPalettes` is now sourced directly from `d3-scale-chromatic`'s `d3.scheme*` exports
-  (already part of the full `d3@7` bundle every caller already loads) instead of the standalone
+  categorical schemes and the hand-picked extras were folded in alongside the actual ColorBrewer
+  data.
+- Palettes are now sourced directly from `d3-scale-chromatic`'s `d3.scheme*` exports (already
+  part of the full `d3@7` bundle every caller already loads) instead of the standalone
   `colorbrewer` npm package. Verified byte-identical against colorbrewer's own data for every
   name/class-count except `PuOr`, which d3 stores in the opposite color order — left as-is since
-  nothing resolves "PuOr" by name today (`_reversed` covers whichever direction a future caller
+  nothing resolves it by name today (`.reversed` covers whichever direction a future caller
   wants). Drops the `colorbrewer` dependency entirely — nothing else needs to change on the
   consuming side, since `d3` was already required.
 

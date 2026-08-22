@@ -23,10 +23,9 @@ Each chart family has its own constructor, taking only the config that family un
 Shared config across all four: `container`, `label`, `x`/`y` (`scale`, `unit`, `label`, `noTick`,
 `preset`, `convert`, `clip`), `height`, `margin`, `colorPalette`, `colorClasses`, `duration`,
 `oneYear` (also used by heatmaps whose x-axis spans a full year, not just line charts).
-`colorClasses` (e.g. `4`) picks that specific class count from a colorbrewer palette instead of
-its largest available one (colorbrewer ships 3–9 shades per named palette); ignored for D3's own
-categorical schemes (`D3_category10`/`20`/`20b`/`20c`, `D3_tableau10`, `D3_observable10`) and the
-hand-picked `LS_*` palettes, none of which are classed data.
+`colorClasses` (e.g. `4`) picks that specific class count from a `Sequential.*`/`Diverging.*`
+palette instead of its largest available one (3–9 shades per named palette); ignored for
+`Qualitative.*` and the hardcoded extras, none of which are classed data.
 
 Any `x`/`y`/`color` config accepts `clip: [loQuantile, hiQuantile]` (e.g. `[0.05, 0.95]`) — when
 that property's domain would otherwise come straight from the data (no explicit `xRange`/`yRange`
@@ -80,13 +79,13 @@ The same `colorPalette`/`colorClasses` resolution a chart's `PALETTE_COLORS` goe
 internally is also available standalone — no container, no chart construction:
 
 ```js
-d3.easygraph.resolvePalette("RdYlBu");            // => ["#a50026", "#d73027", ..., "#313695"]
-d3.easygraph.resolvePalette("RdYlBu_reversed");    // same colors, reversed order
-d3.easygraph.resolvePalette("Blues", 4);           // the 4-class Blues, not its largest class count
+d3.easygraph.resolvePalette("Diverging.RdYlBu");            // => ["#a50026", "#d73027", ..., "#313695"]
+d3.easygraph.resolvePalette("Diverging.RdYlBu.reversed");   // same colors, reversed order
+d3.easygraph.resolvePalette("Sequential.Blues", 4);         // the 4-class Blues, not its largest class count
 
-d3.easygraph.colorScale("RdYlBu_reversed", [dataMin, dataMax]);
-// => a ready d3.scaleLinear, clamped, with RdYlBu_reversed's colors spread evenly across the domain
-d3.easygraph.colorScale("Blues", [dataMin, dataMax], { classes: 4, quantize: true });
+d3.easygraph.colorScale("Diverging.RdYlBu.reversed", [dataMin, dataMax]);
+// => a ready d3.scaleLinear, clamped, with RdYlBu's colors (reversed) spread evenly across the domain
+d3.easygraph.colorScale("Sequential.Blues", [dataMin, dataMax], { classes: 4, quantize: true });
 // => a d3.scaleQuantize instead — PALETTE_COLORS.length discrete, equal-width bands
 ```
 
