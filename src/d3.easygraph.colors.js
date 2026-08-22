@@ -26,13 +26,12 @@ var COLORBREWER_DIVERGING  = ["BrBG","PiYG","PRGn","PuOr","RdBu","RdGy","RdYlBu"
 var COLORBREWER_QUALITATIVE = ["Accent","Dark2","Paired","Pastel1","Pastel2","Set1","Set2","Set3"];
 
 // D3's own (non-ColorBrewer) categorical schemes, also part of d3-scale-chromatic -- flat arrays
-// like the qualitative group above, no per-class-count variants. Keyed by the exposed palette
-// name -> d3's scheme* suffix, since "D3_category10" (lowercase, matching this family's existing
-// naming) doesn't match d3's own "Category10" capitalization; D3_category10 is also
-// core.js's default colorPalette, so that exact key can't change. Category20/20b/20c were
-// removed from d3-scale-chromatic itself as of D3 v5 and have no scheme* export to source from,
-// so those stay hardcoded separately below rather than folded into this map.
-var D3_CATEGORICAL = { D3_category10: "Category10", D3_tableau10: "Tableau10", D3_observable10: "Observable10" };
+// like the qualitative group above, no per-class-count variants. Each exposed palette name is
+// just "D3_" + the scheme suffix lowercased ("Category10" -> "D3_category10", matching
+// core.js's default colorPalette, whose exact key can't change) -- no need for an explicit
+// name-to-scheme map. Category20/20b/20c were removed from d3-scale-chromatic itself as of D3 v5
+// and have no scheme* export to source from, so those stay hardcoded separately below instead.
+var D3_CATEGORICAL = ["Category10", "Tableau10", "Observable10"];
 
 // Sequential/diverging schemes are d3 arrays indexed by class count (classes 3..11, with the
 // leading indices unused); qualitative schemes are a single flat array (d3 doesn't carry
@@ -60,9 +59,9 @@ d3.easygraph.colorbrewerPalettes = (function() {
   COLORBREWER_SEQUENTIAL.concat(COLORBREWER_DIVERGING, COLORBREWER_QUALITATIVE).forEach(function(name) {
     palettes[name] = colorbrewerScheme(name);
   });
-  for (var key in D3_CATEGORICAL) {
-    palettes[key] = d3["scheme" + D3_CATEGORICAL[key]].slice(0);
-  }
+  D3_CATEGORICAL.forEach(function(name) {
+    palettes["D3_" + name.toLowerCase()] = d3["scheme" + name].slice(0);
+  });
   palettes.D3_category20   = ["#1f77b4","#aec7e8","#ff7f0e","#ffbb78","#2ca02c","#98df8a","#d62728","#ff9896","#9467bd","#c5b0d5","#8c564b","#c49c94","#e377c2","#f7b6d2","#7f7f7f","#c7c7c7","#bcbd22","#dbdb8d","#17becf","#9edae5"];
   palettes.D3_category20b  = ["#393b79","#5254a3","#6b6ecf","#9c9ede","#637939","#8ca252","#b5cf6b","#cedb9c","#8c6d31","#bd9e39","#e7ba52","#e7cb94","#843c39","#ad494a","#d6616b","#e7969c","#7b4173","#a55194","#ce6dbd","#de9ed6"];
   palettes.D3_category20c  = ["#3182bd","#6baed6","#9ecae1","#c6dbef","#e6550d","#fd8d3c","#fdae6b","#fdd0a2","#31a354","#74c476","#a1d99b","#c7e9c0","#756bb1","#9e9ac8","#bcbddc","#dadaeb","#636363","#969696","#bdbdbd","#d9d9d9"];
