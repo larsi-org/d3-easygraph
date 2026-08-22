@@ -27,6 +27,27 @@ test('resolvePalette colorClasses picks a specific class count instead of the la
   expect(four.length).toBe(4);
 });
 
+test('D3_category10 matches d3.schemeCategory10 -- still the default colorPalette, unrenamed', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const { resolved, d3native } = await page.evaluate(() => ({
+    resolved: d3.easygraph.resolvePalette('D3_category10'),
+    d3native: d3.schemeCategory10,
+  }));
+  expect(resolved).toEqual(d3native);
+});
+
+test('D3_tableau10 and D3_observable10 resolve to d3-scale-chromatic\'s own schemes', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const { tableau, observable, d3Tableau, d3Observable } = await page.evaluate(() => ({
+    tableau:    d3.easygraph.resolvePalette('D3_tableau10'),
+    observable: d3.easygraph.resolvePalette('D3_observable10'),
+    d3Tableau:    d3.schemeTableau10,
+    d3Observable: d3.schemeObservable10,
+  }));
+  expect(tableau).toEqual(d3Tableau);
+  expect(observable).toEqual(d3Observable);
+});
+
 test('colorScale builds a clamped linear scale spanning the palette across the given domain', async ({ page }) => {
   await page.goto(FIXTURE);
   const { first, last, belowMin, aboveMax } = await page.evaluate(() => {

@@ -6,6 +6,11 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- `D3_tableau10` and `D3_observable10` palettes, alongside the existing `D3_category10`/`20`/
+  `20b`/`20c` -- d3-scale-chromatic's other categorical schemes, free to add since they're already
+  part of the same `d3@7` bundle. `D3_category10` (also core.js's default `colorPalette`) is no
+  longer a special-cased line of its own; all three d3-native schemes now come from one
+  name-to-scheme map (`D3_CATEGORICAL` in `colors.js`) alongside colorbrewer's own palettes.
 - `d3.easygraph.resolvePalette(name, classes)` and `d3.easygraph.colorScale(name, domain,
   options)`, standalone counterparts to the `colorPalette`/`colorClasses` resolution a chart
   already does internally for its own `PALETTE_COLORS` — usable without building a chart at all.

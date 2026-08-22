@@ -24,8 +24,9 @@ Shared config across all four: `container`, `label`, `x`/`y` (`scale`, `unit`, `
 `preset`, `convert`, `clip`), `height`, `margin`, `colorPalette`, `colorClasses`, `duration`,
 `oneYear` (also used by heatmaps whose x-axis spans a full year, not just line charts).
 `colorClasses` (e.g. `4`) picks that specific class count from a colorbrewer palette instead of
-its largest available one (colorbrewer ships 3–9 shades per named palette); ignored for the
-`D3_category*`/`LS_*` palettes, which aren't classed data.
+its largest available one (colorbrewer ships 3–9 shades per named palette); ignored for D3's own
+categorical schemes (`D3_category10`/`20`/`20b`/`20c`, `D3_tableau10`, `D3_observable10`) and the
+hand-picked `LS_*` palettes, none of which are classed data.
 
 Any `x`/`y`/`color` config accepts `clip: [loQuantile, hiQuantile]` (e.g. `[0.05, 0.95]`) — when
 that property's domain would otherwise come straight from the data (no explicit `xRange`/`yRange`
