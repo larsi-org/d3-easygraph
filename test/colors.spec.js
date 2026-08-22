@@ -3,11 +3,11 @@ const path = require('path');
 
 const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/colors.html');
 
-test('resolvePalette matches colorbrewerPalettes for a bare name', async ({ page }) => {
+test('resolvePalette matches colorPalettes for a bare name', async ({ page }) => {
   await page.goto(FIXTURE);
   const { resolved, direct } = await page.evaluate(() => ({
     resolved: d3.easygraph.resolvePalette('RdYlBu'),
-    direct:   d3.easygraph.colorbrewerPalettes['RdYlBu'],
+    direct:   d3.easygraph.colorPalettes['RdYlBu'],
   }));
   expect(resolved).toEqual(direct);
 });

@@ -69,6 +69,10 @@ All notable changes to this project are documented here. Format loosely follows
   the chart from 359° to 0°.
 
 ### Changed
+- `d3.easygraph.colorbrewerPalettes` (and the matching `graph.colorbrewerPalettes` instance copy)
+  renamed to `colorPalettes`. "Colorbrewer" stopped accurately describing it once D3's own
+  categorical schemes and the hand-picked `LS_*` extras were folded in alongside the actual
+  ColorBrewer data.
 - `colorbrewerPalettes` is now sourced directly from `d3-scale-chromatic`'s `d3.scheme*` exports
   (already part of the full `d3@7` bundle every caller already loads) instead of the standalone
   `colorbrewer` npm package. Verified byte-identical against colorbrewer's own data for every

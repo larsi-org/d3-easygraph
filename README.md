@@ -92,7 +92,7 @@ d3.easygraph.colorScale("Blues", [dataMin, dataMax], { classes: 4, quantize: tru
 
 Handy for coloring something that isn't a d3-easygraph chart at all — a Leaflet marker layer, a
 `d3.parcoords()` line — without hand-rolling a separate color scale or duplicating a palette
-you've already named here. `d3.easygraph.colorbrewerPalettes` (the full resolved `{name:
+you've already named here. `d3.easygraph.colorPalettes` (the full resolved `{name:
 [colors]}` map `resolvePalette` reads from) is public too, for a caller that wants to list every
 available palette name (see the [Colorbrewer demo page](https://larsi.org/graphics/colorbrewer/)).
 
@@ -179,7 +179,7 @@ included in this repo):
 - `src/d3.easygraph.units.js` — just the unit preset table (`d3.easygraph.presets`) and
   `getUnit(name)`, the standalone lookup above. No config merging, no chart concepts — `core.js` is
   the only thing that folds a resolved preset onto a graph's config, via `getUnit()`.
-- `src/d3.easygraph.colors.js` — `colorbrewerPalettes`/`resolvePalette`/`colorScale` (named lookup)
+- `src/d3.easygraph.colors.js` — `colorPalettes`/`resolvePalette`/`colorScale` (named lookup)
   and `hueWheelPalette` (generated), the standalone palette functions above. Same division of
   labor as units.js: no chart concepts here, `core.js` is the only thing that folds a resolved
   palette onto `graph.PALETTE_COLORS`.

@@ -8,7 +8,7 @@
 // shared _build() that d3.easygraph.line/.bars/.heatmap call into with their own hooks.
 // Two standalone lookups live in their own files, loaded right after this one — unit presets
 // (d3.easygraph.presets / getUnit()) in d3.easygraph.units.js, color palettes
-// (colorbrewerPalettes / resolvePalette / colorScale) in d3.easygraph.colors.js — neither has
+// (colorPalettes / resolvePalette / colorScale) in d3.easygraph.colors.js — neither has
 // any chart concepts of its own; this file is the only thing that folds either onto a graph's
 // config.
 
@@ -85,10 +85,10 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     return changed;
   }
 
-  // kept on the instance for backward compatibility (graphics/colorbrewer/index.php on the
-  // main site reads it off a live chart) -- the real, load-time-computed copy lives in
-  // d3.easygraph.colors.js.
-  graph.colorbrewerPalettes = d3.easygraph.colorbrewerPalettes;
+  // kept on the instance too, not just d3.easygraph, for a caller that reads it off a live
+  // chart (graphics/colorbrewer/index.php on the main site) -- the real, load-time-computed
+  // copy lives in d3.easygraph.colors.js.
+  graph.colorPalettes = d3.easygraph.colorPalettes;
 
   // multi-format tick labels for one-year time axes
   var _timeFormats = [
