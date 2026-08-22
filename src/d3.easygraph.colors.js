@@ -68,7 +68,6 @@ d3.easygraph.colorbrewerPalettes = (function() {
   palettes.LS_SustainZones = ["#F66","#6F6","#66F","#EE6","#6FF","#F6F","#B22","#2B2","#22B","#AA2","#2BB","#B2B","#D44","#4D4","#44D","#CC4","#4DD","#D4D","#900","#090","#009","#880","#099","#909"];
   palettes.LS_RdGnBu       = ["#F00","#0F0","#00F"];
   palettes.LS_BuMaRd       = ["#00F","#F0F","#F00"];
-  palettes.LS_BuRdYl       = ["#00F","#F00","#FF0"];
   palettes.LS_BuCyGnYlRd   = ["#00F","#0FF","#0F0","#FF0","#F00"];
   palettes.LS_Gy           = ["#000","#FFF"];
   return palettes;
