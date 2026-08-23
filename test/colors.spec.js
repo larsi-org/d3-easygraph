@@ -117,6 +117,27 @@ test('hueWheelPalette returns count [r, g, b] triples, evenly spaced around the 
   expect(distinctCount).toBe(5); // 5 evenly-spaced hues should all be visually distinct colors
 });
 
+test('Sequential.Turbo resolves via d3.interpolateTurbo, since d3.schemeTurbo does not exist', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const { hasScheme, hasInterpolate, nine, first, last } = await page.evaluate(() => ({
+    hasScheme:      typeof d3.schemeTurbo !== 'undefined',
+    hasInterpolate: typeof d3.interpolateTurbo === 'function',
+    nine:  d3.easygraph.resolvePalette('Sequential.Turbo').length,
+    first: d3.rgb(d3.easygraph.resolvePalette('Sequential.Turbo')[0]).toString(),
+    last:  d3.rgb(d3.easygraph.resolvePalette('Sequential.Turbo')[8]).toString(),
+  }));
+  expect(hasScheme).toBe(false);
+  expect(hasInterpolate).toBe(true);
+  expect(nine).toBe(9); // DEFAULT_INTERPOLATE_SAMPLES
+  expect(first).not.toBe(last);
+});
+
+test('resolvePalette classes picks the sample count for an interpolate-only scheme too', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const length = await page.evaluate(() => d3.easygraph.resolvePalette('Sequential.Turbo', 24).length);
+  expect(length).toBe(24);
+});
+
 test('hueWheelPalette(count) is deterministic -- same count always produces the same colors', async ({ page }) => {
   await page.goto(FIXTURE);
   const { a, b } = await page.evaluate(() => ({

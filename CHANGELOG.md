@@ -6,6 +6,16 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- `Sequential.Turbo`, and a general fallback in `schemeColors()` for any scheme that ships only
+  as a continuous `d3.interpolateX(t)` function with no discrete `d3.schemeX` array (Turbo,
+  Viridis/Inferno/Magma/Plasma/Cividis/Warm/Cool/CubehelixDefault/Rainbow/Sinebow are the ones
+  d3-scale-chromatic has -- only Turbo is named in `SEQUENTIAL` so far, the rest can be added the
+  same way once something actually needs them). Sampled at `DEFAULT_INTERPOLATE_SAMPLES` (9,
+  matching colorbrewer's own largest sequential class count) evenly-spaced points across `[0,
+  1]`, or at `classes` stops when the caller asks for a specific count -- same role `classes`
+  already plays for a classed colorbrewer scheme. Added after larsi.org's Lorenz Attractor page
+  wanted Turbo for its time-bucket coloring instead of hand-sampling `d3.interpolateTurbo`
+  directly.
 - `Qualitative.Tableau10` and `Qualitative.Observable10`, alongside `Qualitative.Category20`/
   `20b`/`20c` -- d3-scale-chromatic's other categorical schemes, free to add since they're
   already part of the same `d3@7` bundle. (`Category10` itself was later removed -- see Changed.)

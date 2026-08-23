@@ -33,7 +33,18 @@
 // (the .reversed suffix below covers whichever direction a future caller wants).
 var DIVERGING   = ["BrBG","PiYG","PRGn","PuOr","RdBu","RdGy","RdYlBu","RdYlGn","Spectral"];
 var QUALITATIVE = ["Accent","Dark2","Paired","Pastel1","Pastel2","Set1","Set2","Set3","Tableau10","Observable10"];
-var SEQUENTIAL  = ["BuGn","BuPu","GnBu","OrRd","PuBu","PuBuGn","PuRd","RdPu","YlGn","YlGnBu","YlOrBr","YlOrRd","Blues","Greens","Greys","Oranges","Purples","Reds"];
+var SEQUENTIAL  = ["BuGn","BuPu","GnBu","OrRd","PuBu","PuBuGn","PuRd","RdPu","YlGn","YlGnBu","YlOrBr","YlOrRd","Blues","Greens","Greys","Oranges","Purples","Reds","Turbo"];
+
+// Some d3-scale-chromatic schemes (Turbo among them -- Viridis/Inferno/Magma/Plasma/Cividis/
+// Warm/Cool/CubehelixDefault/Rainbow/Sinebow are the others, none added above since nothing here
+// names them yet) ship only as a continuous d3.interpolateX(t) function, no discrete d3.schemeX
+// array at all -- unlike colorbrewer's schemes, which come pre-split into classes 3..11. Sampled
+// at DEFAULT_INTERPOLATE_SAMPLES evenly-spaced points across [0, 1] (or `classes`, taking over
+// the same role it plays for a classed colorbrewer scheme: how many discrete stops to return) to
+// fit the same flat-color-array shape every other palette here uses. 9 matches the largest class
+// count colorbrewer's own sequential schemes stop at, so a caller that doesn't ask for a specific
+// class count still gets a comparably-sized palette either way.
+var DEFAULT_INTERPOLATE_SAMPLES = 9;
 
 // Sequential/diverging schemes are d3 arrays indexed by class count (classes 3..11, with the
 // leading indices unused, so the largest class's colors are the *last* element); qualitative
@@ -44,16 +55,26 @@ var SEQUENTIAL  = ["BuGn","BuPu","GnBu","OrRd","PuBu","PuBuGn","PuRd","RdPu","Yl
 // variants are verified literal prefixes of its largest set, so slicing a flat array reproduces
 // them exactly. `classes` omitted (or not available) resolves to the largest/full set. Takes the
 // bare d3 scheme name ("RdYlBu", not "Diverging.RdYlBu") -- resolvePalette strips the kind prefix
-// before calling this.
+// before calling this. Falls back to sampling d3.interpolateX when d3.schemeX doesn't exist --
+// see DEFAULT_INTERPOLATE_SAMPLES above.
 function schemeColors(name, classes) {
   var scheme = d3["scheme" + name];
-  if (!scheme) return undefined;
-  if (!Array.isArray(scheme[scheme.length - 1])) {
-    return scheme.slice(0, classes || scheme.length);
+  if (scheme) {
+    if (!Array.isArray(scheme[scheme.length - 1])) {
+      return scheme.slice(0, classes || scheme.length);
+    }
+    var sizes = Object.keys(scheme).map(Number);
+    var n = (classes && scheme[classes]) ? classes : Math.max.apply(null, sizes);
+    return scheme[n].slice(0);
   }
-  var sizes = Object.keys(scheme).map(Number);
-  var n = (classes && scheme[classes]) ? classes : Math.max.apply(null, sizes);
-  return scheme[n].slice(0);
+  var interpolate = d3["interpolate" + name];
+  if (!interpolate) return undefined;
+  var count = classes || DEFAULT_INTERPOLATE_SAMPLES;
+  var colors = [];
+  for (var i = 0; i < count; i++) {
+    colors.push(interpolate(count > 1 ? i / (count - 1) : 0));
+  }
+  return colors;
 }
 
 // Every scheme above (see schemeColors) at its largest class count, flattened to a plain
