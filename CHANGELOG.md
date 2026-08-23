@@ -5,6 +5,11 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added
+- `batteryStateOfCharge` preset (label "Battery", unit `%`) -- larsi.org's ESP32 sensor-node
+  firmware started reporting an onboard MAX17048 fuel gauge's state of charge, and the closest
+  existing 0-100% preset, `relativeHumidity`, would have mislabeled the axis.
+
 ## [0.6.0] - 2026-08-23
 
 ### Added
