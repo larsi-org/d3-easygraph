@@ -5,6 +5,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-23
+
 ### Added
 - `Qualitative.SunArc` (`#F84`/`#FC4`/`#B12` — warm orange, golden yellow, deep crimson), a
   hand-picked 3-color palette for sunrise/solar-noon/sunset style series. Replaces
