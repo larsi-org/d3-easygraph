@@ -94,7 +94,7 @@ d3.easygraph.colorPalettes = (function() {
   palettes["Qualitative.Category20c"]  = ["#3182bd","#6baed6","#9ecae1","#c6dbef","#e6550d","#fd8d3c","#fdae6b","#fdd0a2","#31a354","#74c476","#a1d99b","#c7e9c0","#756bb1","#9e9ac8","#bcbddc","#dadaeb","#636363","#969696","#bdbdbd","#d9d9d9"];
   palettes["Qualitative.SustainZones"] = ["#F66","#6F6","#66F","#EE6","#6FF","#F6F","#B22","#2B2","#22B","#AA2","#2BB","#B2B","#D44","#4D4","#44D","#CC4","#4DD","#D4D","#900","#090","#009","#880","#099","#909"];
   palettes["Qualitative.RdGnBu"]       = ["#F00","#0F0","#00F"];
-  palettes["Qualitative.SunArc"]       = ["#FF8C42","#FFD23F","#C1121F"];
+  palettes["Qualitative.SunArc"]       = ["#F84","#FC4","#B12"];
   SEQUENTIAL.forEach(function(name) { palettes["Sequential." + name] = schemeColors(name); });
   palettes["Sequential.Gy"]            = ["#000","#FFF"];
   return palettes;

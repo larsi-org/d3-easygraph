@@ -6,7 +6,9 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
-- `Qualitative.SunArc` (`#FF8C42`/`#FFD23F`/`#C1121F` — warm orange, golden yellow, deep crimson),
+- `Qualitative.SunArc` (`#F84`/`#FC4`/`#B12` — warm orange, golden yellow, deep crimson;
+  3-digit shorthand, each channel rounded to the nearest of the 17 values it can represent —
+  max channel delta 6/255, imperceptible on a chart line/fill),
   a hand-picked 3-color palette for sunrise/solar-noon/sunset style series. Replaces
   `Qualitative.RdGnBu` on larsi.org's `graphics/sunrise_sunset/index.php`, whose pure
   red/green/blue read as arbitrary "line 1/2/3" colors rather than evoking dawn/midday/dusk —
