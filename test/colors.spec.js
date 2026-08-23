@@ -27,13 +27,32 @@ test('resolvePalette colorClasses picks a specific class count instead of the la
   expect(four.length).toBe(4);
 });
 
-test('Qualitative.Category10 matches d3.schemeCategory10 -- still the default colorPalette, unrenamed', async ({ page }) => {
+test('default colorPalette is Qualitative.Tableau10', async ({ page }) => {
   await page.goto(FIXTURE);
-  const { resolved, d3native } = await page.evaluate(() => ({
-    resolved: d3.easygraph.resolvePalette('Qualitative.Category10'),
-    d3native: d3.schemeCategory10,
-  }));
-  expect(resolved).toEqual(d3native);
+  const { paletteColors, d3Tableau } = await page.evaluate(() => {
+    var div = document.createElement('div');
+    div.id = 'temp-graph';
+    document.body.appendChild(div);
+    var graph = d3.easygraph.line({ container: '#temp-graph', height: 100 });
+    var result = { paletteColors: graph.PALETTE_COLORS, d3Tableau: d3.schemeTableau10 };
+    graph.destroy();
+    div.remove();
+    return result;
+  });
+  expect(paletteColors).toEqual(d3Tableau);
+});
+
+test('Qualitative.Category10 was removed -- resolvePalette no longer resolves it', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const threw = await page.evaluate(() => {
+    try {
+      d3.easygraph.resolvePalette('Qualitative.Category10');
+      return false;
+    } catch (e) {
+      return true;
+    }
+  });
+  expect(threw).toBe(true);
 });
 
 test('Qualitative.Tableau10 and Qualitative.Observable10 resolve to d3-scale-chromatic\'s own schemes', async ({ page }) => {

@@ -32,20 +32,23 @@
 // opposite color order; left as d3's native order since nothing here resolves it by name today
 // (the .reversed suffix below covers whichever direction a future caller wants).
 var DIVERGING   = ["BrBG","PiYG","PRGn","PuOr","RdBu","RdGy","RdYlBu","RdYlGn","Spectral"];
-var QUALITATIVE = ["Accent","Dark2","Paired","Pastel1","Pastel2","Set1","Set2","Set3","Category10","Tableau10","Observable10"];
+var QUALITATIVE = ["Accent","Dark2","Paired","Pastel1","Pastel2","Set1","Set2","Set3","Tableau10","Observable10"];
 var SEQUENTIAL  = ["BuGn","BuPu","GnBu","OrRd","PuBu","PuBuGn","PuRd","RdPu","YlGn","YlGnBu","YlOrBr","YlOrRd","Blues","Greens","Greys","Oranges","Purples","Reds"];
 
 // Sequential/diverging schemes are d3 arrays indexed by class count (classes 3..11, with the
-// leading indices unused); qualitative schemes are a single flat array (d3 doesn't carry
-// per-class-count variants for these) -- but colorbrewer's own smaller-class variants are
-// verified literal prefixes of its largest set, so slicing the flat array reproduces them
-// exactly. `classes` omitted (or not available) resolves to the largest/full set. Takes the bare
-// d3 scheme name ("RdYlBu", not "Diverging.RdYlBu") -- resolvePalette strips the kind prefix
+// leading indices unused, so the largest class's colors are the *last* element); qualitative
+// schemes are a single flat array of color strings, no per-class-count variant, so the last
+// element is a string rather than an array -- that shape difference, not a hardcoded list of
+// which names are which, is what schemeColors actually branches on, so it handles any d3.scheme*
+// export correctly without needing to know about it in advance. Colorbrewer's own smaller-class
+// variants are verified literal prefixes of its largest set, so slicing a flat array reproduces
+// them exactly. `classes` omitted (or not available) resolves to the largest/full set. Takes the
+// bare d3 scheme name ("RdYlBu", not "Diverging.RdYlBu") -- resolvePalette strips the kind prefix
 // before calling this.
 function schemeColors(name, classes) {
   var scheme = d3["scheme" + name];
   if (!scheme) return undefined;
-  if (QUALITATIVE.indexOf(name) !== -1) {
+  if (!Array.isArray(scheme[scheme.length - 1])) {
     return scheme.slice(0, classes || scheme.length);
   }
   var sizes = Object.keys(scheme).map(Number);

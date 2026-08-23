@@ -6,9 +6,9 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
-- `Qualitative.Tableau10` and `Qualitative.Observable10`, alongside `Qualitative.Category10`/
-  `20`/`20b`/`20c` -- d3-scale-chromatic's other categorical schemes, free to add since they're
-  already part of the same `d3@7` bundle.
+- `Qualitative.Tableau10` and `Qualitative.Observable10`, alongside `Qualitative.Category20`/
+  `20b`/`20c` -- d3-scale-chromatic's other categorical schemes, free to add since they're
+  already part of the same `d3@7` bundle. (`Category10` itself was later removed -- see Changed.)
 - `d3.easygraph.resolvePalette(name, classes)` and `d3.easygraph.colorScale(name, domain,
   options)`, standalone counterparts to the `colorPalette`/`colorClasses` resolution a chart
   already does internally for its own `PALETTE_COLORS` — usable without building a chart at all.
@@ -76,9 +76,19 @@ All notable changes to this project are documented here. Format loosely follows
   `BuCyGnYlRd` → `Diverging` (both were tried as alternatives to `RdBu` on the same value-gradient
   heatmap); `SustainZones`, `RdGnBu` → `Qualitative` (`SustainZones` was designed to give thermal
   zones in a model visually distinct colors, not represent a gradient; `RdGnBu` colors 3 distinct
-  line series, also categorical use). `core.js`'s default `colorPalette` is now
-  `Qualitative.Category10`. The `_reversed` suffix is now `.reversed`, matching the new
+  line series, also categorical use). The `_reversed` suffix is now `.reversed`, matching the new
   dot-separated naming (`Diverging.RdYlBu.reversed`).
+- `core.js`'s default `colorPalette` is now `Qualitative.Tableau10`, replacing
+  `Qualitative.Category10` (removed entirely — no longer a resolvable palette name at all). Both
+  are 10-color categorical schemes, but `Category10`-style palettes are a known accessibility
+  weak point: their red and green land at similar saturation/lightness, a common hard-to-separate
+  pair under red-green color vision deficiency. `Tableau10` was Tableau's own redesign of their
+  prior Category10-like default for exactly this reason — same idea, better separated.
+  `schemeColors` (`colors.js`) no longer needs a hardcoded list of which names are
+  qualitative-shaped vs. classed-shaped to do this kind of swap safely; it now detects the shape
+  directly from the d3 data (classed schemes' largest entry is itself an array, qualitative
+  schemes' entries are plain color strings) so any `d3.scheme*` export resolves correctly without
+  being special-cased first.
 - `d3.easygraph.colorbrewerPalettes` (and the matching `graph.colorbrewerPalettes` instance copy)
   renamed to `colorPalettes`. "Colorbrewer" stopped accurately describing it once D3's own
   categorical schemes and the hand-picked extras were folded in alongside the actual ColorBrewer
