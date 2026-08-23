@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- `Qualitative.SunArc` (`#FF8C42`/`#FFD23F`/`#C1121F` — warm orange, golden yellow, deep crimson),
+  a hand-picked 3-color palette for sunrise/solar-noon/sunset style series. Replaces
+  `Qualitative.RdGnBu` on larsi.org's `graphics/sunrise_sunset/index.php`, whose pure
+  red/green/blue read as arbitrary "line 1/2/3" colors rather than evoking dawn/midday/dusk —
+  sunrise and sunset are both physically warm-hued (low sun angle, scattered light) while solar
+  noon is bright and closer to white/yellow, which is why this is a custom warm triad rather than
+  a stock ColorBrewer diverging scheme (those pair one warm end with one *cool* end, which doesn't
+  fit — sunset shouldn't read as "cold").
 - `Sequential.Turbo`, and a general fallback in `schemeColors()` for any scheme that ships only
   as a continuous `d3.interpolateX(t)` function with no discrete `d3.schemeX` array (Turbo,
   Viridis/Inferno/Magma/Plasma/Cividis/Warm/Cool/CubehelixDefault/Rainbow/Sinebow are the ones
