@@ -110,6 +110,12 @@ All notable changes to this project are documented here. Format loosely follows
   nothing resolves it by name today (`.reversed` covers whichever direction a future caller
   wants). Drops the `colorbrewer` dependency entirely — nothing else needs to change on the
   consuming side, since `d3` was already required.
+- `heatmap`'s default `colorPalette` is now `Diverging.RdBu.reversed`, overriding `core.js`'s
+  shared `Qualitative.Tableau10` (a set of unrelated categorical hues makes no sense spread across
+  a heatmap's continuous gradient the way it does as line/bars/scatter's per-series colors). Every
+  real heatmap page already passed `colorPalette: "Diverging.RdBu.reversed"` explicitly for this
+  reason; removed from each now that it's the default, so a future palette change only has to
+  happen once, here.
 
 ### Fixed
 - `line`'s zoom pane now sets `touch-action: none`. Without it, a pinch or drag gesture starting on

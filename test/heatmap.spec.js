@@ -4,6 +4,17 @@ const path = require('path');
 const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/heatmap.html');
 const CLIP_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/heatmap-clip.html');
 
+test('defaults colorPalette to Diverging.RdBu.reversed, not the shared Qualitative.Tableau10', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const { colorPalette, paletteColors, expected } = await page.evaluate(() => ({
+    colorPalette:  window.graph.colorPalette,
+    paletteColors: window.graph.PALETTE_COLORS,
+    expected:      d3.easygraph.resolvePalette('Diverging.RdBu.reversed'),
+  }));
+  expect(colorPalette).toBe('Diverging.RdBu.reversed');
+  expect(paletteColors).toEqual(expected);
+});
+
 test('renders a cell grid matching the data dimensions', async ({ page }) => {
   await page.goto(FIXTURE);
   // 4 rows x 6 cols in the fixture data
