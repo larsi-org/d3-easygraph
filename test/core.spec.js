@@ -156,9 +156,169 @@ test('label is optional: no label, no preset, no placeholder text needed -- the 
   const title = await page.evaluate(() => {
     var g = d3.easygraph.line({ container: '#graph', height: 200 });
     g.update([[{ x: 1, y: 1 }]]);
-    var text = document.querySelector('#title').textContent;
+    var text = document.querySelector('text.easygraph-title').textContent;
     g.destroy();
     return text;
   });
   expect(title).toBe('');
+});
+
+test('the caller\'s config object is never mutated, and two charts can share one config', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const result = await page.evaluate(() => {
+    var wrap2 = document.createElement('div');
+    wrap2.style.width = '600px';
+    document.body.appendChild(wrap2);
+
+    var cfg = { container: '#graph', height: 320, lines: true };
+    var g1 = d3.easygraph.line(cfg);
+    var heightAfterFirst = cfg.height;
+    cfg.container = wrap2;
+    var g2 = d3.easygraph.line(cfg);
+
+    var r = {
+      configHeightUntouched: heightAfterFirst === 320 && cfg.height === 320,
+      configKeyCount: Object.keys(cfg).length,   // stays 3, not ~45
+      chartsAreDistinct: g1 !== g2,
+      // chart 1's plot height must survive chart 2's construction: 320 - 20 - 30 = 270
+      g1PlotHeight: g1.height,
+      g2PlotHeight: g2.height
+    };
+
+    g1.destroy();
+    g2.destroy();
+    r.bothTornDown = document.querySelectorAll('#graph svg').length === 0 &&
+                     wrap2.querySelectorAll('svg').length === 0;
+    wrap2.remove();
+    return r;
+  });
+  expect(result.configHeightUntouched).toBe(true);
+  expect(result.configKeyCount).toBe(3);
+  expect(result.chartsAreDistinct).toBe(true);
+  expect(result.g1PlotHeight).toBe(270);
+  expect(result.g2PlotHeight).toBe(270);
+  expect(result.bothTornDown).toBe(true);
+});
+
+test('the chart title is a class, not a page-unique id -- N charts do not collide', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const result = await page.evaluate(() => {
+    var wrap2 = document.createElement('div');
+    wrap2.style.width = '600px';
+    document.body.appendChild(wrap2);
+    var g1 = d3.easygraph.line({ container: '#graph', height: 200, y: { preset: 'temperatureC' } });
+    var g2 = d3.easygraph.line({ container: wrap2,   height: 200, y: { preset: 'relativeHumidity' } });
+    g1.update([[{ x: 1, y: 1 }]]);
+    g2.update([[{ x: 1, y: 1 }]]);
+    var r = {
+      idTitleElements: document.querySelectorAll('#title').length,
+      titleClassElements: document.querySelectorAll('text.easygraph-title').length,
+      firstTitle: g1.$title.text(),
+      secondTitle: g2.$title.text()
+    };
+    g1.destroy(); g2.destroy(); wrap2.remove();
+    return r;
+  });
+  expect(result.idTitleElements).toBe(0);
+  expect(result.titleClassElements).toBe(2);
+  expect(result.firstTitle).toBe('Temperature [°C]');
+  expect(result.secondTitle).toBe('Relative Humidity [%]');
+});
+
+test('the stylesheet does not restyle a host page element named #title / .tick / .axis', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const result = await page.evaluate(async () => {
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '../../dist/d3.easygraph.css';
+    document.head.appendChild(link);
+    await new Promise(function(r) { link.onload = r; link.onerror = r; setTimeout(r, 500); });
+
+    var h1 = document.createElement('h1'); h1.id = 'title'; h1.textContent = 'Host page title';
+    var tick = document.createElement('div'); tick.className = 'tick'; tick.textContent = 'x';
+    document.body.appendChild(h1); document.body.appendChild(tick);
+    var r = { h1FontSize: getComputedStyle(h1).fontSize, tickFontSize: getComputedStyle(tick).fontSize };
+    h1.remove(); tick.remove();
+    return r;
+  });
+  // browser defaults, i.e. untouched by the library: h1 32px, div 16px
+  expect(result.h1FontSize).toBe('32px');
+  expect(result.tickFontSize).toBe('16px');
+});
+
+test('setting graph.y.label after construction updates the title; graph.label still overrides', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const titles = await page.evaluate(() => {
+    var g = d3.easygraph.line({ container: '#graph', height: 200, y: { preset: 'temperatureC' } });
+    g.update([[{ x: 1, y: 1 }]]);
+    var fromPreset = g.$title.text();
+
+    g.y.label = 'Cabin Temperature';
+    g.update([[{ x: 1, y: 1 }]]);
+    var fromYConfig = g.$title.text();
+
+    g.label = 'Explicit Override';
+    g.update([[{ x: 1, y: 1 }]]);
+    var fromOverride = g.$title.text();
+
+    g.destroy();
+    return { fromPreset, fromYConfig, fromOverride };
+  });
+  expect(titles.fromPreset).toBe('Temperature [°C]');
+  expect(titles.fromYConfig).toBe('Cabin Temperature [°C]');
+  expect(titles.fromOverride).toBe('Explicit Override [°C]');
+});
+
+test('the chart svg carries an accessible name for assistive tech', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const a11y = await page.evaluate(() => {
+    var g = d3.easygraph.line({ container: '#graph', height: 200, y: { preset: 'temperatureC' }, lines: true });
+    g.update([[{ x: 1, y: 1 }, { x: 2, y: 2 }]]);
+    var svg = document.querySelector('#graph svg');
+    var r = {
+      role: svg.getAttribute('role'),
+      ariaLabel: svg.getAttribute('aria-label'),
+      titleEl: svg.querySelector('title') && svg.querySelector('title').textContent
+    };
+    g.destroy();
+    return r;
+  });
+  expect(a11y.role).toBe('img');
+  expect(a11y.ariaLabel).toBe('Temperature [°C]');
+  expect(a11y.titleEl).toBe('Temperature [°C]');
+});
+
+test('an unlabeled chart still announces as its family rather than as bare axis numbers', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const label = await page.evaluate(() => {
+    var g = d3.easygraph.line({ container: '#graph', height: 200 });
+    g.update([[{ x: 1, y: 1 }]]);
+    var l = document.querySelector('#graph svg').getAttribute('aria-label');
+    g.destroy();
+    return l;
+  });
+  expect(label).toBe('line chart');
+});
+
+test('update() returns the graph, so calls can chain', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const chained = await page.evaluate(() => {
+    var g = d3.easygraph.line({ container: '#graph', height: 200, lines: true });
+    var returned = g.update([[{ x: 1, y: 1 }]]);
+    var isSame = returned === g;
+    g.destroy();
+    return isSame;
+  });
+  expect(chained).toBe(true);
+});
+
+test('the bundle leaks no helper globals onto window', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const leaked = await page.evaluate(() => {
+    return ['_resolveContainer', '_nextClipId', '_identity', '_withRounding', '_roundedIdentity',
+            'DIVERGING', 'QUALITATIVE', 'SEQUENTIAL', 'DEFAULT_INTERPOLATE_SAMPLES',
+            'schemeColors', '_curveMap', '_nestedValues', '_temperatureC2F']
+      .filter(function(name) { return name in window; });
+  });
+  expect(leaked).toEqual([]);
 });

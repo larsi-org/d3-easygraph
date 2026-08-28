@@ -79,7 +79,15 @@ var _nextClipId = 0;
 // shared constructor body — each family (line/bars/heatmap) calls this with its own
 // defaults and a moduleFactory(graph) returning { prepareScales?, init?, domain, render, resize? }
 d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
-  var graph = config || {};
+  // Shallow-cloned, never used by reference. _build() writes ~45 properties onto this object
+  // (scales, axes, SVG selections, internal state) and overwrites `height` with the plot-area
+  // height, so using the caller's own config object as the graph -- which is what this did
+  // before -- meant constructing a second chart from the same config literal silently
+  // corrupted the first one: they were literally the same object, so the first chart's
+  // height/DOM/observer references were overwritten and it became unreachable and
+  // un-destroyable (its SVG orphaned, its ResizeObserver never disconnected). The nested
+  // x/y/color/margin objects get their own clones further down for the same reason.
+  var graph = Object.assign({}, config);
 
   var containerEl = _resolveContainer(graph.container);
   if (!containerEl) {
@@ -152,22 +160,33 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   graph.x = Object.assign({}, graph.x);
   graph.y = Object.assign({}, graph.y);
 
+  // x/y are already guaranteed to be objects by the clone above, so they're deliberately not
+  // listed here -- _extend only fills a key that's still undefined.
   d3.easygraph._extend(graph, {
-    x:            {},
-    y:            {},
-    colorPalette: 'Qualitative.Tableau10',
-    colorClasses: null, // request a specific class count (e.g. 4) from a Sequential/Diverging
-                         // palette instead of the largest available -- ignored for Qualitative
-                         // and the hardcoded extras, which aren't classed data
-    duration:     500,
-    oneYear:      false
+    colorPalette:    'Qualitative.Tableau10',
+    colorClasses:    null, // request a specific class count (e.g. 4) from a Sequential/Diverging
+                            // palette instead of the largest available -- ignored for Qualitative
+                            // and the hardcoded extras, which aren't classed data
+    duration:        500,
+    timeFormatMulti: false
   });
 
   graph.paletteColors = d3.easygraph.resolvePalette(graph.colorPalette, graph.colorClasses);
 
   d3.easygraph._resolveProperty(graph.x);
   d3.easygraph._resolveProperty(graph.y);
-  d3.easygraph._extend(graph, { label: graph.y.label, unit: graph.y.unit });
+
+  // Resolved lazily rather than copied onto graph.label/graph.unit at construction: the copy
+  // meant a caller who set graph.y.label afterwards saw nothing change (the title only ever
+  // read the construction-time snapshot), and left two competing sources of truth for the same
+  // string. graph.label/graph.unit still win when set -- they're the explicit override -- but
+  // the y config is now the live fallback rather than a one-time seed.
+  graph.resolvedLabel = function() {
+    return (graph.label !== undefined) ? graph.label : graph.y.label;
+  };
+  graph.resolvedUnit = function() {
+    return (graph.unit !== undefined) ? graph.unit : graph.y.unit;
+  };
 
   graph._outerHeight = graph.height;
   graph.height = graph._outerHeight - graph.margin.top - graph.margin.bottom;
@@ -186,17 +205,25 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
 
   graph.x.$axis = d3.axisBottom(graph.x.$scale).tickSize(-graph.height).tickPadding(12);
   if (graph.x.scale === 'linear' && !graph.x.$scale.bandwidth) graph.x.$axis.tickFormat(graph.numberFormat);
-  if (graph.x.scale === 'time'   && graph.oneYear)             graph.x.$axis.tickFormat(graph.timeFormatShort);
+  if (graph.x.scale === 'time'   && graph.timeFormatMulti)     graph.x.$axis.tickFormat(graph.timeFormatShort);
   if (graph.x.noTick)                                          graph.x.$axis.tickFormat(function() { return ''; });
 
   graph.y.$axis = d3.axisLeft(graph.y.$scale).tickSize(-graph.width).tickPadding(6);
   if (graph.y.scale === 'linear' && !graph.y.$scale.bandwidth) graph.y.$axis.tickFormat(graph.numberFormat);
   if (graph.y.noTick)                                          graph.y.$axis.tickFormat(function() { return ''; });
 
+  // The "easygraph" class is what every rule in d3.easygraph.css is scoped under -- without it
+  // the stylesheet's generic selectors (a bare #title, .tick, .axis) would restyle any host
+  // page element that happened to share those names. role/aria-label give assistive tech
+  // something better than the axis tick numbers read out as one run-on string; the <title>
+  // child is the SVG-native equivalent, kept in sync by update().
   graph.$svgRoot = d3.select(containerEl)
     .append("svg")
+      .attr("class", "easygraph")
+      .attr("role", "img")
       .attr("width", graph._outerWidth)
       .attr("height", graph._outerHeight);
+  graph.$a11yTitle = graph.$svgRoot.append("title");
   graph.$svg = graph.$svgRoot
     .append("g")
       .attr("transform", "translate(" + graph.margin.left + "," + graph.margin.top + ")");
@@ -207,12 +234,16 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
       .attr("transform", "translate(0," + graph.height + ")")
       .call(graph.x.$axis);
 
+  // A class, not id="title": an id is unique per *document*, so N charts on one page produced
+  // N duplicate ids, and the stylesheet's matching bare #title rule reached into the host page
+  // and restyled its own #title element (an <h1 id="title"> visibly shrank to the chart
+  // title's 16px). Nothing needs to look this up by id -- graph.$title holds the selection.
   graph.$title = graph.$svg
     .append("g")
       .attr("class", "y axis")
       .call(graph.y.$axis)
     .append("text")
-      .attr("id", "title")
+      .attr("class", "easygraph-title")
       .attr("x", graph.width / 2)
       .attr("y", -6);
 
@@ -288,8 +319,13 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     ranges = ranges || {};
     graph._lastData = data;
 
-    graph.$svg.select("#title")
-      .text((graph.unit) ? graph.label + " [" + graph.unit + "]" : graph.label);
+    var label = graph.resolvedLabel(), unit = graph.resolvedUnit();
+    var titleText = (unit) ? label + " [" + unit + "]" : label;
+    graph.$title.text(titleText);
+    // Mirrored onto the SVG's own accessible name. Falls back to the family name so a chart
+    // with no label at all still announces as something rather than as its axis tick numbers.
+    graph.$a11yTitle.text(titleText || graph.chartType + " chart");
+    graph.$svgRoot.attr("aria-label", titleText || graph.chartType + " chart");
 
     var domains = graph._module.domain(data, ranges.x, ranges.y) || { x: [0, 1], y: [0, 1] };
     graph.x.$scale.domain(domains.x);
@@ -299,6 +335,8 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
 
     graph.$svg.select("g.x.axis").transition().duration(graph.duration).call(graph.x.$axis);
     graph.$svg.select("g.y.axis").transition().duration(graph.duration).call(graph.y.$axis);
+
+    return graph; // chainable, matching d3's own convention
   };
 
   return graph;

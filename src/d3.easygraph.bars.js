@@ -12,6 +12,7 @@
 
 d3.easygraph.bars = function(config) {
   return d3.easygraph._build(config, {
+    chartType:     'bar',
     orientation:   'v',
     mode:          'grouped',
     colorPerData:  false
@@ -160,6 +161,13 @@ d3.easygraph.bars = function(config) {
         }
         var stacked = isStacked ? d3.easygraph._computeStacked(data) : undefined;
 
+        // d3.max over empty/all-empty data returns undefined, which would otherwise land in
+        // the domain as [0, undefined] -- same empty-data guard line/scatter's domain() have.
+        function groupedMax() {
+          var max = d3.max(data, function(a) { return d3.max(a, function(d) { return d.y; }); });
+          return (max === undefined) ? 1 : max;
+        }
+
         var xDomain = [ 0, 1 ];
         if (xRange) {
           xDomain = xRange;
@@ -168,7 +176,7 @@ d3.easygraph.bars = function(config) {
         } else if (isStacked) {
           if (stacked.length > 0) xDomain = [ 0, d3.max(stacked[stacked.length - 1], function(d) { return d.y0 + d.y; }) ];
         } else {
-          xDomain = [ 0, d3.max(data, function(a) { return d3.max(a, function(d) { return d.y; }); }) ];
+          xDomain = [ 0, groupedMax() ];
         }
 
         var yDomain = [ 0, 1 ];
@@ -179,7 +187,7 @@ d3.easygraph.bars = function(config) {
         } else if (isStacked) {
           if (stacked.length > 0) yDomain = [ 0, d3.max(stacked[stacked.length - 1], function(d) { return d.y0 + d.y; }) ];
         } else {
-          yDomain = [ 0, d3.max(data, function(a) { return d3.max(a, function(d) { return d.y; }); }) ];
+          yDomain = [ 0, groupedMax() ];
         }
 
         return { x: xDomain, y: yDomain };

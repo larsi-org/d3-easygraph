@@ -6,6 +6,20 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- The build is now wrapped in UMD (`src/_intro.js`/`src/_outro.js`), so `require('d3-easygraph')`
+  and `import 'd3-easygraph'` work alongside the existing `<script>` tag. Previously the package's
+  declared `main` was a bare globals script, so any bundler/Node consumer got
+  `ReferenceError: d3 is not defined` on import. Script-tag users are unaffected -- the library
+  still attaches to the global `d3` as `d3.easygraph`. Module consumers instead receive the API as
+  the module's own export, because d3 v7 ships as ESM and a module namespace object is sealed:
+  assigning `.easygraph` onto it silently no-ops. The wrapper hands the factory an
+  `Object.create(d3)` view in those branches -- reads fall through to the real d3, writes land on
+  the view. `package.json` gains `exports`/`unpkg`/`jsdelivr`/`sideEffects` to match.
+- Charts are now exposed to assistive technology: each `<svg>` carries `role="img"`, an
+  `aria-label`, and a native `<title>` child, all mirroring the rendered chart title and kept in
+  sync by `update()`. A chart with no label at all announces as e.g. "line chart" rather than as
+  its axis tick numbers run together ("00.10.20.30.4..."), which is what a screen reader got
+  before.
 - `batteryStateOfCharge` preset (label "Battery", unit `%`) -- larsi.org's ESP32 sensor-node
   firmware started reporting an onboard MAX17048 fuel gauge's state of charge, and the closest
   existing 0-100% preset, `relativeHumidity`, would have mislabeled the axis.
@@ -34,6 +48,24 @@ All notable changes to this project are documented here. Format loosely follows
   a smoothly-tweenable "value" the way a point's position or color is.
 
 ### Changed
+- `oneYear` renamed to `timeFormatMulti`. The old name described one caller's use case (an
+  EnergyPlus year of hourly data) rather than what the flag does: pick a per-tick time format
+  from the tick's own precision instead of one fixed format across the whole axis. Breaking
+  change -- any caller passing `oneYear: true` needs `timeFormatMulti: true`.
+- `graph.update()` returns the graph, so calls chain (d3's own convention); it previously
+  returned `undefined`.
+- `heatmap`'s axes now default to the grid's own dimensions -- a 6x4 grid with no explicit
+  `ranges` gets `x: [0, 6]`, `y: [0, 4]`, so ticks line up with cell boundaries. The old `[0, 1]`
+  fallback drew a 0-1 axis under a grid of any size, which meant every heatmap caller had to pass
+  ranges of its own or accept a meaningless axis.
+- `graph.label`/`graph.unit` are resolved lazily against the `y` config rather than copied off it
+  at construction. Setting `graph.y.label` after construction used to leave the title showing the
+  construction-time snapshot forever; the two now have one clear precedence (`graph.label` is the
+  explicit override, `y` is the live fallback) instead of being two independent copies. Read them
+  via `graph.resolvedLabel()`/`graph.resolvedUnit()`.
+- `heatmap`'s `.heatmap_row`/`.heatmap_cells` DOM classes are now `.heatmap-row`/`.heatmap-cells`,
+  matching the kebab-case every other class in the library already used. Breaking change for any
+  caller styling or selecting those directly.
 - `line`'s `areas` config renamed to `ribbons` (and every internal artifact along with it --
   `graph.$area`/`$area0` -> `graph.$ribbon`/`$ribbon0`, the `.data-areas` CSS/DOM class ->
   `.data-ribbons`). "Area chart" conventionally means a stacked/cumulative filled area, which
@@ -59,6 +91,33 @@ All notable changes to this project are documented here. Format loosely follows
   docs, tests).
 
 ### Fixed
+- **The caller's config object is no longer used as the chart object.** `_build()` took the config
+  by reference and wrote ~45 properties onto it, including overwriting `height` with the computed
+  plot-area height. Constructing a second chart from the same config literal therefore returned
+  *the same object* as the first: the first chart's height silently changed (320 -> 270 -> 220),
+  both `graph` handles pointed at one chart, and calling `destroy()` on each tore the second one
+  down twice while leaving the first's SVG orphaned in the DOM with its `ResizeObserver` still
+  connected. The config (and its `x`/`y`/`color`/`margin` sub-objects, already cloned in 0.6.x) is
+  now cloned on the way in, so one config literal can safely build any number of charts.
+- **The stylesheet no longer reaches into the host page.** It shipped bare `#title`, `.tick`,
+  `.axis` and `rect.pane` selectors; merely loading the file restyled a host page's own
+  `<h1 id="title">` (32px -> 16px) or anything else using those generic names. Every rule is now
+  scoped under `.easygraph`, a class the library puts on each chart's `<svg>`.
+  `.easygraph-crosshair-tip` stays unscoped -- it's appended to `document.body`, outside the svg,
+  and was already namespaced.
+- The chart title is a `class="easygraph-title"` element instead of `id="title"`. An id is unique
+  per document, so N charts on a page produced N duplicate ids; nothing looked it up by id anyway
+  (`graph.$title` holds the selection).
+- The minified bundle no longer leaks 17 internal helpers onto `window` (`schemeColors`,
+  `DIVERGING`, `QUALITATIVE`, `SEQUENTIAL`, `_curveMap`, `_resolveContainer`, the unit-conversion
+  formulas, and others). They're function-scoped inside the new UMD wrapper.
+- `heatmap.update([])` threw `TypeError: Cannot read properties of undefined (reading 'length')`
+  -- it reached `data[0].length` with no rows. It now clears the grid and returns, matching the
+  empty-data handling `line`/`scatter` got in 0.6.x. "No data yet" is a normal state while a first
+  fetch is in flight.
+- `bars`' value axis returned `[0, undefined]` for empty data (`d3.max` over nothing); it now
+  falls back to `[0, 1]` like the other families.
+
 - Source file headers said "Creative Commons Attribution-ShareAlike 3.0" (leftover from this
   code's original home on larsi.org, pre-extraction) while `LICENSE`/`package.json` have always
   said MIT -- all 7 files now say MIT, matching the license this repo actually ships under.

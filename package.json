@@ -3,12 +3,20 @@
   "version": "0.6.0",
   "description": "A batteries-included D3 v7 charting library: lines, areas, zoom, crosshair, stacked/grouped bars, heatmaps, and scatter plots, with a responsive container-driven width and standalone unit-preset conversion.",
   "main": "dist/d3.easygraph.min.js",
+  "unpkg": "dist/d3.easygraph.min.js",
+  "jsdelivr": "dist/d3.easygraph.min.js",
+  "exports": {
+    ".": "./dist/d3.easygraph.min.js",
+    "./dist/d3.easygraph.css": "./dist/d3.easygraph.css",
+    "./package.json": "./package.json"
+  },
+  "sideEffects": true,
   "files": [
     "src",
     "dist"
   ],
   "scripts": {
-    "build": "terser src/d3.easygraph.core.js src/d3.easygraph.units.js src/d3.easygraph.colors.js src/d3.easygraph.line.js src/d3.easygraph.bars.js src/d3.easygraph.heatmap.js src/d3.easygraph.scatter.js -c -m --comments false -o dist/d3.easygraph.min.js && cp src/d3.easygraph.css dist/d3.easygraph.css",
+    "build": "cat src/_intro.js src/d3.easygraph.core.js src/d3.easygraph.units.js src/d3.easygraph.colors.js src/d3.easygraph.line.js src/d3.easygraph.bars.js src/d3.easygraph.heatmap.js src/d3.easygraph.scatter.js src/_outro.js | terser -c -m --comments false -o dist/d3.easygraph.min.js && cp src/d3.easygraph.css dist/d3.easygraph.css",
     "test": "playwright test"
   },
   "keywords": [

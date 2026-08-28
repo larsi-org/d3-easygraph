@@ -1,20 +1,26 @@
 /* d3.easygraph.css */
+/* Every rule is scoped under .easygraph -- the class core.js puts on each chart's own <svg>.
+   Without that scope the generic selectors below (a bare #title, .tick, .axis, .pane) reached
+   straight into the host page and restyled any element that happened to share the name: a
+   page's own <h1 id="title"> visibly shrank to 16px just from loading this file.
+   .easygraph-crosshair-tip is the one exception -- line.js appends it to document.body, outside
+   the chart's svg, so it carries its own namespaced class instead of relying on the scope. */
 /* .scatter-point/.scatter-arrow stroke-width is set inline by scatter.js's render(), not here
    -- it has to divide by the current zoom factor (graph.rescale()) to stay a constant on-screen
    size, which a static CSS rule can't do. */
-rect.pane{cursor:move;fill:none;pointer-events:all}
-#title{text-anchor:middle;font-size:16px;fill:#333}
-.tick{font-size:12px}
-.axis line{stroke:#CCC;stroke-width:1.0px;stroke-dasharray:2,2}
-.axis path{fill:none;stroke:#999;stroke-width:1.0px}
-.data-ribbons{stroke:none}
-.data-stack{stroke:none}
-.data-lines{fill:none;stroke-width:1.5px}
-.data-bars{stroke:none;stroke:#333;stroke-width:1.5px}
-.heatmap_cells{shape-rendering:crispEdges}
-.scatter-point{stroke:#333}
-.scatter-cell{stroke:none}
-.scatter-arrow{fill:none;stroke-linecap:round}
-.scatter-label{fill:#333;font-family:sans-serif;pointer-events:none}
-line.crosshair-line{stroke:#aaa;stroke-width:1px;stroke-dasharray:4,2;pointer-events:none}
+.easygraph rect.pane{cursor:move;fill:none;pointer-events:all}
+.easygraph .easygraph-title{text-anchor:middle;font-size:16px;fill:#333}
+.easygraph .tick{font-size:12px}
+.easygraph .axis line{stroke:#CCC;stroke-width:1.0px;stroke-dasharray:2,2}
+.easygraph .axis path{fill:none;stroke:#999;stroke-width:1.0px}
+.easygraph .data-ribbons{stroke:none}
+.easygraph .data-stack{stroke:none}
+.easygraph .data-lines{fill:none;stroke-width:1.5px}
+.easygraph .data-bars{stroke:none;stroke:#333;stroke-width:1.5px}
+.easygraph .heatmap-cells{shape-rendering:crispEdges}
+.easygraph .scatter-point{stroke:#333}
+.easygraph .scatter-cell{stroke:none}
+.easygraph .scatter-arrow{fill:none;stroke-linecap:round}
+.easygraph .scatter-label{fill:#333;font-family:sans-serif;pointer-events:none}
+.easygraph line.crosshair-line{stroke:#aaa;stroke-width:1px;stroke-dasharray:4,2;pointer-events:none}
 .easygraph-crosshair-tip{position:absolute;background:rgba(255,255,255,0.92);border:1px solid #ccc;border-radius:4px;padding:4px 8px;pointer-events:none;font-size:12px;white-space:nowrap;z-index:1000}

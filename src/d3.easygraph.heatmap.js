@@ -7,18 +7,28 @@
 // continuous x/y axes (no band scale), colored via its own graph.color.$scale.
 
 d3.easygraph.heatmap = function(config) {
-  // Cloned, not resolved in place -- same reasoning as core.js's x/y cloning: a caller reusing
-  // the same color config object literal across two chart instances would otherwise have the
-  // second construction silently overwrite the first chart's $scale on that shared object.
-  config.color = Object.assign({}, config.color);
-  d3.easygraph._resolveProperty(config.color);
+  // Both the config and its color sub-object are cloned rather than resolved in place -- the
+  // caller's own object is never written to (core.js's _build() clones again for the same
+  // reason; see its comment for what went wrong when it didn't).
+  config = Object.assign({}, config);
+  config.color = d3.easygraph._resolveProperty(Object.assign({}, config.color));
 
   // Overrides _build()'s shared Qualitative.Tableau10 default -- a set of unrelated categorical
   // hues makes no sense spread across a heatmap's continuous scaleLinear gradient the way it
   // does as line/bars/scatter's per-series colors. A caller's own colorPalette in config still
   // wins (config is folded onto graph before familyDefaults is even consulted).
-  return d3.easygraph._build(config, { colorPalette: 'Diverging.RdBu.reversed' }, function(graph) {
+  return d3.easygraph._build(config, {
+    chartType:    'heatmap',
+    colorPalette: 'Diverging.RdBu.reversed'
+  }, function(graph) {
     function render(data) {
+      // Empty data (a page whose first fetch hasn't resolved yet) used to reach data[0].length
+      // and throw; there's simply nothing to draw, so clear any previous grid and stop.
+      if (!data.length || !data[0].length) {
+        graph.$group.selectAll(".heatmap-row").remove();
+        return;
+      }
+
       var heatmapCols  = data[0].length,
           heatmapRows  = data.length,
           heatmapCellW = graph.width  / heatmapCols,
@@ -32,19 +42,19 @@ d3.easygraph.heatmap = function(config) {
 
       graph.color.$scale.domain(d3.range(n).map(function(i) { return dataMin + i * dataDlt / (n - 1); }));
 
-      var heatmapRow = graph.$group.selectAll(".heatmap_row").data(data);
-      var heatmapRowEnter = heatmapRow.enter().append("g").attr("class", "heatmap_row");
+      var heatmapRow = graph.$group.selectAll(".heatmap-row").data(data);
+      var heatmapRowEnter = heatmapRow.enter().append("g").attr("class", "heatmap-row");
       heatmapRow.exit().remove();
       heatmapRow = heatmapRowEnter.merge(heatmapRow);
       heatmapRow.attr("transform", function(d, i) {
         return "translate(0," + ((heatmapRows - 1 - i) * heatmapCellH) + ")";
       });
 
-      var heatmapCells = heatmapRow.selectAll(".heatmap_cells").data(function(d) { return d; });
+      var heatmapCells = heatmapRow.selectAll(".heatmap-cells").data(function(d) { return d; });
       // fill set immediately at enter -- a freshly entered cell should show its real color
       // right away, not fade in from nothing; the transition below only matters for a cell
       // that already existed and is changing color on a data update.
-      var heatmapCellsEnter = heatmapCells.enter().append("rect").attr("class", "heatmap_cells")
+      var heatmapCellsEnter = heatmapCells.enter().append("rect").attr("class", "heatmap-cells")
         .style('fill', function(d) { return graph.color.$scale(d); });
       heatmapCells.exit().remove();
       heatmapCells = heatmapCellsEnter.merge(heatmapCells);
@@ -69,10 +79,14 @@ d3.easygraph.heatmap = function(config) {
         graph.color.$scale = d3.scaleLinear().range(graph.paletteColors).clamp(true);
       },
 
-      // both real heatmap pages always pass explicit xRange/yRange; this
-      // fallback only guards against a future caller that doesn't
+      // With no explicit range, the axes span the grid's own dimensions -- a 6x4 grid gets
+      // x: [0, 6], y: [0, 4], so the tick values line up with cell boundaries. The previous
+      // [0, 1] fallback drew a 0-1 axis underneath a grid of any size, which was meaningless
+      // for every caller that didn't pass ranges of its own.
       domain: function(data, xRange, yRange) {
-        return { x: xRange || [0, 1], y: yRange || [0, 1] };
+        var cols = (data.length && data[0].length) ? data[0].length : 1;
+        var rows = data.length || 1;
+        return { x: xRange || [0, cols], y: yRange || [0, rows] };
       },
 
       render: render

@@ -57,3 +57,18 @@ test('resize never produces a negative bar width (regression)', async ({ page })
     expect(Number.isNaN(attrs.x)).toBe(false);
   }
 });
+
+test('update([]) with no data yields a real [0,1] value domain, not [0, undefined]', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const result = await page.evaluate(() => {
+    window.graph.update([]);
+    return {
+      y: window.graph.y.$scale.domain(),
+      bars: document.querySelectorAll('rect.data-bars').length
+    };
+  });
+  // the value axis is the one that used to come back as [0, null] (d3.max over nothing)
+  expect(result.y).toEqual([0, 1]);
+  expect(result.y[1]).not.toBeNull();
+  expect(result.bars).toBe(0);
+});

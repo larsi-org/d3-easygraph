@@ -26,6 +26,7 @@ function _nestedValues(data, acc) {
 
 d3.easygraph.line = function(config) {
   return d3.easygraph._build(config, {
+    chartType:          'line',
     lines:              false,
     ribbons:            false,
     stackedArea:        false,
@@ -127,7 +128,7 @@ d3.easygraph.line = function(config) {
               var d = (d1 && Math.abs(x0 - d1.x) < Math.abs(x0 - d0.x)) ? d1 : d0;
               if (!d) return;
               var near = Math.abs(graph.x.$scale(d.x) - mouseX) <= graph.crosshairThreshold;
-              var unit = (graph.units && graph.units[i] != null) ? graph.units[i] : (graph.unit || '');
+              var unit = (graph.units && graph.units[i] != null) ? graph.units[i] : (graph.resolvedUnit() || '');
               html += '<br><span style="color:' + graph.getPaletteColor(i) + '">&#9632;</span> ' + (near ? d.y : '?') + unit;
             });
 

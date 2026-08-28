@@ -61,14 +61,14 @@
 // colorClasses: 4 for four bands from light to dark.
 
 d3.easygraph.scatter = function(config) {
-  // Cloned, not resolved in place -- same reasoning as core.js's x/y cloning and heatmap.js's
-  // own color cloning: a caller reusing the same color config object literal across two chart
-  // instances would otherwise have the second construction silently overwrite the first
-  // chart's $scale on that shared object.
-  config.color = Object.assign({}, config.color);
-  d3.easygraph._resolveProperty(config.color);
+  // Both the config and its color sub-object are cloned rather than resolved in place -- the
+  // caller's own object is never written to (core.js's _build() clones again for the same
+  // reason; see its comment for what went wrong when it didn't).
+  config = Object.assign({}, config);
+  config.color = d3.easygraph._resolveProperty(Object.assign({}, config.color));
 
   return d3.easygraph._build(config, {
+    chartType: 'scatter',
     radius: 4, pointStrokeWidth: 0.5, voronoi: false, voronoiOpacity: 0.6,
     arrows: false, arrowColor: '#000', arrowStrokeWidth: 1.5,
     arrowMinLength: 6, arrowMaxLength: 24, arrowHeadLength: 6, arrowHeadAngle: Math.PI / 7,

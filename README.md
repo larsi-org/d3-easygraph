@@ -22,7 +22,9 @@ Each chart family has its own constructor, taking only the config that family un
 
 Shared config across all four: `container`, `label`, `x`/`y` (`scale`, `unit`, `label`, `noTick`,
 `preset`, `convert`, `clip`), `height`, `margin`, `colorPalette`, `colorClasses`, `duration`,
-`oneYear` (also used by heatmaps whose x-axis spans a full year, not just line charts).
+`timeFormatMulti` (multi-scale time tick labels — minute/hour/day/month formats picked per tick
+from the tick's own precision, rather than one fixed format for the whole axis; useful on any
+time axis spanning enough range for one format to read badly at both ends).
 `colorClasses` (e.g. `4`) picks that specific class count from a `Sequential.*`/`Diverging.*`
 palette instead of its largest available one (3–9 shades per named palette); ignored for
 `Qualitative.*` and the hardcoded extras, none of which are classed data.
@@ -114,9 +116,27 @@ the numbers as-is, not a string to re-parse.
 
 ## Usage
 
-d3-easygraph expects `d3` (v7) to already be loaded as a global — it's a peer dependency, not
-bundled. Its named color palettes are sourced from `d3`'s own bundled `d3-scale-chromatic`
-schemes, so nothing else needs to be loaded for those.
+`d3` (v7) is a peer dependency, not bundled — install or load it yourself. The named color
+palettes are sourced from `d3`'s own bundled `d3-scale-chromatic` schemes, so nothing else is
+needed for those.
+
+The build is UMD, so all three ways of loading it work:
+
+```js
+// ES modules / bundler
+import easygraph from 'd3-easygraph';
+import 'd3-easygraph/dist/d3.easygraph.css';
+
+// CommonJS
+const easygraph = require('d3-easygraph');
+
+easygraph.line({ /* ... */ });
+```
+
+Under a `<script>` tag the library attaches itself to the global `d3` as `d3.easygraph`, the
+classic d3-plugin convention. (Under a bundler it can't — d3 v7 is ESM and its module namespace
+is frozen — so there the API comes back as the module's own export instead, as above. Everything
+on it is identical either way.)
 
 ```html
 <div id="graph"></div>
@@ -146,8 +166,15 @@ graph.update([
 ```
 
 `graph.update(data, ranges)` re-renders with new data (`ranges: { x, y }` optionally pin the axis
-domains instead of auto-fitting to the data). Resize handling is automatic — no calls needed on
-your end.
+domains instead of auto-fitting to the data) and returns the graph, so calls chain. Resize
+handling is automatic — no calls needed on your end.
+
+Your config object is never modified — it's cloned on the way in (as are its `x`/`y`/`color`/
+`margin` sub-objects), so one config literal can safely construct several charts. Read state back
+off the returned graph, not off the object you passed in.
+
+Each chart's `<svg>` carries `class="easygraph"`, which every rule in the stylesheet is scoped
+under, plus `role="img"` and an `aria-label` mirroring the chart title.
 
 ## Examples
 
@@ -172,6 +199,11 @@ included in this repo):
 
 ## Architecture
 
+- `src/_intro.js` / `src/_outro.js` — the UMD wrapper the build is concatenated inside. Keeps
+  every internal helper function-scoped (nothing leaks onto `window`) and picks how the API is
+  handed over: the real global `d3` under a `<script>` tag, a mutable `Object.create(d3)` view
+  under CommonJS/AMD, since d3 v7's ESM namespace is frozen and can't take a `.easygraph`
+  property.
 - `src/d3.easygraph.core.js` — container sizing/resize, SVG/margin/clip/title scaffolding,
   number/time axis formatting, x/y/color config resolution, and the shared `_build()` that each
   constructor calls with its own defaults and hook set.
@@ -195,8 +227,10 @@ npm install
 npm run build
 ```
 
-Bundles and minifies all six source files (via [terser](https://github.com/terser/terser),
-concatenated in dependency order — core first) into the single `dist/d3.easygraph.min.js`.
+Concatenates the UMD wrapper around all seven source files (in dependency order — core first) and
+minifies the result with [terser](https://github.com/terser/terser) into the single
+`dist/d3.easygraph.min.js`. The files are joined *before* terser runs, since the wrapper's two
+halves are only balanced once the sources sit between them.
 
 ## Testing
 
