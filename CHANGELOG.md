@@ -9,6 +9,21 @@ All notable changes to this project are documented here. Format loosely follows
 - `batteryStateOfCharge` preset (label "Battery", unit `%`) -- larsi.org's ESP32 sensor-node
   firmware started reporting an onboard MAX17048 fuel gauge's state of charge, and the closest
   existing 0-100% preset, `relativeHumidity`, would have mislabeled the axis.
+- `scatter` accepts a per-point `radius`, overriding the graph-level `radius` config for just
+  that point -- a bubble chart, point size driven by a third data dimension independent of
+  `value`'s color. Same optional-field pattern as `angle`/`magnitude`/`label` -- a point missing
+  it just uses the graph's own radius. Still divided by `1/k` in `rescale()`'s zoom
+  compensation, and (like the graph-level radius) deliberately not animated on `duration` --
+  `rescale()` reads it back synchronously on every zoom tick, same constraint as the plain
+  radius already had.
+- `line` accepts `stackedArea: true` -- a classic stacked area chart: plain `{ x, y }` points
+  like `lines`, each series' filled area stacked cumulatively on top of the ones before it,
+  rather than `ribbons`' independent min/max band per series. Reuses the same accumulation math
+  as `bars`' stacked mode (pulled into a new shared `d3.easygraph._computeStacked()` in
+  `core.js`), including the same index-alignment assumption (series need to be sampled at the
+  same x positions to stack correctly) and the same "value axis always includes zero" rule
+  `bars`' stacked mode already has. A `y: null` point breaks a stacked-area series into a
+  separate subpath too, same as `lines`/`ribbons`.
 - `heatmap` and `scatter` now honor `duration` (already shared config, already implemented by
   `line`/`bars`) -- a cell's `fill` and a point's `cx`/`cy`/`fill` now transition smoothly on a
   data update instead of swapping instantly. Deliberately *not* extended to `r`/`stroke-width`

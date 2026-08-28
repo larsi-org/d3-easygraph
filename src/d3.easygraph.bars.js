@@ -6,21 +6,9 @@
 // The bars chart-family constructor: vertical/horizontal, stacked/grouped.
 // `orientation` is fixed for a graph's lifetime, but `mode` can be toggled live
 // (see data_monthly.php/h.php's dropdown) — domain()/render() always re-read the
-// live config rather than caching a choice made at construction.
-
-// stacks layered series, accumulating y0 offsets bottom-up
-function _computeStacked(data) {
-  var result = data.map(function(series) {
-    return series.map(function(d) { return Object.assign({ y0: 0 }, d); });
-  });
-  var len = result[0] ? result[0].length : 0;
-  for (var j = 0; j < len; j++) {
-    for (var i = 1; i < result.length; i++) {
-      result[i][j].y0 = result[i-1][j].y0 + result[i-1][j].y;
-    }
-  }
-  return result;
-}
+// live config rather than caching a choice made at construction. Stacking itself
+// (accumulating y0 offsets) is d3.easygraph._computeStacked() in core.js, shared with
+// line.js's stackedArea.
 
 d3.easygraph.bars = function(config) {
   return d3.easygraph._build(config, {
@@ -170,7 +158,7 @@ d3.easygraph.bars = function(config) {
         if (isH) {
           var h = xRange; xRange = yRange; yRange = h;
         }
-        var stacked = isStacked ? _computeStacked(data) : undefined;
+        var stacked = isStacked ? d3.easygraph._computeStacked(data) : undefined;
 
         var xDomain = [ 0, 1 ];
         if (xRange) {
@@ -199,7 +187,7 @@ d3.easygraph.bars = function(config) {
 
       render: function(data) {
         var isStacked = graph.mode === 'stacked';
-        var stacked = isStacked ? _computeStacked(data) : undefined;
+        var stacked = isStacked ? d3.easygraph._computeStacked(data) : undefined;
         if (graph.orientation === 'v' && isStacked)  barsStackedV(stacked);
         if (graph.orientation === 'v' && !isStacked) barsGroupedV(data);
         if (graph.orientation === 'h' && isStacked)  barsStackedH(stacked);

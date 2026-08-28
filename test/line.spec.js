@@ -11,6 +11,62 @@ test('renders lines and ribbons with the right element counts', async ({ page })
   await expect(page.locator('path.data-ribbons')).toHaveCount(1);
 });
 
+test('stackedArea stacks series cumulatively, each layer riding on top of the previous', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const result = await page.evaluate(() => {
+    var wrap = document.createElement('div');
+    document.body.appendChild(wrap);
+    var g = d3.easygraph.line({ container: wrap, x: { scale: 'linear' }, height: 200, stackedArea: true });
+    g.update([
+      [ { x: 0, y: 10 }, { x: 1, y: 10 } ],
+      [ { x: 0, y: 5 },  { x: 1, y: 5 } ]
+    ]);
+    var yDomain = g.y.$scale.domain();
+    var count = wrap.querySelectorAll('path.data-stack').length;
+    g.destroy();
+    wrap.remove();
+    return { yDomain: yDomain, count: count };
+  });
+  expect(result.count).toBe(2);
+  // cumulative top of the taller stack: series 0's 10 plus series 1's 5 riding on top of it
+  expect(result.yDomain).toEqual([0, 15]);
+});
+
+test('stackedArea with no data falls back to a [0,1] y domain instead of NaN', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const yDomain = await page.evaluate(() => {
+    var wrap = document.createElement('div');
+    document.body.appendChild(wrap);
+    var g = d3.easygraph.line({ container: wrap, height: 200, stackedArea: true });
+    g.update([]);
+    var yDomain = g.y.$scale.domain();
+    g.destroy();
+    wrap.remove();
+    return yDomain;
+  });
+  expect(yDomain).toEqual([0, 1]);
+});
+
+test('toggling stackedArea off and re-rendering removes its paths', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const counts = await page.evaluate(() => {
+    var wrap = document.createElement('div');
+    document.body.appendChild(wrap);
+    var g = d3.easygraph.line({ container: wrap, height: 200, stackedArea: true });
+    var data = [[ { x: 0, y: 10 }, { x: 1, y: 10 } ]];
+    g.update(data);
+    var before = wrap.querySelectorAll('path.data-stack').length;
+    g.stackedArea = false;
+    g.update(data);
+    var after = wrap.querySelectorAll('path.data-stack').length;
+    g.destroy();
+    wrap.remove();
+    return { before: before, after: after };
+  });
+  expect(counts.before).toBe(1);
+  expect(counts.after).toBe(0);
+});
+
 test('resize updates graph.width and the svg width attribute', async ({ page }) => {
   await page.goto(FIXTURE);
   const initialWidth = await page.evaluate(() => window.graph.width);

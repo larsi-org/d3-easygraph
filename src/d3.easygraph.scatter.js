@@ -44,6 +44,14 @@
 // graph._lastData (already tracked by core.js's update() for the resize-reflow case) rather than
 // needing the caller to keep its own copy of the current data just to pass back in.
 //
+// A point's own `radius` overrides the graph-level `radius` config for just that point (a
+// bubble chart: point size driven by a third data dimension, independent of `value`'s color) --
+// same optional-field pattern as `angle`/`magnitude`/`label` above, a point missing it just uses
+// the graph's own radius. Still divided by 1/k in graph.rescale()'s zoom-compensation the same
+// way the graph-level radius always was; radius transitioning smoothly on a data update is
+// covered by the same rescale-synchronicity constraint as the plain graph-level radius, so it
+// stays instant, not animated (see the render() comment above the points block).
+//
 // color.quantize: true swaps the usual continuous color gradient for paletteColors.length
 // discrete, equal-width bands over the domain -- for data where a handful of clearly separated
 // ranges reads better than a smooth interpolation (e.g. aircraft altitude: low/climbing bands
@@ -145,7 +153,7 @@ d3.easygraph.scatter = function(config) {
       points.exit().remove();
       points = pointsEnter.merge(points);
       points
-        .attr("r",  graph.radius / k)
+        .attr("r",  function(d) { return (d.radius != null ? d.radius : graph.radius) / k; })
         .style("stroke-width", (graph.pointStrokeWidth / k) + "px");
       points.transition().duration(graph.duration).ease(d3.easeCubicInOut)
         .attr("cx", function(d) { return graph.x.$scale(d.x); })

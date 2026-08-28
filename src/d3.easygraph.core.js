@@ -43,6 +43,25 @@ d3.easygraph._clippedExtent = function(values, clip) {
   return [d3.quantileSorted(sorted, clip[0]), d3.quantileSorted(sorted, clip[1])];
 };
 
+// Stacks layered series, accumulating y0 offsets bottom-up -- shared by bars.js's stacked
+// mode and line.js's stackedArea, the same accumulation either way regardless of what shape
+// gets drawn from the result. Assumes series are index-aligned (each series' j-th point
+// corresponds to the same category/x position across every series) -- fine for bars'
+// same-length category arrays; a stacked area caller needs its series sampled at the same x
+// points for the same reason.
+d3.easygraph._computeStacked = function(data) {
+  var result = data.map(function(series) {
+    return series.map(function(d) { return Object.assign({ y0: 0 }, d); });
+  });
+  var len = result[0] ? result[0].length : 0;
+  for (var j = 0; j < len; j++) {
+    for (var i = 1; i < result.length; i++) {
+      result[i][j].y0 = result[i-1][j].y0 + result[i-1][j].y;
+    }
+  }
+  return result;
+};
+
 // accepts a CSS selector string, a DOM element, or a d3 selection; returns an
 // Element or null
 function _resolveContainer(container) {

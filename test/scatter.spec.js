@@ -16,6 +16,40 @@ test('renders one point per data item', async ({ page }) => {
   await expect(page.locator('circle.scatter-point')).toHaveCount(3);
 });
 
+test('a point\'s own radius overrides the graph-level radius (bubble chart)', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const radii = await page.evaluate(() => {
+    var wrap = document.createElement('div');
+    document.body.appendChild(wrap);
+    var g = d3.easygraph.scatter({ container: wrap, height: 200, radius: 4 });
+    g.update([
+      { x: 0, y: 0, value: 0, radius: 10 },
+      { x: 1, y: 1, value: 1 } // no radius -- falls back to the graph-level default (4)
+    ], { x: [0, 1], y: [0, 1] });
+    var rs = [...wrap.querySelectorAll('circle.scatter-point')].map((c) => Number(c.getAttribute('r')));
+    g.destroy();
+    wrap.remove();
+    return rs;
+  });
+  expect(radii).toEqual([10, 4]);
+});
+
+test('rescale(k) still shrinks a per-point radius override by 1/k', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var wrap = document.createElement('div');
+    document.body.appendChild(wrap);
+    var g = d3.easygraph.scatter({ container: wrap, height: 200 });
+    g.update([{ x: 0, y: 0, value: 0, radius: 10 }], { x: [0, 1], y: [0, 1] });
+    g.rescale(2);
+    var r = Number(wrap.querySelector('circle.scatter-point').getAttribute('r'));
+    g.destroy();
+    wrap.remove();
+    return r;
+  });
+  expect(r).toBe(5);
+});
+
 test('points are positioned via the x/y scale, not raw data coordinates', async ({ page }) => {
   await page.goto(FIXTURE);
   const positions = await page.evaluate(() => {

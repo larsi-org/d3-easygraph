@@ -3,8 +3,9 @@
 // https://opensource.org/licenses/MIT
 // Copyright (c) 2026, Lars Schumann, larsi.org@gmail.com
 //
-// The continuous chart-family constructor: lines, ribbons, zoom, and crosshair — these
-// always travel together in practice and share a continuous (time/linear) x scale.
+// The continuous chart-family constructor: lines, ribbons, stacked areas, zoom, and
+// crosshair — these always travel together in practice and share a continuous
+// (time/linear) x scale.
 
 // defined once at module level — never changes
 var _curveMap = {
@@ -27,6 +28,7 @@ d3.easygraph.line = function(config) {
   return d3.easygraph._build(config, {
     lines:              false,
     ribbons:            false,
+    stackedArea:        false,
     zoom:                false,
     crosshair:           false,
     crosshairThreshold:  10,
@@ -53,11 +55,21 @@ d3.easygraph.line = function(config) {
           .y1(function(d) { return graph.y.$scale(d.max); });
         graph.$line0 = d3.line().curve(_curve).defined(_definedLine).x(_cx).y(function(d) { return graph.y.$scale(0); });
         graph.$line  = d3.line().curve(_curve).defined(_definedLine).x(_cx).y(_cy);
+        // stackedArea's points are d3.easygraph._computeStacked()'s output -- same shape as a
+        // plain {x,y} point plus a precomputed y0 offset, so _definedLine (checks d.y != null)
+        // is exactly the same check a stacked point needs too, no separate function.
+        graph.$stack0 = d3.area().curve(_curve).defined(_definedLine).x(_cx)
+          .y0(function(d) { return graph.y.$scale(0); })
+          .y1(function(d) { return graph.y.$scale(0); });
+        graph.$stack  = d3.area().curve(_curve).defined(_definedLine).x(_cx)
+          .y0(function(d) { return graph.y.$scale(d.y0); })
+          .y1(function(d) { return graph.y.$scale(d.y0 + d.y); });
 
         graph.draw = function() {
           graph.$svg.select("g.x.axis").call(graph.x.$axis);
           graph.$svg.select("g.y.axis").call(graph.y.$axis);
           graph.$group.selectAll("path.data-ribbons").attr("d", graph.$ribbon);
+          graph.$group.selectAll("path.data-stack").attr("d", graph.$stack);
           graph.$group.selectAll("path.data-lines").attr("d", graph.$line);
         };
 
@@ -163,6 +175,16 @@ d3.easygraph.line = function(config) {
         var yDomain;
         if (yRange) {
           yDomain = yRange;
+        } else if (graph.stackedArea) {
+          // a stacked area's own top edge is a cumulative sum across series, not a single
+          // series' own values -- clip doesn't have a single value array to work from here
+          // either, and (like bars' stacked mode) the axis always includes zero regardless of
+          // graph.y.clip, since a stack's height is only meaningful measured from the bottom.
+          var stacked = d3.easygraph._computeStacked(data);
+          var stackedMax = d3.max(stacked, function(series) {
+            return d3.max(series, function(d) { return d.y0 + d.y; });
+          });
+          yDomain = [0, (stackedMax === undefined) ? 1 : stackedMax];
         } else if (graph.ribbons) {
           // a ribbon's band comes from each point's own precomputed min/max, not a plain value
           // per point -- clip doesn't have a single value array to work from here, so this
@@ -203,6 +225,25 @@ d3.easygraph.line = function(config) {
             .style("opacity", 0.4);
         } else {
           graph.$group.selectAll(".data-ribbons").remove();
+        }
+
+        if (graph.stackedArea) {
+          var stackedData = d3.easygraph._computeStacked(data);
+          var dataStack = graph.$group.selectAll(".data-stack").data(stackedData);
+          var stackEntered = dataStack.enter().append("path")
+            .attr("class",      "data-stack")
+            .attr("clip-path",  "url(#" + graph._clipId + ")")
+            .attr("d",          graph.$stack0)
+            .style("fill",      function(d, i) { return graph.getPaletteColor(i); })
+            .style("opacity",   1e-6);
+          dataStack.exit().remove();
+          dataStack = stackEntered.merge(dataStack);
+          dataStack.transition().duration(graph.duration).ease(d3.easeCubicInOut)
+            .attr("d",        graph.$stack)
+            .style("fill",    function(d, i) { return graph.getPaletteColor(i); })
+            .style("opacity", 1);
+        } else {
+          graph.$group.selectAll(".data-stack").remove();
         }
 
         if (graph.lines) {
