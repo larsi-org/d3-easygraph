@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Extending `d3.easygraph.presets` and `d3.easygraph.colorPalettes` is now a documented,
+  tested extension point rather than something that merely happened to work. Adding a preset or a
+  palette by name is the supported way to teach the library a unit or color set it doesn't ship.
+  Both tables are global (an addition affects every chart on the page, and anything else sharing
+  that `d3`) and a name you add can be silently overwritten by a future version shipping the same
+  name, so the docs say to prefix your own.
 - The build is now wrapped in UMD (`src/_intro.js`/`src/_outro.js`), so `require('d3-easygraph')`
   and `import 'd3-easygraph'` work alongside the existing `<script>` tag. Previously the package's
   declared `main` was a bare globals script, so any bundler/Node consumer got

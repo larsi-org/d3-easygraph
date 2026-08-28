@@ -113,3 +113,38 @@ test('round(x, n) rounds to n decimal places, or the nearest integer when n is o
   ]);
   expect(results).toEqual([68.5, 69, 69, 29.92]);
 });
+
+test('presets and colorPalettes are extensible -- the documented way to add your own', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    d3.easygraph.presets.soilMoisture =
+      { label: 'Soil Moisture', unit: '%', scale: 'linear', convert: function (v) { return v; } };
+    d3.easygraph.colorPalettes['Sequential.MyBrand'] = ['#eef', '#88a', '#114'];
+
+    var unit = d3.easygraph.getUnit('soilMoisture');
+    var palette = d3.easygraph.resolvePalette('Sequential.MyBrand');
+    var reversed = d3.easygraph.resolvePalette('Sequential.MyBrand.reversed');
+
+    var wrap = document.createElement('div');
+    wrap.style.width = '400px';
+    document.body.appendChild(wrap);
+    var g = d3.easygraph.line({
+      container: wrap, height: 200, lines: true,
+      y: { preset: 'soilMoisture' }, colorPalette: 'Sequential.MyBrand'
+    });
+    g.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
+    var title = g.$title.text();
+    var strokeUsesCustomPalette = g.getPaletteColor(0) === '#eef';
+    g.destroy(); wrap.remove();
+
+    delete d3.easygraph.presets.soilMoisture;
+    delete d3.easygraph.colorPalettes['Sequential.MyBrand'];
+    return { unitLabel: unit.label, unitSymbol: unit.unit, palette, reversed, title, strokeUsesCustomPalette };
+  });
+  expect(r.unitLabel).toBe('Soil Moisture');
+  expect(r.unitSymbol).toBe('%');
+  expect(r.palette).toEqual(['#eef', '#88a', '#114']);
+  expect(r.reversed).toEqual(['#114', '#88a', '#eef']); // .reversed works on a caller-added name
+  expect(r.title).toBe('Soil Moisture [%]');            // a custom preset drives the chart title
+  expect(r.strokeUsesCustomPalette).toBe(true);
+});

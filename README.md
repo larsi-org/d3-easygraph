@@ -102,7 +102,7 @@ Handy for coloring something that isn't a d3-easygraph chart at all — a Leafle
 `d3.parcoords()` line — without hand-rolling a separate color scale or duplicating a palette
 you've already named here. `d3.easygraph.colorPalettes` (the full resolved `{name:
 [colors]}` map `resolvePalette` reads from) is public too, for a caller that wants to list every
-available palette name (see the [Colorbrewer demo page](https://larsi.org/graphics/colorbrewer/)).
+available palette name (the [live palette picker](https://larsi.org/easygraph/#colors) is built from exactly this map).
 
 ### Where the palettes come from
 
@@ -129,6 +129,32 @@ The six names carrying an **`LS-`** marker are the exception: hand-picked for on
 That marker is the only provenance encoded in a name, because it's the only distinction that
 changes how you'd use one: *is this vetted for general data, or one person's pick for one chart.*
 Which upstream package a standard scheme happens to ship in isn't a property of the palette.
+
+## Adding your own presets and palettes
+
+Both lookup tables are plain objects and are **meant to be extended** — this is the supported way
+to teach the library a unit or a palette it doesn't ship:
+
+```js
+d3.easygraph.presets.soilMoisture =
+  { label: "Soil Moisture", unit: "%", scale: "linear", convert: function (v) { return v; } };
+
+d3.easygraph.colorPalettes["Sequential.MyBrand"] = ["#eef", "#88a", "#114"];
+
+d3.easygraph.line({ container: "#g", height: 320, y: { preset: "soilMoisture" },
+                    colorPalette: "Sequential.MyBrand" });
+```
+
+A preset needs all four of `label`, `unit`, `scale`, and `convert` — `getUnit()` returns whatever
+you put there directly, with no second merge to fill gaps. A palette is just an array of CSS
+colors; the `Kind.` prefix is a naming convention, not something the resolver parses, so any
+string works as a key (`.reversed` is the one suffix it does interpret).
+
+Two things to know before you rely on it. **These tables are global**, not per-chart: an addition
+affects every chart on the page and every other library sharing that `d3`. And **a name you add
+can be silently overwritten** by a future version of this library that ships the same name — so
+prefix your own (`MyBrand.*`, or the `LS-` style used above) rather than picking a name a general
+scheme might plausibly take.
 
 `resolvePalette`/`colorScale` are both name-based lookups — for a caller that instead needs an
 arbitrary, caller-chosen *count* of colors with no natural name (a polygon's side count, an IFS's
