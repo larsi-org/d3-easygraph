@@ -1,6 +1,6 @@
 {
   "name": "d3-easygraph",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "A batteries-included D3 v7 charting library: lines, min/max ribbon bands, stacked areas, zoom, crosshair, stacked/grouped bars, heatmaps, and scatter/bubble plots, with a responsive container-driven width and standalone unit-preset conversion.",
   "main": "dist/d3.easygraph.min.js",
   "unpkg": "dist/d3.easygraph.min.js",

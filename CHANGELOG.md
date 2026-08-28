@@ -3,7 +3,7 @@
 All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.7.0] - 2026-08-28
 
 ### Added
 - `update(data, ranges)` accepts **`ranges.color`**, pinning the color scale's domain for that
