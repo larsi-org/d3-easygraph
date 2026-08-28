@@ -21,10 +21,10 @@ d3.easygraph.round = function(x, n) {
 function _identity(v) { return v; }
 
 // the raw conversion formulas -- named for readability, referenced by the presets table below
-function _temperatureC2F(v)  { return v * 1.8 + 32; }
-function _pressureHpa2Inhg(v) { return v * 0.02953; }
-function _windSpeedMs2Kmph(v) { return v * 3.6; }
-function _windSpeedMs2Mph(v)  { return v * 2.23694; }
+function _temperatureC2F(v)    { return v * 1.8 + 32; }
+function _pressureHpa2Inhg(v)  { return v * 0.02953; }
+function _windSpeedMs2Kmph(v)  { return v * 3.6; }
+function _windSpeedMs2Mph(v)   { return v * 2.23694; }
 function _rainFallMm2Inches(v) { return v / 25.4; }
 
 // wraps a raw convert(v) formula so it also accepts an optional decimals arg: convert(v) stays
@@ -43,7 +43,7 @@ var _roundedIdentity = _withRounding(_identity);
 // every preset is a complete unit definition — `convert` is always present (identity when a
 // quantity needs no conversion), so getUnit() never needs a second fallback merge to fill gaps
 d3.easygraph.presets = {
-  default:              {                            unit: '',          scale: 'linear', convert: _roundedIdentity },
+  default:              {                             unit: '',          scale: 'linear', convert: _roundedIdentity },
   batteryStateOfCharge: { label: 'Battery',           unit: '%',         scale: 'linear', convert: _roundedIdentity },
   clouds:               { label: 'Clouds',            unit: '\xD710th',  scale: 'linear', convert: _roundedIdentity },
   electricCurrent:      { label: 'Current',           unit: 'A',         scale: 'linear', convert: _roundedIdentity },
