@@ -266,7 +266,6 @@ properties to a graph is fine and supported; the library only ever writes the na
 | `update(data, ranges)` | re-render; returns the graph, so calls chain |
 | `destroy()` | disconnect the resize observer and tear down the DOM |
 | `getPaletteColor(i)` | the i-th palette color, wrapping past the end |
-| `draw()` | redraw paths against the current scales without recomputing domains (line charts; a no-op elsewhere) |
 | `rescale(k)` | scatter only — divide on-screen marker sizes by `k` (see the table above) |
 | `resolvedLabel()`, `resolvedUnit()` | the effective title text: your `label`/`unit` if set, else the `y` config's |
 | `numberFormat(v)`, `timeFormatShort(date)` | the formatters the axes use, exposed so a tooltip or legend can match them |

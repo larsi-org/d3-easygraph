@@ -69,6 +69,11 @@ All notable changes to this project are documented here. Format loosely follows
   object happens to expose.
 
 ### Changed
+- `graph.draw()` is gone from the public surface. It was conflating two things: an axis redraw
+  every family needs after a resize (now `core.js`'s `_drawAxes()`, see Fixed) and a per-frame
+  path redraw only `line` needs during a zoom (now the internal `graph._redraw()`, in the same
+  spirit as the `prepareScales`/`destroy` hooks that only one family implements). What was left
+  on the shared object was a method that did nothing on three of the four families.
 - The six palettes hand-picked for individual larsi.org pages now carry an `LS-` marker:
   `Diverging.LS-BuMaRd`, `Diverging.LS-BuCyGnYlRd`, `Qualitative.LS-SustainZones`,
   `Qualitative.LS-RdGnBu`, `Qualitative.LS-SunArc`, `Sequential.LS-Gy`. The distinction a caller
@@ -140,6 +145,12 @@ All notable changes to this project are documented here. Format loosely follows
   docs, tests).
 
 ### Fixed
+- **Only line charts re-rendered their axes on resize.** `_layout()` updates each scale's pixel
+  range, but the tick DOM has to be re-rendered separately -- and that only happened inside
+  `line.js`'s `draw()`. Bars, heatmap and scatter therefore kept their ticks frozen at pre-resize
+  positions: shrinking a 600px container to 300px left the furthest-right tick around x=430-530,
+  hundreds of pixels outside a 230px plot area. The axis redraw is now `graph._drawAxes()` in
+  `core.js`, called from `_reflow()` for every family.
 - Constructing a chart with a `height` smaller than `margin.top + margin.bottom` produced a
   *negative* plot area and drew itself inside-out with no complaint. The width path already
   refused a container narrower than its own horizontal margins; the vertical check was simply

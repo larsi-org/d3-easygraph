@@ -186,9 +186,15 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     return d3.format('.3s')(d);
   };
 
-  // overridden by d3.easygraph.line.js's init() when that module is active;
-  // a harmless no-op otherwise (bars/heatmap reposition via render(), not draw())
-  graph.draw = function() {};
+  // Re-applies both axes to whatever the scales currently say, with no transition. Every family
+  // needs this after a resize, because _layout() changes the scales' pixel ranges but doesn't
+  // re-render the tick DOM. It used to live inside line.js's draw() -- so line charts got correct
+  // axes on resize and bars/heatmap/scatter silently kept their ticks frozen at pre-resize
+  // positions, ending up outside the plot area entirely on a shrink.
+  graph._drawAxes = function() {
+    graph.$svg.select("g.x.axis").call(graph.x.$axis);
+    graph.$svg.select("g.y.axis").call(graph.y.$axis);
+  };
 
   graph._clipId = "d3-easygraph-clip-" + (_nextClipId++);
 
@@ -362,7 +368,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     var savedDuration = graph.duration;
     graph.duration = 0;
 
-    graph.draw();
+    graph._drawAxes();
     graph._module.render(graph._lastData);
 
     graph.duration = savedDuration;

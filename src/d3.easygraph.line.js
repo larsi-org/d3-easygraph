@@ -74,9 +74,14 @@ d3.easygraph.line = function(config) {
           .y0(function(d) { return graph.y.$scale(d.y0); })
           .y1(function(d) { return graph.y.$scale(d.y0 + d.y); });
 
-        graph.draw = function() {
-          graph.$svg.select("g.x.axis").call(graph.x.$axis);
-          graph.$svg.select("g.y.axis").call(graph.y.$axis);
+        // Zoom's per-frame fast path: re-apply the current scales to the paths and axes that
+        // already exist, skipping the data re-binding, domain recomputation and transition a
+        // full render() would do -- at 60fps during a drag, that difference matters. Line is
+        // the only family with built-in zoom, so it's the only one that needs this; it's
+        // internal for the same reason prepareScales (bars-only) and destroy (line-only) are
+        // optional module hooks rather than promises every family has to keep.
+        graph._redraw = function() {
+          graph._drawAxes();
           graph.$group.selectAll("path.data-ribbons").attr("d", graph.$ribbon);
           graph.$group.selectAll("path.data-stack").attr("d", graph.$stack);
           graph.$group.selectAll("path.data-lines").attr("d", graph.$line);
@@ -85,7 +90,7 @@ d3.easygraph.line = function(config) {
         if (graph.zoom) {
           graph.$zoom = d3.zoom().scaleExtent(graph.zoom).on("zoom", function(event) {
             graph.x.$scale.domain(event.transform.rescaleX(graph.$xScaleRef).domain());
-            graph.draw();
+            graph._redraw();
             if (graph.onZoom) graph.onZoom(event.transform);
           });
 
@@ -298,7 +303,7 @@ d3.easygraph.syncZoom = function(graphs) {
       graphs.forEach(function(other) {
         if (other === g || !other.$pane || !other.$xScaleRef) return;
         other.x.$scale.domain(transform.rescaleX(other.$xScaleRef).domain());
-        other.draw();
+        other._redraw();
         other.$pane.node().__zoom = transform;
       });
     };

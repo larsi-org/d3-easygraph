@@ -563,3 +563,62 @@ test('bars: orientation takes full words and rejects anything else', async ({ pa
   expect(r.horizontal).toBe('ok, category axis on y');
   expect(r.typo).toContain('orientation must be "vertical" or "horizontal"');
 });
+
+test('every family re-renders its axes on resize, not just line (regression)', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(async () => {
+    const wait = (ms) => new Promise(function (res) { setTimeout(res, ms); });
+    async function lastTickX(build, data) {
+      var w = document.createElement('div');
+      w.style.width = '600px';
+      document.body.appendChild(w);
+      var g = build(w);
+      g.update(data);
+      await wait(600);
+      w.style.width = '300px';
+      await wait(900); // ResizeObserver -> _layout -> _reflow
+      var ticks = [...w.querySelectorAll('g.x.axis .tick')];
+      var last = ticks[ticks.length - 1].getAttribute('transform');
+      var x = Number(/translate\(\s*([\d.]+)/.exec(last)[1]);
+      var plotWidth = g.width;
+      g.destroy(); w.remove();
+      return { tickX: x, plotWidth: plotWidth };
+    }
+    return {
+      line: await lastTickX(function (w) {
+        return d3.easygraph.line({ container: w, height: 200, lines: true, x: { scale: 'linear' } });
+      }, [[{ x: 0, y: 1 }, { x: 10, y: 2 }]]),
+      bars: await lastTickX(function (w) {
+        return d3.easygraph.bars({ container: w, height: 200 });
+      }, [[{ x: 'a', y: 1 }, { x: 'b', y: 2 }, { x: 'c', y: 3 }]]),
+      scatter: await lastTickX(function (w) {
+        return d3.easygraph.scatter({ container: w, height: 200 });
+      }, [{ x: 0, y: 0, value: 1 }, { x: 10, y: 10, value: 2 }]),
+      heatmap: await lastTickX(function (w) {
+        return d3.easygraph.heatmap({ container: w, height: 200 });
+      }, [[1, 2, 3], [4, 5, 6]])
+    };
+  });
+  // after shrinking, the furthest-right tick must sit inside the new plot area -- before this
+  // fix bars/scatter/heatmap left theirs frozen hundreds of px outside it
+  for (const family of ['line', 'bars', 'scatter', 'heatmap']) {
+    expect(r[family].tickX).toBeLessThanOrEqual(r[family].plotWidth + 1);
+  }
+});
+
+test('draw() is no longer part of the public surface', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var g = d3.easygraph.line({ container: '#graph', height: 200, lines: true });
+    g.update([[{ x: 0, y: 1 }]]);
+    var out = { publicDraw: typeof g.draw, hasInternalRedraw: typeof g._redraw };
+    g.destroy();
+    var b = d3.easygraph.bars({ container: '#graph', height: 200 });
+    out.barsHasNoRedraw = b._redraw === undefined; // only line needs the zoom fast path
+    b.destroy();
+    return out;
+  });
+  expect(r.publicDraw).toBe('undefined');
+  expect(r.hasInternalRedraw).toBe('function');
+  expect(r.barsHasNoRedraw).toBe(true);
+});
