@@ -622,3 +622,96 @@ test('draw() is no longer part of the public surface', async ({ page }) => {
   expect(r.hasInternalRedraw).toBe('function');
   expect(r.barsHasNoRedraw).toBe(true);
 });
+
+test('graph.legendItems(): line/bars give one row per series, labelled from `names`', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var w = document.createElement('div'); w.style.width = '500px'; document.body.appendChild(w);
+
+    var line = d3.easygraph.line({ container: w, height: 200, lines: true, names: ['HVAC', 'Lighting'] });
+    line.update([[{ x: 0, y: 1 }], [{ x: 0, y: 2 }]]);
+    var withNames = line.legendItems();
+    line.destroy();
+
+    var bare = d3.easygraph.line({ container: w, height: 200, lines: true });
+    bare.update([[{ x: 0, y: 1 }], [{ x: 0, y: 2 }]]);
+    var withoutNames = bare.legendItems();
+    bare.destroy();
+
+    // before any update(), `names` alone is enough to draw a legend
+    var early = d3.easygraph.bars({ container: w, height: 200, names: ['A', 'B', 'C'] });
+    var beforeData = early.legendItems();
+    early.destroy();
+
+    w.remove();
+    return { withNames, withoutNames, beforeData };
+  });
+  expect(r.withNames.map(i => i.label)).toEqual(['HVAC', 'Lighting']);
+  expect(r.withNames[0].color).toBe('#4e79a7');            // Tableau10's first
+  expect(r.withNames[1].color).toBe('#f28e2c');
+  expect(r.withNames.map(i => i.index)).toEqual([0, 1]);
+  // no names -> still one row per series, but no invented "Series 1" placeholder
+  expect(r.withoutNames.length).toBe(2);
+  expect(r.withoutNames[0].label).toBeUndefined();
+  expect(r.beforeData.map(i => i.label)).toEqual(['A', 'B', 'C']);
+});
+
+test('graph.legendItems(): a quantized color scale gives bands with from/to edges', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const items = await page.evaluate(() => {
+    var w = document.createElement('div'); w.style.width = '500px'; document.body.appendChild(w);
+    var g = d3.easygraph.scatter({
+      container: w, height: 200,
+      color: { domain: [0, 40000], quantize: true },
+      colorPalette: 'Sequential.Blues', colorClasses: 4
+    });
+    g.update([{ x: 0, y: 0, value: 0 }, { x: 1, y: 1, value: 40000 }], { x: [0, 1], y: [0, 1] });
+    var items = g.legendItems();
+    g.destroy(); w.remove();
+    return items;
+  });
+  expect(items.length).toBe(4);                       // one per band, matching colorClasses
+  expect(items[0].from).toBe(0);
+  expect(items[0].to).toBe(10000);
+  expect(items[3].from).toBe(30000);
+  expect(items[3].to).toBe(40000);
+  // labels read in the same notation as the axis ticks (graph.numberFormat)
+  expect(items[0].label).toBe('0–10.0k');
+  expect(new Set(items.map(i => i.color)).size).toBe(4);
+});
+
+test('graph.legendItems(): a continuous color scale gives one stop per palette color', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var w = document.createElement('div'); w.style.width = '500px'; document.body.appendChild(w);
+    var g = d3.easygraph.heatmap({ container: w, height: 200 });
+    var beforeData = g.legendItems();               // domain not meaningful yet
+    g.update([[0, 50], [50, 100]]);
+    var items = g.legendItems();
+    g.destroy(); w.remove();
+    return { beforeData: beforeData, items: items };
+  });
+  expect(r.beforeData).toEqual([]);                  // nothing rendered -> nothing to label
+  expect(r.items.length).toBeGreaterThan(1);
+  expect(r.items[0].value).toBe(0);
+  expect(r.items[r.items.length - 1].value).toBe(100);
+  expect(r.items[0].label).toBe('0');
+});
+
+test('`names` also labels each crosshair row', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const html = await page.evaluate(() => {
+    var w = document.createElement('div'); w.style.width = '500px'; document.body.appendChild(w);
+    var g = d3.easygraph.line({
+      container: w, height: 200, lines: true, crosshair: true,
+      x: { scale: 'linear' }, y: { preset: 'temperatureC' }, names: ['Indoor', 'Outdoor']
+    });
+    g.update([[{ x: 0, y: 21 }, { x: 1, y: 22 }], [{ x: 0, y: 5 }, { x: 1, y: 6 }]]);
+    g._moveCrosshair(g.x.$scale(0));
+    var html = g.$crosshairTip.html();
+    g.destroy(); w.remove();
+    return html;
+  });
+  expect(html).toContain('Indoor 21°C');
+  expect(html).toContain('Outdoor 5°C');
+});

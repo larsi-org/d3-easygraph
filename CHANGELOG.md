@@ -6,6 +6,20 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- `graph.legendItems()` and the standalone `d3.easygraph.legendItems(colors, labels)`, plus a
+  `names` config on `line`/`bars`. The library computes the `{ index, color, label }` rows a
+  legend needs and stops there -- it renders nothing. For `line`/`bars` that's one row per series
+  labelled from `names`; for `heatmap`/`scatter` the rows come from the color scale, and a
+  `color.quantize` scale yields per-band `from`/`to` edges rebuilt from its interior thresholds
+  plus the domain's ends -- the part callers were hand-rolling. Labels use `graph.numberFormat`,
+  so a legend reads in the same notation as the axis ticks.
+  No renderer ships with it, deliberately: the legends this replaces across larsi.org are drawn
+  four different ways (inline `<span>`s, a `<table>` with extra data columns, a separately
+  positioned `<svg>`, swatches inside the chart's own margin), two of them HTML rather than SVG,
+  so any single built-in renderer would have fitted almost none of them. The pairing-up was the
+  only part they shared.
+- `names` also labels each row of the crosshair tooltip, which previously showed only a swatch
+  and a value with no way to tell the series apart.
 - Documented how missing and non-finite values are handled, and pinned it with a test. `null`,
   `undefined` and an absent key all mark a gap (the series breaks into a separate subpath).
   `NaN` and `Infinity` deliberately do **not**: they pass the gap check and reach the scale,

@@ -194,3 +194,24 @@ test('an LS- palette resolves, reverses, and drives a color scale like any other
   expect(r.rev).toEqual(['#B12', '#FC4', '#F84']);   // .reversed still parses past the marker
   expect(r.scaleEnds).toEqual(['rgb(0, 0, 255)', 'rgb(255, 0, 0)']);
 });
+
+test('standalone legendItems zips colors and labels, and accepts a palette name', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => ({
+    fromArray:  d3.easygraph.legendItems(['#f00', '#0f0', '#00f'], ['Not Yet', 'Visited', 'Lived']),
+    fromName:   d3.easygraph.legendItems('Qualitative.LS-SunArc', ['Sunrise', 'Noon', 'Sunset']),
+    noLabels:   d3.easygraph.legendItems(['#f00', '#0f0']),
+    shortLabels: d3.easygraph.legendItems(['#f00', '#0f0', '#00f'], ['only one'])
+  }));
+  expect(r.fromArray).toEqual([
+    { index: 0, color: '#f00', label: 'Not Yet' },
+    { index: 1, color: '#0f0', label: 'Visited' },
+    { index: 2, color: '#00f', label: 'Lived' }
+  ]);
+  expect(r.fromName.map(i => i.color)).toEqual(['#F84', '#FC4', '#B12']); // resolved by name
+  expect(r.fromName[2].label).toBe('Sunset');
+  expect(r.noLabels.map(i => i.label)).toEqual([undefined, undefined]);
+  // a colors-longer-than-labels list still yields one row per color, no generated placeholder
+  expect(r.shortLabels.length).toBe(3);
+  expect(r.shortLabels[1].label).toBeUndefined();
+});

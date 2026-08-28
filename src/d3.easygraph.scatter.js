@@ -244,6 +244,8 @@ d3.easygraph.scatter = function(config) {
         };
       },
 
+      legendItems: function() { return d3.easygraph._colorScaleLegendItems(graph); },
+
       render: render
     };
   });

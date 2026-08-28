@@ -15,8 +15,8 @@ Each chart family has its own constructor, taking only the config that family un
 
 | Family | Constructor | Config | Notes |
 | --- | --- | --- | --- |
-| Line / ribbon | `d3.easygraph.line(config)` | `lines`, `ribbons`, `stackedArea`, `zoom`, `crosshair`, `crosshairThreshold`, `curve`, `units` | Continuous (time or linear) x axis. Zoom and crosshair can be synced across multiple charts via `d3.easygraph.syncZoom`/`syncCrosshair`. `ribbons` draws a filled min/max band per series (e.g. a daily high/low range around a mean line) — not a stacked/cumulative area chart; `stackedArea` is that — plain `{ x, y }` points like `lines`, each series' area stacked cumulatively on top of the ones before it (a classic stacked area chart), y axis always including zero regardless of `clip`, same as bars' stacked mode. Series are stacked by array index, so (like bars' stacked mode) they need to be sampled at the same x positions to align correctly. A point with `y: null` (or, for ribbons, `min`/`max: null`) breaks the line/ribbon/stacked-area into a separate subpath there instead of drawing a straight segment through the gap — handy for a circular quantity like compass bearing, where a caller can insert a `null`-y point at each wraparound so the chart doesn't draw a false diagonal from 359° to 0°. `units: ["°F", "%"]` gives the crosshair tooltip a different unit string per series (index-matched to the series arrays passed to `update()`) — for a multi-series chart mixing quantities, where the single shared `y` preset's `unit` isn't right for all of them; a series past the end of `units`, or with a falsy entry, falls back to the shared `graph.unit`. |
-| Bars | `d3.easygraph.bars(config)` | `orientation` (`'vertical'`\|`'horizontal'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData` | Category axis uses a `d3.scaleBand()`. `orientation` is fixed for a chart's lifetime; `mode` can be toggled live. `colorPerData: true` colors each bar from its own `color` field instead of the series' palette color. |
+| Line / ribbon | `d3.easygraph.line(config)` | `lines`, `ribbons`, `stackedArea`, `zoom`, `crosshair`, `crosshairThreshold`, `curve`, `names`, `units` | Continuous (time or linear) x axis. Zoom and crosshair can be synced across multiple charts via `d3.easygraph.syncZoom`/`syncCrosshair`. `ribbons` draws a filled min/max band per series (e.g. a daily high/low range around a mean line) — not a stacked/cumulative area chart; `stackedArea` is that — plain `{ x, y }` points like `lines`, each series' area stacked cumulatively on top of the ones before it (a classic stacked area chart), y axis always including zero regardless of `clip`, same as bars' stacked mode. Series are stacked by array index, so (like bars' stacked mode) they need to be sampled at the same x positions to align correctly. A point with `y: null` (or, for ribbons, `min`/`max: null`) breaks the line/ribbon/stacked-area into a separate subpath there instead of drawing a straight segment through the gap — handy for a circular quantity like compass bearing, where a caller can insert a `null`-y point at each wraparound so the chart doesn't draw a false diagonal from 359° to 0°. `units: ["°F", "%"]` gives the crosshair tooltip a different unit string per series (index-matched to the series arrays passed to `update()`) — for a multi-series chart mixing quantities, where the single shared `y` preset's `unit` isn't right for all of them; a series past the end of `units`, or with a falsy entry, falls back to the shared `graph.unit`. |
+| Bars | `d3.easygraph.bars(config)` | `orientation` (`'vertical'`\|`'horizontal'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData`, `names` | Category axis uses a `d3.scaleBand()`. `orientation` is fixed for a chart's lifetime; `mode` can be toggled live. `colorPerData: true` colors each bar from its own `color` field instead of the series' palette color. |
 | Heatmap | `d3.easygraph.heatmap(config)` | `color` (unit/preset config for the color scale) | A grid of colored cells over plain continuous x/y axes. |
 | Scatter | `d3.easygraph.scatter(config)` | `color` (unit/preset config for the color scale, or a fixed `domain: [min, max]`), `radius`, `pointStrokeWidth`, `voronoi`, `voronoiOpacity`, `arrows`, `arrowColor`, `arrowStrokeWidth`, `arrowMinLength`, `arrowMaxLength`, `arrowHeadLength`, `arrowHeadAngle`, `labels`, `labelSize`, `labelOffset`, `labelMinZoom` | Colored circles at arbitrary `{ x, y, value }` points over plain continuous x/y axes. No geography built in — plot pre-projected pixel coordinates (e.g. lat/lng run through your own `d3.geoProjection`) to overlay points on a map you draw yourself. A point's own `radius` overrides the graph-level `radius` config for just that point (a bubble chart: point size driven by a third data dimension, independent of `value`'s color) — a point missing it just uses the graph's own radius. `voronoi: true` fills the region closer to each point than any other with that point's own color (via `d3.Delaunay`/`.voronoi()`, already part of the full `d3@7` bundle) — semi-transparent by default (`voronoiOpacity`, `0.6`) so a layer underneath stays visible. `arrows: true` draws a directional glyph (shaft + two-line chevron head) on top of any point that also carries `angle` (radians) and `magnitude` — a second, vector-shaped quantity (e.g. wind: speed + direction) layered on a scalar one (`value`'s own color) at the same position; a point missing either field just renders its circle with no arrow. `labels: true` draws each point's `label` (a string); a point missing it renders without one, and every label stays hidden below `labelMinZoom` (default 1, i.e. always on) for a caller with too many points to label all of them at once. `color`'s domain (like `x`/`y`'s, when data-driven) accepts `clip` — see below — or can be fixed outright via `color.domain: [min, max]`, so a value maps to the same color snapshot to snapshot instead of shifting as the current data's own spread changes (e.g. altitude). `graph.rescale(k)` shrinks point/arrow radius, length, and stroke-width, and label size, by `1/k` and re-renders — for a caller layering its own SVG-transform zoom on top (e.g. a zoomable map background) so markers stay a constant on-screen size instead of growing with the zoom. `color.quantize: true` swaps the usual continuous gradient for `paletteColors.length` discrete, equal-width color bands over the domain — better than a smooth interpolation for data with a few clearly separated ranges (e.g. aircraft altitude: a low/climbing band vs. a distinct cruise band), especially paired with `colorClasses` (below) to control how many bands come out of a colorbrewer palette. |
 
@@ -129,6 +129,52 @@ The six names carrying an **`LS-`** marker are the exception: hand-picked for on
 That marker is the only provenance encoded in a name, because it's the only distinction that
 changes how you'd use one: *is this vetted for general data, or one person's pick for one chart.*
 Which upstream package a standard scheme happens to ship in isn't a property of the palette.
+
+## Legends
+
+The library computes what a legend needs and stops there — it never renders one. `graph.legendItems()`
+returns plain rows you draw however your page wants:
+
+```js
+graph.legendItems()
+// line / bars   → [ { index: 0, color: "#4e79a7", label: "HVAC" }, … ]
+// quantized     → [ { index: 0, color: "#eff3ff", from: 0, to: 10000, label: "0–10.0k" }, … ]
+// continuous    → [ { index: 0, color: "#eff3ff", value: 0, label: "0" }, … ]
+
+d3.select("#legend").selectAll("span").data(graph.legendItems()).join("span")
+  .html(d => `<span style="color:${d.color}">■</span> ${d.label}`);
+```
+
+For `line` and `bars` there's one row per series, labelled from the **`names`** config — a
+per-series array, the same shape as `units`:
+
+```js
+d3.easygraph.line({ container: "#g", height: 320, lines: true,
+                    names: ["HVAC", "Lighting", "Electronics"] });
+```
+
+`names` also labels each row of the crosshair tooltip. A series with no name comes back with
+`label: undefined` rather than an invented "Series 3" — the same rule the chart title follows.
+
+For `heatmap` and `scatter` the rows come from the color scale instead. A `color.quantize` scale
+yields one row per band with its own `from`/`to` edges — rebuilt from the scale's interior
+thresholds plus the domain's ends, which is the part that's genuinely fiddly to do by hand. A
+continuous scale yields one row per palette stop, each with the `value` it represents. Either way
+labels are formatted with `graph.numberFormat`, so a legend reads in the same notation as the axis
+ticks.
+
+There's also a standalone form for a legend with no chart behind it at all:
+
+```js
+d3.easygraph.legendItems(["#666", "#369", "#933"], ["Not Yet", "Visited", "Lived"]);
+d3.easygraph.legendItems("Qualitative.Set1", ["North", "South"]);   // or resolve a palette by name
+```
+
+**Why no renderer:** the legends this replaced across larsi.org are drawn four different ways —
+inline `<span>`s, a `<table>` with extra data columns, a separately positioned `<svg>`, and
+swatches inside the chart's own margin — and two of them are HTML rather than SVG. Any single
+built-in renderer would have fitted almost none of them. The pairing-up was the only part they
+all shared, so that's the part that's shared.
 
 ## Adding your own presets and palettes
 
@@ -286,6 +332,7 @@ properties to a graph is fine and supported; the library only ever writes the na
 | `colorPalettes`, `resolvePalette(name, classes)` | named palette map and lookup |
 | `colorScale(name, domain, options)` | a ready `color(value)` scale |
 | `hueWheelPalette(count)` | `count` evenly spaced hues as `[r, g, b]` triples |
+| `legendItems(colors, labels)` | zip colors and labels into legend rows, with no chart involved |
 
 **On a graph** — methods:
 
@@ -294,6 +341,7 @@ properties to a graph is fine and supported; the library only ever writes the na
 | `update(data, ranges)` | re-render; returns the graph, so calls chain |
 | `destroy()` | disconnect the resize observer and tear down the DOM |
 | `getPaletteColor(i)` | the i-th palette color, wrapping past the end |
+| `legendItems()` | the `{ index, color, label }` rows a legend is drawn from — see below |
 | `rescale(k)` | scatter only — divide on-screen marker sizes by `k` (see the table above) |
 | `resolvedLabel()`, `resolvedUnit()` | the effective title text: your `label`/`unit` if set, else the `y` config's |
 | `numberFormat(v)`, `timeFormatShort(date)` | the formatters the axes use, exposed so a tooltip or legend can match them |

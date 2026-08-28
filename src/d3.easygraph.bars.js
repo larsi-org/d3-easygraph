@@ -16,7 +16,9 @@ d3.easygraph.bars = function(config) {
     _dataShape:   'series',
     orientation:  'vertical',
     mode:         'grouped',
-    colorPerData: false
+    colorPerData: false,
+    names:        null // optional per-series names, index-matched to the series arrays passed to
+                       // update() -- what legendItems() labels each entry with
   }, function(graph) {
     // enter/exit/merge bar group <g> elements
     function _bindGroups(data) {
@@ -203,6 +205,8 @@ d3.easygraph.bars = function(config) {
 
         return { x: xDomain, y: yDomain };
       },
+
+      legendItems: function() { return d3.easygraph._seriesLegendItems(graph); },
 
       render: function(data) {
         var isStacked = graph.mode === 'stacked';

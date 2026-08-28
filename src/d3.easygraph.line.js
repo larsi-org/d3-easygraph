@@ -42,6 +42,10 @@ d3.easygraph.line = function(config) {
     crosshair:          false,
     crosshairThreshold: 10,
     curve:              'linear',
+    names:              null, // optional per-series names, index-matched to the series arrays
+                              // passed to update() -- what legendItems() labels each entry with,
+                              // and what the crosshair tooltip names each row by. Same shape as
+                              // `units` below.
     units:              null // optional per-series unit strings for the crosshair tooltip --
                              // see _moveCrosshair() below; graph.unit (singular, from the
                              // shared y preset) is the fallback when a series has no entry
@@ -142,7 +146,11 @@ d3.easygraph.line = function(config) {
               if (!d) return;
               var near = Math.abs(graph.x.$scale(d.x) - mouseX) <= graph.crosshairThreshold;
               var unit = (graph.units && graph.units[i] != null) ? graph.units[i] : (graph.resolvedUnit() || '');
-              html += '<br><span style="color:' + graph.getPaletteColor(i) + '">&#9632;</span> ' + (near ? d.y : '?') + unit;
+              // the series' own name, when `names` supplies one -- otherwise the row is just the
+              // swatch and the value, exactly as before
+              var name = (graph.names && graph.names[i] != null) ? graph.names[i] + ' ' : '';
+              html += '<br><span style="color:' + graph.getPaletteColor(i) + '">&#9632;</span> ' +
+                      name + (near ? d.y : '?') + unit;
             });
 
             graph.$crosshairTip.html(html).style("display", null);
@@ -278,6 +286,8 @@ d3.easygraph.line = function(config) {
           graph.$group.selectAll(".data-lines").remove();
         }
       },
+
+      legendItems: function() { return d3.easygraph._seriesLegendItems(graph); },
 
       resize: function() {
         if (graph.$pane) graph.$pane.attr("width", graph.width);

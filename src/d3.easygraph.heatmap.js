@@ -90,6 +90,8 @@ d3.easygraph.heatmap = function(config) {
         return { x: xRange || [0, cols], y: yRange || [0, rows] };
       },
 
+      legendItems: function() { return d3.easygraph._colorScaleLegendItems(graph); },
+
       render: render
     };
   });

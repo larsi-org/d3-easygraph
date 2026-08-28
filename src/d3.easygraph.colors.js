@@ -175,3 +175,27 @@ d3.easygraph.hueWheelPalette = function(count) {
   }
   return palette;
 };
+
+// Zips colors and labels into the { index, color, label } rows a legend is drawn from -- the
+// data, not the DOM. Deliberately renders nothing: the legends this replaces across larsi.org
+// are drawn four different ways (inline <span>s, a <table> with extra data columns, a
+// separately positioned <svg>, swatches inside the chart's own margin), two of them HTML rather
+// than SVG, so any single built-in renderer would have fitted almost none of them. What they all
+// had in common was the pairing-up, which is what this does.
+//
+// `colors` takes either an array of CSS colors or a palette name to resolve (so a caller with a
+// named palette doesn't have to resolve it first). `labels` is optional and may be shorter than
+// the colors -- an entry with no label just comes back with `label: undefined`, the same
+// no-generic-placeholder rule the chart title follows.
+//
+// The chart-aware counterpart is graph.legendItems(), which fills both arguments in from the
+// chart itself; this standalone form is for a legend that has no easygraph chart behind it at
+// all (larsi.org's states_visited map and grid pages, which share one hand-written swatch list
+// between two files).
+d3.easygraph.legendItems = function(colors, labels) {
+  var resolved = (typeof colors === 'string') ? d3.easygraph.resolvePalette(colors) : colors;
+  labels = labels || [];
+  return resolved.map(function(color, i) {
+    return { index: i, color: color, label: labels[i] };
+  });
+};
