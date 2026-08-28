@@ -240,6 +240,34 @@ wrong — passing a flat array where a chart wants one series per row (or the re
 either throw from deep inside D3 or, worse, silently render a chart full of `NaN`. An empty array
 is always valid: "no data yet" is a normal state while a first fetch is in flight.
 
+### Missing and non-finite values
+
+**`null`, `undefined`, and an absent key all mark a gap** — the series breaks into a separate
+subpath there rather than drawing a straight line across the hole. That's the supported way to
+say "no reading here":
+
+```js
+graph.update([[ { x: 0, y: 1 }, { x: 1, y: null }, { x: 2, y: 3 } ]]);  // one gap, two subpaths
+```
+
+**`NaN` and `Infinity` are not gaps, and are not validated.** They pass the gap check and flow
+into the scale, so a single one puts a literal `NaN` into the path's `d` attribute — which
+browsers refuse to render, usually blanking the whole series:
+
+```
+finite    →  M0,150L215,75L430,0
+NaN       →  M0,150L215,NaN L430,0        ← invalid path data
+Infinity  →  M0,150L215,NaN L430,150      ← and every other point has moved
+```
+
+`Infinity` is the worse of the two: it also enters the domain calculation, so one bad value
+stretches the axis to infinity and flattens every *valid* point along with it (note the third
+point above shifting from `0` to `150`).
+
+Values are deliberately not checked per-point — that would cost a test on every value of every
+render, on charts that routinely carry tens of thousands of points, to catch what is a bug in the
+calling code. **Filter non-finite values out, or convert them to `null`, before passing them in.**
+
 ## Public API
 
 This is the supported surface — what semantic versioning covers. **Everything else reachable on a

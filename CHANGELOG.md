@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Documented how missing and non-finite values are handled, and pinned it with a test. `null`,
+  `undefined` and an absent key all mark a gap (the series breaks into a separate subpath).
+  `NaN` and `Infinity` deliberately do **not**: they pass the gap check and reach the scale,
+  putting a literal `NaN` into the path's `d` attribute, which browsers refuse to render.
+  `Infinity` additionally enters the domain calculation, so one bad value stretches the axis to
+  infinity and flattens every valid point with it. Values aren't checked per-point -- that would
+  cost a test on every value of every render, on charts routinely carrying tens of thousands of
+  points, to catch a bug in the calling code -- so the contract is now written down instead of
+  left to be discovered.
 - Extending `d3.easygraph.presets` and `d3.easygraph.colorPalettes` is now a documented,
   tested extension point rather than something that merely happened to work. Adding a preset or a
   palette by name is the supported way to teach the library a unit or color set it doesn't ship.

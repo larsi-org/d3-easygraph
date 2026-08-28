@@ -182,3 +182,45 @@ test('a null-y point breaks the line and ribbon into separate subpaths (gap)', a
   expect((lineD.match(/M/g) || []).length).toBe(2);
   expect((ribbonD.match(/M/g) || []).length).toBe(2);
 });
+
+test('null, undefined and an absent key all mark a gap; NaN and Infinity do not (documented contract)', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    function probe(series) {
+      var w = document.createElement('div');
+      w.style.width = '500px';
+      document.body.appendChild(w);
+      var g = d3.easygraph.line({ container: w, height: 200, lines: true, x: { scale: 'linear' } });
+      g.update([series]);
+      var d = w.querySelector('path.data-lines').getAttribute('d') || '';
+      var out = {
+        subpaths: d.split('M').length - 1,       // a gap splits the path in two
+        yDomain: g.y.$scale.domain().map(function (v) { return Number.isFinite(v) ? v : String(v); })
+      };
+      g.destroy(); w.remove();
+      return out;
+    }
+    return {
+      whole:     probe([{ x: 0, y: 1 }, { x: 1, y: 2 },         { x: 2, y: 3 }]),
+      nullGap:   probe([{ x: 0, y: 1 }, { x: 1, y: null },      { x: 2, y: 3 }]),
+      undefGap:  probe([{ x: 0, y: 1 }, { x: 1, y: undefined }, { x: 2, y: 3 }]),
+      absentKey: probe([{ x: 0, y: 1 }, { x: 1 },               { x: 2, y: 3 }]),
+      nan:       probe([{ x: 0, y: 1 }, { x: 1, y: NaN },       { x: 2, y: 3 }]),
+      infinity:  probe([{ x: 0, y: 1 }, { x: 1, y: Infinity },  { x: 2, y: 3 }])
+    };
+  });
+
+  expect(r.whole.subpaths).toBe(1);
+  // the three supported ways to say "no reading here"
+  expect(r.nullGap.subpaths).toBe(2);
+  expect(r.undefGap.subpaths).toBe(2);
+  expect(r.absentKey.subpaths).toBe(2);
+  // a gap never disturbs the domain
+  expect(r.nullGap.yDomain).toEqual([1, 3]);
+
+  // NaN is NOT a gap -- it is drawn, producing invalid path data
+  expect(r.nan.subpaths).toBe(1);
+  // Infinity is not a gap either, and additionally corrupts the domain
+  expect(r.infinity.subpaths).toBe(1);
+  expect(r.infinity.yDomain).toEqual([1, 'Infinity']);
+});
