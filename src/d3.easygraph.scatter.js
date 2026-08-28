@@ -69,6 +69,7 @@ d3.easygraph.scatter = function(config) {
 
   return d3.easygraph._build(config, {
     _chartType: 'scatter',
+    _dataShape: 'points',
     radius: 4, pointStrokeWidth: 0.5, voronoi: false, voronoiOpacity: 0.6,
     arrows: false, arrowColor: '#000', arrowStrokeWidth: 1.5,
     arrowMinLength: 6, arrowMaxLength: 24, arrowHeadLength: 6, arrowHeadAngle: Math.PI / 7,

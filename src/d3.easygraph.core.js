@@ -62,6 +62,39 @@ d3.easygraph._computeStacked = function(data) {
   return result;
 };
 
+// Validates update()'s `data` at the boundary, the same way the constructor already validates
+// `container` and `height` -- this was the one input with no guard, and the one newcomers get
+// wrong first. Each family declares its expected shape (_dataShape):
+//   'series' -- an array of series, each an array of points   (line, bars)
+//   'points' -- one flat array of point objects               (scatter)
+//   'grid'   -- an array of rows, each an array of numbers    (heatmap)
+// Getting it wrong used to either throw from deep inside d3 with a minified variable name, or
+// -- worse, for scatter and heatmap -- silently render a chart full of NaN with no complaint.
+// An empty array is always allowed: "no data yet" is a normal state while a fetch is in flight.
+var _shapeHelp = {
+  series: "an array of series, each an array of points -- e.g. [[{x, y}, {x, y}]]",
+  points: "a flat array of point objects -- e.g. [{x, y, value}, {x, y, value}]",
+  grid:   "an array of rows, each an array of numbers -- e.g. [[1, 2], [3, 4]]"
+};
+d3.easygraph._checkData = function(data, shape, family) {
+  var prefix = 'd3.easygraph: ' + family + '.update() expects ' + _shapeHelp[shape] + ', but got ';
+  if (!Array.isArray(data)) {
+    throw new Error(prefix + (data === undefined ? 'no argument at all' : typeof data));
+  }
+  if (!data.length) return;
+
+  var first = data[0], firstIsArray = Array.isArray(first);
+  if (shape === 'points' && firstIsArray) {
+    throw new Error(prefix + 'a nested array. Flatten it, or did you mean d3.easygraph.line()?');
+  }
+  if (shape !== 'points' && !firstIsArray) {
+    throw new Error(prefix + 'a flat array. Wrap a single series as [yourArray].');
+  }
+  if (shape === 'grid' && first.length && typeof first[0] !== 'number') {
+    throw new Error(prefix + 'rows of ' + typeof first[0] + '. Heatmap cells are plain numbers.');
+  }
+};
+
 // accepts a CSS selector string, a DOM element, or a d3 selection; returns an
 // Element or null
 function _resolveContainer(container) {
@@ -112,9 +145,9 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     // ignore transient/degenerate layout passes (e.g. mid-reflow during a live
     // resize) that would otherwise drive graph.width negative
     if (w <= graph.margin.left + graph.margin.right) return false;
-    var changed = graph.width === undefined || Math.abs(w - graph._outerWidth) >= 1;
-    graph._outerWidth = w;
-    graph.width = graph._outerWidth - graph.margin.left - graph.margin.right;
+    var changed = graph.width === undefined || Math.abs(w - graph.outerWidth) >= 1;
+    graph.outerWidth = w;
+    graph.width = graph.outerWidth - graph.margin.left - graph.margin.right;
     return changed;
   }
 
@@ -153,10 +186,11 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   d3.easygraph._extend(graph, familyDefaults);
 
   // Assigned after the merge, not through it: _extend only fills keys the caller left unset, so
-  // routing this through familyDefaults would let a caller's own `_chartType` win. It isn't
-  // config -- it's the family's own name, used only for the accessible-name fallback in
-  // update() -- so the family always wins.
+  // routing these through familyDefaults would let a caller's own value win. Neither is config --
+  // one is the family's own name (the accessible-name fallback in update()), the other its
+  // expected data shape (see _checkData) -- so the family always wins.
   graph._chartType = familyDefaults._chartType;
+  graph._dataShape = familyDefaults._dataShape;
 
   // Clone x/y onto a fresh object rather than resolving in place -- _build() (via
   // _resolveProperty below) writes $scale/$axis directly onto whatever object graph.x/graph.y
@@ -194,8 +228,8 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     return (graph.unit !== undefined) ? graph.unit : graph.y.unit;
   };
 
-  graph._outerHeight = graph.height;
-  graph.height = graph._outerHeight - graph.margin.top - graph.margin.bottom;
+  graph.outerHeight = graph.height;
+  graph.height = graph.outerHeight - graph.margin.top - graph.margin.bottom;
   _measureWidth();
 
   graph._module = moduleFactory(graph);
@@ -227,8 +261,8 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     .append("svg")
       .attr("class", "easygraph")
       .attr("role", "img")
-      .attr("width", graph._outerWidth)
-      .attr("height", graph._outerHeight);
+      .attr("width", graph.outerWidth)
+      .attr("height", graph.outerHeight);
   graph.$a11yTitle = graph.$svgRoot.append("title");
   graph.$svg = graph.$svgRoot
     .append("g")
@@ -283,7 +317,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     }
     graph.y.$axis.tickSize(-graph.width);
 
-    graph.$svgRoot.attr("width", graph._outerWidth);
+    graph.$svgRoot.attr("width", graph.outerWidth);
     graph.$clipRect.attr("width", graph.width);
     graph.$title.attr("x", graph.width / 2);
 
@@ -322,6 +356,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // a single object rather than two positional args so a future range (e.g. color) has
   // somewhere to go without another positional param.
   graph.update = function(data, ranges) {
+    d3.easygraph._checkData(data, graph._dataShape, graph._chartType);
     ranges = ranges || {};
     graph._lastData = data;
 

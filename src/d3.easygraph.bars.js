@@ -13,6 +13,7 @@
 d3.easygraph.bars = function(config) {
   return d3.easygraph._build(config, {
     _chartType:   'bar',
+    _dataShape:   'series',
     orientation:  'v',
     mode:         'grouped',
     colorPerData: false

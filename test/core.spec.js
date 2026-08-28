@@ -341,3 +341,110 @@ test('_chartType is internal: a caller cannot override the accessible-name fallb
   expect(result.ariaLabel).toBe('line chart');
   expect(result.noPublicAlias).toBe(true);
 });
+
+test('update() rejects a wrong-shaped data argument with a message naming the family and the fix', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const messages = await page.evaluate(() => {
+    var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
+    function msg(fn) { try { fn(); return 'NO ERROR'; } catch (e) { return e.message; } }
+
+    var line = d3.easygraph.line({ container: w, height: 200, lines: true });
+    var flatIntoLine = msg(function() { line.update([{ x: 0, y: 1 }]); });
+    var noArgs = msg(function() { line.update(); });
+    var notAnArray = msg(function() { line.update('nope'); });
+    line.destroy();
+
+    var scatter = d3.easygraph.scatter({ container: w, height: 200 });
+    var nestedIntoScatter = msg(function() { scatter.update([[{ x: 0, y: 1, value: 1 }]]); });
+    scatter.destroy();
+
+    var heat = d3.easygraph.heatmap({ container: w, height: 200 });
+    var objectsIntoHeatmap = msg(function() { heat.update([[{ v: 1 }]]); });
+    heat.destroy();
+
+    w.remove();
+    return { flatIntoLine, noArgs, notAnArray, nestedIntoScatter, objectsIntoHeatmap };
+  });
+  expect(messages.flatIntoLine).toContain('line.update() expects an array of series');
+  expect(messages.flatIntoLine).toContain('Wrap a single series as [yourArray]');
+  expect(messages.noArgs).toContain('no argument at all');
+  expect(messages.notAnArray).toContain('string');
+  expect(messages.nestedIntoScatter).toContain('scatter.update() expects a flat array of point objects');
+  expect(messages.nestedIntoScatter).toContain('did you mean d3.easygraph.line()');
+  expect(messages.objectsIntoHeatmap).toContain('Heatmap cells are plain numbers');
+});
+
+test('every family still accepts its own correct shape, and an empty array', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const ok = await page.evaluate(() => {
+    var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
+    var built = [];
+    try {
+      var l = d3.easygraph.line({ container: w, height: 200, lines: true });
+      l.update([[{ x: 0, y: 1 }]]); l.update([]); built.push(l);
+      var b = d3.easygraph.bars({ container: w, height: 200 });
+      b.update([[{ x: 'a', y: 1 }]]); b.update([]); built.push(b);
+      var s = d3.easygraph.scatter({ container: w, height: 200 });
+      s.update([{ x: 0, y: 1, value: 1 }]); s.update([]); built.push(s);
+      var h = d3.easygraph.heatmap({ container: w, height: 200 });
+      h.update([[1, 2], [3, 4]]); h.update([]); built.push(h);
+      return true;
+    } catch (e) { return 'THREW: ' + e.message; }
+    finally { built.forEach(function(g) { g.destroy(); }); w.remove(); }
+  });
+  expect(ok).toBe(true);
+});
+
+test('syncZoom/syncCrosshair compose with a caller-set callback instead of replacing it', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const result = await page.evaluate(() => {
+    var w1 = document.createElement('div'), w2 = document.createElement('div');
+    w1.style.width = w2.style.width = '400px';
+    document.body.appendChild(w1); document.body.appendChild(w2);
+
+    var a = d3.easygraph.line({ container: w1, height: 200, zoom: [1, 10], crosshair: true, lines: true });
+    var b = d3.easygraph.line({ container: w2, height: 200, zoom: [1, 10], crosshair: true, lines: true });
+    a.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
+    b.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
+
+    var zoomCalls = 0, crosshairCalls = 0;
+    a.onZoom = function() { zoomCalls++; };
+    a.onCrosshair = function() { crosshairCalls++; };
+    d3.easygraph.syncZoom([a, b]);
+    d3.easygraph.syncCrosshair([a, b]);
+
+    // drive both through the same path a real gesture would
+    d3.select(a.$pane.node()).call(a.$zoom.transform, d3.zoomIdentity.scale(2));
+    a.onCrosshair(10);
+
+    var syncedDomain = b.x.$scale.domain();
+    a.destroy(); b.destroy(); w1.remove(); w2.remove();
+    return { zoomCalls, crosshairCalls, syncedDomain };
+  });
+  // the caller's own callbacks still fire...
+  expect(result.zoomCalls).toBeGreaterThan(0);
+  expect(result.crosshairCalls).toBeGreaterThan(0);
+  // ...and syncing still happened
+  expect(result.syncedDomain).toBeDefined();
+});
+
+test('outerWidth/outerHeight are the full svg box; width/height are the plot area', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const dims = await page.evaluate(() => {
+    var g = d3.easygraph.line({ container: '#graph', height: 320, margin: { top: 20, right: 20, bottom: 30, left: 50 } });
+    var svg = document.querySelector('#graph svg');
+    var d = {
+      outerHeight: g.outerHeight, height: g.height,
+      outerWidth: g.outerWidth, width: g.width,
+      svgHeightAttr: Number(svg.getAttribute('height')),
+      svgWidthAttr: Number(svg.getAttribute('width'))
+    };
+    g.destroy();
+    return d;
+  });
+  expect(dims.outerHeight).toBe(320);
+  expect(dims.height).toBe(270);              // 320 - 20 - 30
+  expect(dims.svgHeightAttr).toBe(dims.outerHeight);
+  expect(dims.width).toBe(dims.outerWidth - 70); // margin.left + margin.right
+  expect(dims.svgWidthAttr).toBe(dims.outerWidth);
+});

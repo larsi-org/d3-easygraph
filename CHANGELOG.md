@@ -46,8 +46,26 @@ All notable changes to this project are documented here. Format loosely follows
   transitioning them would fight `rescale()` and lag a live zoom gesture. Voronoi cells and
   arrows are left untransitioned too -- their shape is fully geometry-derived each render, not
   a smoothly-tweenable "value" the way a point's position or color is.
+- `update()` now validates the shape of `data` and throws a message naming the family and the fix
+  -- the same "clear error at the boundary" the constructor already did for `container`,
+  `height` and `colorPalette`, applied to the one input that had no guard. Passing a flat array
+  where a family wants one series per row (or the reverse) previously either threw from deep
+  inside d3 with a minified variable name, or -- for `scatter` and `heatmap` -- silently rendered
+  a chart full of `NaN` with no complaint at all. An empty array stays valid.
+- `graph.outerWidth`/`graph.outerHeight` (previously the internal `_outerWidth`/`_outerHeight`)
+  are now public: the full `<svg>` box, alongside `width`/`height`, which are the plot area
+  inside the margins. `height` going in is the outer height and is replaced by the plot-area
+  height during construction, so both numbers are now reachable by name instead of one being
+  silently shadowed.
+- A **Public API** section in the README naming the supported surface, and stating that every
+  other reachable property -- all `$`- and `_`-prefixed ones included -- is internal and may
+  change in any release. Semantic versioning covers the documented set, not everything a graph
+  object happens to expose.
 
 ### Changed
+- `syncZoom`/`syncCrosshair` compose with a caller's existing `onZoom`/`onCrosshair` instead of
+  assigning over them. Setting your own callback and then calling sync silently dropped the
+  callback, with no way to have both.
 - The per-family chart name behind the accessible-name fallback is `graph._chartType`, an
   internal the family always sets -- it's assigned after the config merge rather than through
   it, so a caller passing `_chartType` can't override it. It was briefly a plain `chartType`

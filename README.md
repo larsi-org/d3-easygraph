@@ -176,6 +176,53 @@ off the returned graph, not off the object you passed in.
 Each chart's `<svg>` carries `class="easygraph"`, which every rule in the stylesheet is scoped
 under, plus `role="img"` and an `aria-label` mirroring the chart title.
 
+`update()` checks the shape of `data` and throws a message naming the family and the fix if it's
+wrong — passing a flat array where a chart wants one series per row (or the reverse) used to
+either throw from deep inside D3 or, worse, silently render a chart full of `NaN`. An empty array
+is always valid: "no data yet" is a normal state while a first fetch is in flight.
+
+## Public API
+
+This is the supported surface — what semantic versioning covers. **Everything else reachable on a
+graph object, including all `$`-prefixed (D3 selections, scales, shape generators) and
+`_`-prefixed properties, is internal and may change in any release.** Attaching your own
+properties to a graph is fine and supported; the library only ever writes the names below.
+
+**Module-level** — usable with no chart at all:
+
+| | |
+| --- | --- |
+| `line`, `bars`, `heatmap`, `scatter` | the four chart constructors |
+| `syncZoom(graphs)`, `syncCrosshair(graphs)` | link zoom / crosshair across line charts |
+| `getUnit(name)`, `presets` | unit-preset lookup and the table behind it |
+| `round(x, n)` | round to `n` decimal places |
+| `colorPalettes`, `resolvePalette(name, classes)` | named palette map and lookup |
+| `colorScale(name, domain, options)` | a ready `color(value)` scale |
+| `hueWheelPalette(count)` | `count` evenly spaced hues as `[r, g, b]` triples |
+
+**On a graph** — methods:
+
+| | |
+| --- | --- |
+| `update(data, ranges)` | re-render; returns the graph, so calls chain |
+| `destroy()` | disconnect the resize observer and tear down the DOM |
+| `getPaletteColor(i)` | the i-th palette color, wrapping past the end |
+| `draw()` | redraw paths against the current scales without recomputing domains (line charts; a no-op elsewhere) |
+| `rescale(k)` | scatter only — divide on-screen marker sizes by `k` (see the table above) |
+| `resolvedLabel()`, `resolvedUnit()` | the effective title text: your `label`/`unit` if set, else the `y` config's |
+| `numberFormat(v)`, `timeFormatShort(date)` | the formatters the axes use, exposed so a tooltip or legend can match them |
+
+**On a graph** — properties:
+
+| | |
+| --- | --- |
+| every config key you passed | `container`, `height`, `margin`, `duration`, `colorPalette`, `colorClasses`, `timeFormatMulti`, and the family's own flags — readable, and the family flags (`lines`, `ribbons`, `stackedArea`, `mode`, `voronoi`, `arrows`, `labels`, `units`, …) are re-read on every `update()`, so assigning one and re-rendering is the supported way to toggle a chart live |
+| `x`, `y`, and (heatmap/scatter) `color` | the resolved per-property configs; `$scale` and `$axis` on each are the intended escape hatch into D3 |
+| `width`, `height` | the **plot area**, inside the margins |
+| `outerWidth`, `outerHeight` | the full `<svg>` box — `height` going in is the outer height, and is replaced by the plot-area height during construction |
+| `paletteColors` | the resolved color array |
+| `onZoom`, `onCrosshair` | optional callbacks; `syncZoom`/`syncCrosshair` compose with yours rather than replacing it |
+
 ## Examples
 
 Live, real-world examples — part of [larsi.org](https://larsi.org), where this library

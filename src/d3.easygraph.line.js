@@ -27,6 +27,7 @@ function _nestedValues(data, acc) {
 d3.easygraph.line = function(config) {
   return d3.easygraph._build(config, {
     _chartType:         'line',
+    _dataShape:         'series',
     lines:              false,
     ribbons:            false,
     stackedArea:        false,
@@ -278,10 +279,15 @@ d3.easygraph.line = function(config) {
   });
 };
 
+// onZoom/onCrosshair are the caller's own hooks, so sync composes with whatever is already
+// there rather than replacing it -- assigning over the top (which is what these used to do)
+// silently dropped a callback the caller had set, with no way to have both.
 d3.easygraph.syncZoom = function(graphs) {
   graphs.forEach(function(g) {
     if (!g.$pane) return;
+    var callerOnZoom = g.onZoom;
     g.onZoom = function(transform) {
+      if (callerOnZoom) callerOnZoom.call(g, transform);
       graphs.forEach(function(other) {
         if (other === g || !other.$pane || !other.$xScaleRef) return;
         other.x.$scale.domain(transform.rescaleX(other.$xScaleRef).domain());
@@ -295,7 +301,9 @@ d3.easygraph.syncZoom = function(graphs) {
 d3.easygraph.syncCrosshair = function(graphs) {
   graphs.forEach(function(g) {
     if (!g._moveCrosshair) return;
+    var callerOnCrosshair = g.onCrosshair;
     g.onCrosshair = function(mouseX) {
+      if (callerOnCrosshair) callerOnCrosshair.call(g, mouseX);
       graphs.forEach(function(other) {
         if (other === g || !other._moveCrosshair || !other.$xScaleRef) return;
         if (mouseX === null) {
