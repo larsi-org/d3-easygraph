@@ -14,7 +14,7 @@ d3.easygraph.bars = function(config) {
   return d3.easygraph._build(config, {
     _chartType:   'bar',
     _dataShape:   'series',
-    orientation:  'v',
+    orientation:  'vertical',
     mode:         'grouped',
     colorPerData: false
   }, function(graph) {
@@ -26,11 +26,14 @@ d3.easygraph.bars = function(config) {
       return enter.merge(sel);
     }
 
-    // optional per-datum color transition
+    // optional per-datum color transition -- colorPerData: true colors each bar from its own
+    // `color` field instead of the series' palette color (the field was a bare `d.c` before
+    // 1.0, the one single-letter name in a data format that otherwise spells everything out:
+    // value, radius, label, angle, magnitude)
     function _colorTransition(sel) {
       if (graph.colorPerData) {
         sel.transition('color').duration(graph.duration).ease(d3.easeCubicInOut)
-          .style("fill", function(d) { return d.c; });
+          .style("fill", function(d) { return d.color; });
       }
     }
 
@@ -142,7 +145,14 @@ d3.easygraph.bars = function(config) {
 
     return {
       prepareScales: function() {
-        if (graph.orientation === 'v') {
+        // Checked rather than left to fall through: every orientation test below is written as
+        // "vertical, else horizontal", so a typo used to silently produce a horizontal chart
+        // instead of an error.
+        if (graph.orientation !== 'vertical' && graph.orientation !== 'horizontal') {
+          throw new Error('d3.easygraph: orientation must be "vertical" or "horizontal", got ' +
+                          JSON.stringify(graph.orientation));
+        }
+        if (graph.orientation === 'vertical') {
           graph.x.$scale = d3.scaleBand().rangeRound([0, graph.width]).padding(.2);
           graph.y.$scale = (graph.y.scale === 'time') ? d3.scaleTime() : d3.scaleLinear();
           graph.y.$scale.range([graph.height, 0]);
@@ -154,7 +164,7 @@ d3.easygraph.bars = function(config) {
       },
 
       domain: function(data, xRange, yRange) {
-        var isH = graph.orientation === 'h';
+        var isH = graph.orientation === 'horizontal';
         var isStacked = graph.mode === 'stacked';
 
         if (isH) {
@@ -197,10 +207,10 @@ d3.easygraph.bars = function(config) {
       render: function(data) {
         var isStacked = graph.mode === 'stacked';
         var stacked = isStacked ? d3.easygraph._computeStacked(data) : undefined;
-        if (graph.orientation === 'v' && isStacked)  barsStackedV(stacked);
-        if (graph.orientation === 'v' && !isStacked) barsGroupedV(data);
-        if (graph.orientation === 'h' && isStacked)  barsStackedH(stacked);
-        if (graph.orientation === 'h' && !isStacked) barsGroupedH(data);
+        if (graph.orientation === 'vertical' && isStacked)  barsStackedV(stacked);
+        if (graph.orientation === 'vertical' && !isStacked) barsGroupedV(data);
+        if (graph.orientation === 'horizontal' && isStacked)  barsStackedH(stacked);
+        if (graph.orientation === 'horizontal' && !isStacked) barsGroupedH(data);
       }
     };
   });

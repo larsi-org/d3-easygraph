@@ -7,7 +7,9 @@
 // crosshair — these always travel together in practice and share a continuous
 // (time/linear) x scale.
 
-// defined once at module level — never changes
+// Friendly aliases for the d3 curves this library ships shortcuts for; defined once at module
+// level, never changes. `curve` also accepts a d3 curve factory directly (d3.curveNatural,
+// d3.curveCatmullRom.alpha(0.5), ...) so the shortcut list isn't a ceiling -- see _resolveCurve.
 var _curveMap = {
   'linear':      d3.curveLinear,
   'monotone':    d3.curveMonotoneX,
@@ -16,6 +18,11 @@ var _curveMap = {
   'basis':       d3.curveBasis,
   'cardinal':    d3.curveCardinal
 };
+
+function _resolveCurve(curve) {
+  if (typeof curve === 'function') return curve; // a d3 curve factory, passed straight through
+  return _curveMap[curve] || d3.curveLinear;
+}
 
 // flattens a nested array (one series per row) into a single flat array of values via acc
 function _nestedValues(data, acc) {
@@ -34,7 +41,7 @@ d3.easygraph.line = function(config) {
     zoom:               false,
     crosshair:          false,
     crosshairThreshold: 10,
-    interpolate:        'linear',
+    curve:              'linear',
     units:              null // optional per-series unit strings for the crosshair tooltip --
                              // see _moveCrosshair() below; graph.unit (singular, from the
                              // shared y preset) is the fallback when a series has no entry
@@ -46,7 +53,7 @@ d3.easygraph.line = function(config) {
         _cx = function(d) { return graph.x.$scale(d.x); };
         _cy = function(d) { return graph.y.$scale(d.y); };
 
-        var _curve = _curveMap[graph.interpolate] || d3.curveLinear;
+        var _curve = _resolveCurve(graph.curve);
         var _definedLine = function(d) { return d.y != null; };
         var _definedRibbon = function(d) { return d.min != null && d.max != null; };
         graph.$ribbon0 = d3.area().curve(_curve).defined(_definedRibbon).x(_cx)

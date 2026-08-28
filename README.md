@@ -15,13 +15,14 @@ Each chart family has its own constructor, taking only the config that family un
 
 | Family | Constructor | Config | Notes |
 | --- | --- | --- | --- |
-| Line / ribbon | `d3.easygraph.line(config)` | `lines`, `ribbons`, `stackedArea`, `zoom`, `crosshair`, `crosshairThreshold`, `interpolate`, `units` | Continuous (time or linear) x axis. Zoom and crosshair can be synced across multiple charts via `d3.easygraph.syncZoom`/`syncCrosshair`. `ribbons` draws a filled min/max band per series (e.g. a daily high/low range around a mean line) — not a stacked/cumulative area chart; `stackedArea` is that — plain `{ x, y }` points like `lines`, each series' area stacked cumulatively on top of the ones before it (a classic stacked area chart), y axis always including zero regardless of `clip`, same as bars' stacked mode. Series are stacked by array index, so (like bars' stacked mode) they need to be sampled at the same x positions to align correctly. A point with `y: null` (or, for ribbons, `min`/`max: null`) breaks the line/ribbon/stacked-area into a separate subpath there instead of drawing a straight segment through the gap — handy for a circular quantity like compass bearing, where a caller can insert a `null`-y point at each wraparound so the chart doesn't draw a false diagonal from 359° to 0°. `units: ["°F", "%"]` gives the crosshair tooltip a different unit string per series (index-matched to the series arrays passed to `update()`) — for a multi-series chart mixing quantities, where the single shared `y` preset's `unit` isn't right for all of them; a series past the end of `units`, or with a falsy entry, falls back to the shared `graph.unit`. |
-| Bars | `d3.easygraph.bars(config)` | `orientation` (`'v'`\|`'h'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData` | Category axis uses a `d3.scaleBand()`. `orientation` is fixed for a chart's lifetime; `mode` can be toggled live. |
+| Line / ribbon | `d3.easygraph.line(config)` | `lines`, `ribbons`, `stackedArea`, `zoom`, `crosshair`, `crosshairThreshold`, `curve`, `units` | Continuous (time or linear) x axis. Zoom and crosshair can be synced across multiple charts via `d3.easygraph.syncZoom`/`syncCrosshair`. `ribbons` draws a filled min/max band per series (e.g. a daily high/low range around a mean line) — not a stacked/cumulative area chart; `stackedArea` is that — plain `{ x, y }` points like `lines`, each series' area stacked cumulatively on top of the ones before it (a classic stacked area chart), y axis always including zero regardless of `clip`, same as bars' stacked mode. Series are stacked by array index, so (like bars' stacked mode) they need to be sampled at the same x positions to align correctly. A point with `y: null` (or, for ribbons, `min`/`max: null`) breaks the line/ribbon/stacked-area into a separate subpath there instead of drawing a straight segment through the gap — handy for a circular quantity like compass bearing, where a caller can insert a `null`-y point at each wraparound so the chart doesn't draw a false diagonal from 359° to 0°. `units: ["°F", "%"]` gives the crosshair tooltip a different unit string per series (index-matched to the series arrays passed to `update()`) — for a multi-series chart mixing quantities, where the single shared `y` preset's `unit` isn't right for all of them; a series past the end of `units`, or with a falsy entry, falls back to the shared `graph.unit`. |
+| Bars | `d3.easygraph.bars(config)` | `orientation` (`'vertical'`\|`'horizontal'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData` | Category axis uses a `d3.scaleBand()`. `orientation` is fixed for a chart's lifetime; `mode` can be toggled live. `colorPerData: true` colors each bar from its own `color` field instead of the series' palette color. |
 | Heatmap | `d3.easygraph.heatmap(config)` | `color` (unit/preset config for the color scale) | A grid of colored cells over plain continuous x/y axes. |
 | Scatter | `d3.easygraph.scatter(config)` | `color` (unit/preset config for the color scale, or a fixed `domain: [min, max]`), `radius`, `pointStrokeWidth`, `voronoi`, `voronoiOpacity`, `arrows`, `arrowColor`, `arrowStrokeWidth`, `arrowMinLength`, `arrowMaxLength`, `arrowHeadLength`, `arrowHeadAngle`, `labels`, `labelSize`, `labelOffset`, `labelMinZoom` | Colored circles at arbitrary `{ x, y, value }` points over plain continuous x/y axes. No geography built in — plot pre-projected pixel coordinates (e.g. lat/lng run through your own `d3.geoProjection`) to overlay points on a map you draw yourself. A point's own `radius` overrides the graph-level `radius` config for just that point (a bubble chart: point size driven by a third data dimension, independent of `value`'s color) — a point missing it just uses the graph's own radius. `voronoi: true` fills the region closer to each point than any other with that point's own color (via `d3.Delaunay`/`.voronoi()`, already part of the full `d3@7` bundle) — semi-transparent by default (`voronoiOpacity`, `0.6`) so a layer underneath stays visible. `arrows: true` draws a directional glyph (shaft + two-line chevron head) on top of any point that also carries `angle` (radians) and `magnitude` — a second, vector-shaped quantity (e.g. wind: speed + direction) layered on a scalar one (`value`'s own color) at the same position; a point missing either field just renders its circle with no arrow. `labels: true` draws each point's `label` (a string); a point missing it renders without one, and every label stays hidden below `labelMinZoom` (default 1, i.e. always on) for a caller with too many points to label all of them at once. `color`'s domain (like `x`/`y`'s, when data-driven) accepts `clip` — see below — or can be fixed outright via `color.domain: [min, max]`, so a value maps to the same color snapshot to snapshot instead of shifting as the current data's own spread changes (e.g. altitude). `graph.rescale(k)` shrinks point/arrow radius, length, and stroke-width, and label size, by `1/k` and re-renders — for a caller layering its own SVG-transform zoom on top (e.g. a zoomable map background) so markers stay a constant on-screen size instead of growing with the zoom. `color.quantize: true` swaps the usual continuous gradient for `paletteColors.length` discrete, equal-width color bands over the domain — better than a smooth interpolation for data with a few clearly separated ranges (e.g. aircraft altitude: a low/climbing band vs. a distinct cruise band), especially paired with `colorClasses` (below) to control how many bands come out of a colorbrewer palette. |
 
-Shared config across all four: `container`, `label`, `x`/`y` (`scale`, `unit`, `label`, `noTick`,
-`preset`, `convert`, `clip`), `height`, `margin`, `colorPalette`, `colorClasses`, `duration`,
+Shared config across all four: `container`, `label`, `x`/`y` (`scale`, `unit`, `label`,
+`tickLabels`, `preset`, `convert`, `clip`), `height`, `margin`, `colorPalette`, `colorClasses`,
+`duration`,
 `timeFormatMulti` (multi-scale time tick labels — minute/hour/day/month formats picked per tick
 from the tick's own precision, rather than one fixed format for the whole axis; useful on any
 time axis spanning enough range for one format to read badly at both ends).
@@ -38,10 +39,16 @@ the exact same true-min/max behavior. `color` clamps values past the clipped dom
 nearest end color; `x`/`y` don't clamp — an out-of-clip point just draws past the axis edge.
 Bars' value axis always includes zero, so `clip` has no effect there.
 
-`container` accepts a CSS selector string, a DOM element, or a d3 selection. `height` must be a
-positive number and `container` must resolve to an element — both are checked at construction time,
-throwing a clear error instead of failing cryptically later. Every chart has a `graph.destroy()`
-that disconnects its resize observer and tears down its DOM.
+`tickLabels: false` blanks an axis's tick text while keeping its tick marks and gridlines.
+
+`container` accepts a CSS selector string, a DOM element, or a d3 selection. `container` must
+resolve to an element, and `height` must be a positive number *greater than
+`margin.top + margin.bottom`* — otherwise there's no room left to plot in. Both are checked at
+construction time, throwing a clear error instead of failing cryptically later.
+
+Every chart has a `graph.destroy()` that disconnects its resize observer, tears down its DOM, and
+releases its reference to the last data you passed. Calling `update()` afterwards throws rather
+than quietly rendering into a detached SVG.
 
 `label` is optional. A `y`/`color` `preset` supplies one automatically (e.g. `temperatureF` →
 "Temperature"); with no preset and no `label` of your own, the chart's title just renders blank —
@@ -211,6 +218,10 @@ properties to a graph is fine and supported; the library only ever writes the na
 | `rescale(k)` | scatter only — divide on-screen marker sizes by `k` (see the table above) |
 | `resolvedLabel()`, `resolvedUnit()` | the effective title text: your `label`/`unit` if set, else the `y` config's |
 | `numberFormat(v)`, `timeFormatShort(date)` | the formatters the axes use, exposed so a tooltip or legend can match them |
+
+The `curve` config takes one of `'linear'`, `'monotone'`, `'step-after'`, `'step-before'`,
+`'basis'`, `'cardinal'` — or any d3 curve factory directly (`d3.curveNatural`,
+`d3.curveCatmullRom.alpha(0.5)`, …), so the shortcut list isn't a ceiling.
 
 **On a graph** — properties:
 

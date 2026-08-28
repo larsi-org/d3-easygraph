@@ -63,6 +63,17 @@ All notable changes to this project are documented here. Format loosely follows
   object happens to expose.
 
 ### Changed
+- `interpolate` renamed to `curve`, matching d3 itself: d3 renamed this concept in v4 (2016), so
+  a d3 v7 library still calling it `interpolate` read as a decade-old copy-paste. `curve` also now
+  accepts a d3 curve factory directly (`d3.curveNatural`, `d3.curveCatmullRom.alpha(0.5)`, ...)
+  alongside the existing shortcut names, so the shortcut list is no longer a ceiling.
+- `x`/`y`'s `noTick: true` renamed to `tickLabels: false`. The old name read as a double negative
+  when written out (`noTick: false`) and over-promised -- it blanks the tick *text* and keeps the
+  tick marks and gridlines, which the new name says exactly.
+- `bars`' `orientation` values are now `'vertical'`/`'horizontal'` instead of `'v'`/`'h'`.
+- `bars`' per-datum color field (with `colorPerData: true`) is now `d.color`, not `d.c` -- the one
+  single-letter name in a data format that otherwise spells everything out (`value`, `radius`,
+  `label`, `angle`, `magnitude`).
 - `syncZoom`/`syncCrosshair` compose with a caller's existing `onZoom`/`onCrosshair` instead of
   assigning over them. Setting your own callback and then calling sync silently dropped the
   callback, with no way to have both.
@@ -113,6 +124,17 @@ All notable changes to this project are documented here. Format loosely follows
   docs, tests).
 
 ### Fixed
+- Constructing a chart with a `height` smaller than `margin.top + margin.bottom` produced a
+  *negative* plot area and drew itself inside-out with no complaint. The width path already
+  refused a container narrower than its own horizontal margins; the vertical check was simply
+  missing. Now throws, naming both numbers.
+- `update()` on a destroyed chart silently succeeded -- it rendered into a detached SVG and still
+  recorded the new data, so a caller could keep feeding a chart that would never appear again and
+  get no hint. Now throws. `destroy()` also releases its reference to the last data passed in; a
+  destroyed chart was holding a full dataset the caller reasonably believed it had released.
+- `bars` no longer silently falls back to a horizontal chart when `orientation` is a typo -- every
+  orientation branch was written as "vertical, else horizontal", so an unrecognized value produced
+  the wrong chart instead of an error.
 - **The caller's config object is no longer used as the chart object.** `_build()` took the config
   by reference and wrote ~45 properties onto it, including overwriting `height` with the computed
   plot-area height. Constructing a second chart from the same config literal therefore returned

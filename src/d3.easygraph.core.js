@@ -137,6 +137,15 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   if (!(graph.height > 0)) {
     throw new Error('d3.easygraph: height must be a positive number');
   }
+  // The width path already refuses a container narrower than its own horizontal margins (see
+  // _measureWidth below); without the matching vertical check, a height smaller than
+  // margin.top + margin.bottom silently produced a *negative* plot area and a chart that drew
+  // itself inside-out with no complaint.
+  var _vMargin = graph.margin.top + graph.margin.bottom;
+  if (!(graph.height > _vMargin)) {
+    throw new Error('d3.easygraph: height (' + graph.height + ') must be greater than ' +
+                    'margin.top + margin.bottom (' + _vMargin + '), or there is no room to plot in');
+  }
 
   // measures the container's current rendered width; returns false if unchanged
   // (within 1px) so callers can skip redundant layout/redraw work
@@ -246,11 +255,14 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   graph.x.$axis = d3.axisBottom(graph.x.$scale).tickSize(-graph.height).tickPadding(12);
   if (graph.x.scale === 'linear' && !graph.x.$scale.bandwidth) graph.x.$axis.tickFormat(graph.numberFormat);
   if (graph.x.scale === 'time'   && graph.timeFormatMulti)     graph.x.$axis.tickFormat(graph.timeFormatShort);
-  if (graph.x.noTick)                                          graph.x.$axis.tickFormat(function() { return ''; });
+  // tickLabels: false blanks the tick *text* and keeps the tick marks and gridlines, which is
+  // exactly what this does -- the old name for it, noTick, both read as a double negative when
+  // written out (noTick: false) and over-promised, since the ticks themselves stay.
+  if (graph.x.tickLabels === false)                            graph.x.$axis.tickFormat(function() { return ''; });
 
   graph.y.$axis = d3.axisLeft(graph.y.$scale).tickSize(-graph.width).tickPadding(6);
   if (graph.y.scale === 'linear' && !graph.y.$scale.bandwidth) graph.y.$axis.tickFormat(graph.numberFormat);
-  if (graph.y.noTick)                                          graph.y.$axis.tickFormat(function() { return ''; });
+  if (graph.y.tickLabels === false)                            graph.y.$axis.tickFormat(function() { return ''; });
 
   // The "easygraph" class is what every rule in d3.easygraph.css is scoped under -- without it
   // the stylesheet's generic selectors (a bare #title, .tick, .axis) would restyle any host
@@ -338,6 +350,10 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     resizeObserver.disconnect();
     if (graph._module.destroy) graph._module.destroy();
     graph.$svgRoot.remove();
+    graph._destroyed = true;
+    // Drop the reference to the caller's data. A destroyed chart holding a year of hourly
+    // readings is memory the caller reasonably believes it just released.
+    graph._lastData = null;
   };
 
   // re-renders in place after a resize, using the last data passed to update();
@@ -356,6 +372,12 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // a single object rather than two positional args so a future range (e.g. color) has
   // somewhere to go without another positional param.
   graph.update = function(data, ranges) {
+    // A destroyed chart used to accept update() silently: it rendered into a detached SVG and
+    // still recorded the new data, so a caller could keep feeding a chart that would never
+    // appear again and get no hint anything was wrong.
+    if (graph._destroyed) {
+      throw new Error('d3.easygraph: update() called on a destroyed chart');
+    }
     d3.easygraph._checkData(data, graph._dataShape, graph._chartType);
     ranges = ranges || {};
     graph._lastData = data;

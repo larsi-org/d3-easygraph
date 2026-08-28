@@ -448,3 +448,118 @@ test('outerWidth/outerHeight are the full svg box; width/height are the plot are
   expect(dims.width).toBe(dims.outerWidth - 70); // margin.left + margin.right
   expect(dims.svgWidthAttr).toBe(dims.outerWidth);
 });
+
+test('height must leave room to plot in once margins are subtracted', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    function msg(h) {
+      try {
+        var g = d3.easygraph.line({ container: '#graph', height: h, margin: { top: 20, right: 20, bottom: 30, left: 50 } });
+        var inner = g.height; g.destroy();
+        return 'built, plot height ' + inner;
+      } catch (e) { return e.message; }
+    }
+    return { tooShort: msg(40), exactlyMargins: msg(50), fine: msg(200) };
+  });
+  expect(r.tooShort).toContain('must be greater than');
+  expect(r.tooShort).toContain('margin.top + margin.bottom');
+  expect(r.exactlyMargins).toContain('must be greater than'); // zero plot height is no good either
+  expect(r.fine).toBe('built, plot height 150');
+});
+
+test('a destroyed chart refuses update() and releases its data reference', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var g = d3.easygraph.line({ container: '#graph', height: 200, lines: true });
+    var data = [[{ x: 0, y: 1 }]];
+    g.update(data);
+    g.destroy();
+    var err;
+    try { g.update([[{ x: 0, y: 99 }]]); err = 'NO ERROR'; } catch (e) { err = e.message; }
+    return { err, lastData: g._lastData, secondDestroyThrew: (function () {
+      try { g.destroy(); return false; } catch (e) { return true; }
+    })() };
+  });
+  expect(r.err).toContain('update() called on a destroyed chart');
+  expect(r.lastData).toBeNull();
+  expect(r.secondDestroyThrew).toBe(false); // destroy stays idempotent
+});
+
+test('curve accepts a shortcut name or a d3 curve factory directly', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    function pathFor(curve) {
+      var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
+      var g = d3.easygraph.line({ container: w, height: 200, lines: true, curve: curve, duration: 0 });
+      g.update([[{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 0 }]]);
+      var d = w.querySelector('path.data-lines').getAttribute('d');
+      g.destroy(); w.remove();
+      return d;
+    }
+    return {
+      linear: pathFor('linear'),
+      stepAfter: pathFor('step-after'),
+      rawFactory: pathFor(d3.curveNatural),
+      unknownFallsBackToLinear: pathFor('not-a-curve')
+    };
+  });
+  // a step curve emits horizontal/vertical segments a linear path does not
+  expect(r.stepAfter).not.toBe(r.linear);
+  // a d3 curve factory passed straight through produces a real curved path (C commands)
+  expect(r.rawFactory).toContain('C');
+  expect(r.unknownFallsBackToLinear).toBe(r.linear);
+});
+
+test('tickLabels: false blanks the tick text but keeps the tick marks', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
+    var g = d3.easygraph.line({ container: w, height: 200, x: { scale: 'linear', tickLabels: false } });
+    g.update([[{ x: 0, y: 0 }, { x: 10, y: 10 }]]);
+    var xAxis = w.querySelector('g.x.axis');
+    var r = {
+      tickCount: xAxis.querySelectorAll('.tick').length,
+      labelText: [...xAxis.querySelectorAll('.tick text')].map(function (t) { return t.textContent; }).join('')
+    };
+    g.destroy(); w.remove();
+    return r;
+  });
+  expect(r.tickCount).toBeGreaterThan(0);  // ticks and gridlines survive
+  expect(r.labelText).toBe('');            // only the text is blanked
+});
+
+test('bars: colorPerData reads each datum\'s own `color` field', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const fills = await page.evaluate(() => {
+    return new Promise(function (resolve) {
+      var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
+      var g = d3.easygraph.bars({ container: w, height: 200, colorPerData: true });
+      g.update([[{ x: 'a', y: 1, color: '#ff0000' }, { x: 'b', y: 2, color: '#00ff00' }]]);
+      setTimeout(function () {
+        var f = [...w.querySelectorAll('rect.data-bars')].map(function (r) { return r.style.fill; });
+        g.destroy(); w.remove(); resolve(f);
+      }, 700);
+    });
+  });
+  expect(fills).toEqual(['rgb(255, 0, 0)', 'rgb(0, 255, 0)']);
+});
+
+test('bars: orientation takes full words and rejects anything else', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    function build(orientation) {
+      var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
+      try {
+        var g = d3.easygraph.bars({ container: w, height: 200, orientation: orientation });
+        g.update([[{ x: 'a', y: 1 }]]);
+        var banded = g.x.$scale.bandwidth ? 'x' : 'y';
+        g.destroy(); return 'ok, category axis on ' + banded;
+      } catch (e) { return e.message; }
+      finally { w.remove(); }
+    }
+    return { vertical: build('vertical'), horizontal: build('horizontal'), typo: build('v') };
+  });
+  expect(r.vertical).toBe('ok, category axis on x');
+  expect(r.horizontal).toBe('ok, category axis on y');
+  expect(r.typo).toContain('orientation must be "vertical" or "horizontal"');
+});
