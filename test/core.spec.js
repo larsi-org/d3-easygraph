@@ -760,3 +760,78 @@ test('a line chart with data but no mark type enabled warns instead of silently 
   expect(warnings.length).toBe(1); // exactly one: the data render, not the empty one
   expect(warnings[0]).toContain('none of lines/ribbons/stackedArea');
 });
+
+test('ranges.color pins the color domain, beating both color.domain and the data', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var w = document.createElement('div'); w.style.width = '500px'; document.body.appendChild(w);
+    var pts = [{ x: 0, y: 0, value: 40 }, { x: 1, y: 1, value: 60 }]; // data spans 40–60
+    function domainOf(cfg, ranges) {
+      var g = d3.easygraph.scatter(Object.assign({ container: w, height: 200 }, cfg));
+      g.update(pts, Object.assign({ x: [0, 1], y: [0, 1] }, ranges));
+      var d = g.color.$scale.domain();
+      g.destroy();
+      return [d[0], d[d.length - 1]];
+    }
+    var out = {
+      dataDriven:   domainOf({}, {}),
+      staticConfig: domainOf({ color: { domain: [0, 100] } }, {}),
+      perRender:    domainOf({}, { color: [0, 1000] }),
+      // per-render beats a static config for the same chart
+      perRenderWins: domainOf({ color: { domain: [0, 100] } }, { color: [0, 1000] })
+    };
+
+    // heatmap never honoured color.domain at all before this
+    var h = d3.easygraph.heatmap({ container: w, height: 200, color: { domain: [0, 500] } });
+    h.update([[10, 20], [30, 40]]);
+    var hd = h.color.$scale.domain();
+    out.heatmapStatic = [hd[0], hd[hd.length - 1]];
+    h.destroy();
+
+    var h2 = d3.easygraph.heatmap({ container: w, height: 200 });
+    h2.update([[10, 20], [30, 40]], { color: [0, 900] });
+    var hd2 = h2.color.$scale.domain();
+    out.heatmapPerRender = [hd2[0], hd2[hd2.length - 1]];
+    h2.destroy();
+
+    w.remove();
+    return out;
+  });
+  expect(r.dataDriven).toEqual([40, 60]);
+  expect(r.staticConfig).toEqual([0, 100]);
+  expect(r.perRender).toEqual([0, 1000]);
+  expect(r.perRenderWins).toEqual([0, 1000]);   // this render beats construction time
+  expect(r.heatmapStatic).toEqual([0, 500]);    // heatmap gains color.domain too
+  expect(r.heatmapPerRender).toEqual([0, 900]);
+});
+
+test('a pinned color domain survives a resize reflow and a scatter rescale()', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(async () => {
+    var wait = function (ms) { return new Promise(function (res) { setTimeout(res, ms); }); };
+    var w = document.createElement('div'); w.style.width = '600px'; document.body.appendChild(w);
+    var g = d3.easygraph.scatter({ container: w, height: 200 });
+    g.update([{ x: 0, y: 0, value: 40 }, { x: 1, y: 1, value: 60 }],
+             { x: [0, 1], y: [0, 1], color: [0, 1000] });
+    var afterUpdate = g.color.$scale.domain();
+
+    g.rescale(2);                       // re-renders from stored state, not a fresh update()
+    var afterRescale = g.color.$scale.domain();
+
+    w.style.width = '300px';            // resize reflow, same path
+    await wait(900);
+    var afterResize = g.color.$scale.domain();
+
+    g.destroy(); w.remove();
+    return {
+      afterUpdate:  [afterUpdate[0], afterUpdate[afterUpdate.length - 1]],
+      afterRescale: [afterRescale[0], afterRescale[afterRescale.length - 1]],
+      afterResize:  [afterResize[0], afterResize[afterResize.length - 1]]
+    };
+  });
+  // all three must stay pinned -- both re-render paths would otherwise fall back to the
+  // data's own 40-60 extent
+  expect(r.afterUpdate).toEqual([0, 1000]);
+  expect(r.afterRescale).toEqual([0, 1000]);
+  expect(r.afterResize).toEqual([0, 1000]);
+});

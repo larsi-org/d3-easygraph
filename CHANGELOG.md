@@ -6,6 +6,15 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- `update(data, ranges)` accepts **`ranges.color`**, pinning the color scale's domain for that
+  render -- the third range the object shape was introduced to make room for. Precedence, most
+  specific first: `ranges.color` beats a static `color.domain` config beats the data's own extent.
+  A pinned domain now also survives a resize reflow and `scatter`'s `rescale()`, both of which
+  re-render from stored state rather than a fresh `update()`, and would otherwise have dropped
+  silently back to the data's extent.
+- `heatmap` gains `color.domain` as well. Only `scatter` honoured it before, an asymmetry with no
+  reason behind it; both families now resolve their domain through one shared helper so the
+  precedence can't drift apart again.
 - `graph.legendItems()` and the standalone `d3.easygraph.legendItems(colors, labels)`, plus a
   `names` config on `line`/`bars`. The library computes the `{ index, color, label }` rows a
   legend needs and stops there -- it renders nothing. For `line`/`bars` that's one row per series

@@ -35,7 +35,7 @@ d3.easygraph.heatmap = function(config) {
           heatmapCellW = graph.width  / heatmapCols,
           heatmapCellH = graph.height / heatmapRows;
 
-      var extent  = d3.easygraph._clippedExtent(d3.merge(data), graph.color.clip),
+      var extent  = d3.easygraph._colorDomain(graph, d3.merge(data)),
           dataMin = extent[0],
           dataMax = extent[1],
           dataDlt = dataMax - dataMin,

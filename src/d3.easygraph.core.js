@@ -95,6 +95,18 @@ d3.easygraph._checkData = function(data, shape, family) {
   }
 };
 
+// The color scale's domain, in precedence order: a per-render `ranges.color`, then a static
+// `color.domain` config, then the data's own (optionally clipped) extent. That's the same idea as
+// ranges.x/ranges.y beating an auto-fitted axis, one step further -- a value passed to *this*
+// render beats one fixed at construction, which beats whatever the data happens to span.
+// `clip` applies only to the last of the three: once a domain is given outright there's no
+// data-driven extent left to clip. Shared by heatmap and scatter so the precedence is defined
+// once rather than drifting between them (scatter honoured color.domain and heatmap didn't).
+d3.easygraph._colorDomain = function(graph, values) {
+  var perRender = graph._lastRanges && graph._lastRanges.color;
+  return perRender || graph.color.domain || d3.easygraph._clippedExtent(values, graph.color.clip);
+};
+
 // One legend row per series -- color from the palette, label from the graph's `names` config.
 // Shared by line and bars, the two families whose data is an array of series. Falls back to the
 // length of `names` when nothing has been rendered yet, so a legend can be drawn before the first
@@ -422,6 +434,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     // Drop the reference to the caller's data. A destroyed chart holding a year of hourly
     // readings is memory the caller reasonably believes it just released.
     graph._lastData = null;
+    graph._lastRanges = null;
   };
 
   // re-renders in place after a resize, using the last data passed to update();
@@ -449,6 +462,10 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     d3.easygraph._checkData(data, graph._dataShape, graph._chartType);
     ranges = ranges || {};
     graph._lastData = data;
+    // Kept alongside _lastData so a resize reflow or a scatter rescale() -- both of which
+    // re-render from stored state rather than a fresh update() -- don't silently drop back to a
+    // data-driven color domain.
+    graph._lastRanges = ranges;
 
     var label = graph.resolvedLabel(), unit = graph.resolvedUnit();
     var titleText = (unit) ? label + " [" + unit + "]" : label;

@@ -98,11 +98,9 @@ d3.easygraph.scatter = function(config) {
       // through a caller's own zoom-transform scaling, rather than growing with it.
       var k = graph._zoomScale || 1;
 
-      // color.domain: true, [min, max] (e.g. altitude in feet) beats out this call's own
-      // data -- clip is meaningless alongside it and ignored, since there's no data-driven
-      // extent left to clip. Omit domain (the default) for the usual per-render extent/clip
-      // behavior.
-      var extent  = graph.color.domain || d3.easygraph._clippedExtent(data.map(function(d) { return d.value; }), graph.color.clip),
+      // ranges.color (this render) beats color.domain (fixed at construction) beats the data's
+      // own clipped extent -- see _colorDomain in core.js, which both color-scale families share.
+      var extent  = d3.easygraph._colorDomain(graph, data.map(function(d) { return d.value; })),
           dataMin = extent[0],
           dataMax = extent[1],
           dataDlt = dataMax - dataMin,
