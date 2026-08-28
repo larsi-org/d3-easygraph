@@ -168,6 +168,17 @@ All notable changes to this project are documented here. Format loosely follows
   docs, tests).
 
 ### Fixed
+- Documented two preconditions that were previously only discoverable by reading the source:
+  `crosshair: true` binary-searches for the nearest point, so each series must be sorted
+  ascending by `x` (unsorted input doesn't error, it just reports the wrong point); and
+  `ranges.x`/`ranges.y` name the *data's* x/y fields rather than the screen axes, which only
+  differs for horizontal bars, where `d.x` is the category and `d.y` is the value.
+- Test coverage for `bars`' two horizontal render paths, which had none -- only the vertical
+  pair was exercised, while larsi.org runs horizontal bars in production (`horizontal_bars.php`,
+  and `data_sensitivity.php`, which is horizontal + stacked + `colorPerData`, the least covered
+  combination of all). The new tests assert real geometry: grouped bars starting at the value
+  axis origin with length encoding the value, and stacked bars beginning exactly where the
+  previous series ended.
 - `bars`' `mode` now rejects an unrecognized value instead of silently rendering grouped -- the
   same silent fall-through already fixed for `orientation`, missed on its twin. Re-checked on
   every `update()`, not just at construction, since `mode` is meant to be toggled on a live chart.

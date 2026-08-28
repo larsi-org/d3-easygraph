@@ -102,3 +102,56 @@ test('mode rejects an unrecognized value, at construction and on a live toggle',
   expect(r.onToggle).toContain('mode must be "stacked" or "grouped"'); // case matters
   expect(r.validToggleBars).toBe(2);
 });
+
+test('horizontal bars render: grouped bars start at the value axis zero and run right', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(async () => {
+    var w = document.createElement('div'); w.style.width = '600px'; document.body.appendChild(w);
+    var g = d3.easygraph.bars({ container: w, height: 300, orientation: 'horizontal', mode: 'grouped', duration: 0 });
+    g.update([[{ x: 'a', y: 10 }, { x: 'b', y: 20 }]]); // no ranges: categories and value auto-fit
+    // d3 transitions run on the next frame even at duration 0, so the geometry below is the
+    // enter state until they have flushed
+    await new Promise(function (r) { setTimeout(r, 250); });
+    var rects = [...w.querySelectorAll('rect.data-bars')].map(function (r) {
+      return { x: +r.getAttribute('x'), width: +r.getAttribute('width'), y: +r.getAttribute('y') };
+    });
+    var zeroX = g.x.$scale(0), fullX = g.x.$scale(20);
+    g.destroy(); w.remove();
+    return { rects: rects, zeroX: zeroX, fullX: fullX };
+  });
+  expect(r.rects.length).toBe(2);
+  // both start at the value axis origin...
+  expect(r.rects[0].x).toBeCloseTo(r.zeroX, 0);
+  expect(r.rects[1].x).toBeCloseTo(r.zeroX, 0);
+  // ...and length encodes the value: y=20 spans the full axis, y=10 about half of it
+  expect(r.rects[1].width).toBeCloseTo(r.fullX, 0);
+  expect(r.rects[0].width).toBeCloseTo(r.fullX / 2, 0);
+  // categories are separated on the band (y) axis, not stacked on top of each other
+  expect(r.rects[0].y).not.toBe(r.rects[1].y);
+});
+
+test('horizontal bars render: stacked series pick up where the previous one ends', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(async () => {
+    var w = document.createElement('div'); w.style.width = '600px'; document.body.appendChild(w);
+    var g = d3.easygraph.bars({ container: w, height: 300, orientation: 'horizontal', mode: 'stacked', duration: 0 });
+    // two series over one category: 10 then 20 stacked on top of it
+    g.update([[{ x: 'a', y: 10 }], [{ x: 'a', y: 20 }]]);
+    await new Promise(function (r) { setTimeout(r, 250); });
+    var rects = [...w.querySelectorAll('rect.data-bars')].map(function (r) {
+      return { x: +r.getAttribute('x'), width: +r.getAttribute('width'), y: +r.getAttribute('y') };
+    });
+    var scale = { at0: g.x.$scale(0), at10: g.x.$scale(10), at30: g.x.$scale(30) };
+    g.destroy(); w.remove();
+    return { rects: rects, scale: scale };
+  });
+  expect(r.rects.length).toBe(2);
+  // first series sits at the origin
+  expect(r.rects[0].x).toBeCloseTo(r.scale.at0, 0);
+  // second starts exactly where the first ended -- the y0 offset, the whole point of stacking
+  expect(r.rects[1].x).toBeCloseTo(r.scale.at10, 0);
+  // and the stack's right edge lands on the combined total
+  expect(r.rects[1].x + r.rects[1].width).toBeCloseTo(r.scale.at30, 0);
+  // one shared category -> both on the same band row
+  expect(r.rects[0].y).toBe(r.rects[1].y);
+});

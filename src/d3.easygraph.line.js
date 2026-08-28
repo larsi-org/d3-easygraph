@@ -113,6 +113,10 @@ d3.easygraph.line = function(config) {
         }
 
         if (graph.crosshair) {
+          // Binary search for the point nearest the cursor, which means each series has to be
+          // sorted ascending by x. Unsorted input doesn't throw here -- it just reports the
+          // wrong point -- so this is a documented precondition rather than a checked one:
+          // verifying it would cost a full scan of every series on every construction.
           _bisect = d3.bisector(function(d) { return d.x; }).left;
 
           graph.$crosshairLine = graph.$svg

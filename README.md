@@ -41,6 +41,10 @@ Bars' value axis always includes zero, so `clip` has no effect there.
 
 `tickLabels: false` blanks an axis's tick text while keeping its tick marks and gridlines.
 
+`crosshair: true` finds the nearest point per series with a binary search, so **each series must
+be sorted ascending by `x`**. Unsorted input doesn't error — it just reports the wrong point.
+Every other feature is order-independent; this is the one that isn't.
+
 `x`/`y`'s `scale` must be `'linear'` (the default) or `'time'`; bars' `orientation` must be
 `'vertical'` or `'horizontal'` and its `mode` `'stacked'` or `'grouped'`. Each is checked rather
 than left to fall through, since every internal test on them reads as "one value, else the other"
@@ -285,7 +289,11 @@ graph.update([
 ```
 
 `graph.update(data, ranges)` re-renders with new data (`ranges: { x, y }` optionally pin the axis
-domains instead of auto-fitting to the data) and returns the graph, so calls chain. Resize
+domains instead of auto-fitting to the data) and returns the graph, so calls chain. `ranges.x`
+and `ranges.y` name your **data's** `x` and `y` fields, not the screen axes — which is the same
+thing for every family except horizontal bars, where `d.x` is the category (drawn up the
+vertical axis) and `d.y` is the value (drawn across). So a horizontal bar chart pins its value
+axis with `ranges.y`, matching the field the values live in. Resize
 handling is automatic — no calls needed on your end.
 
 Your config object is never modified — it's cloned on the way in (as are its `x`/`y`/`color`/
