@@ -1,7 +1,7 @@
 // d3.easygraph.bars.js
-// Creative Commons Attribution-ShareAlike 3.0 License (CC BY-SA 3.0)
-// http://creativecommons.org/licenses/by-sa/3.0/
-// Copyright (c) 2015, Lars Schumann, larsi.org@gmail.com
+// MIT License
+// https://opensource.org/licenses/MIT
+// Copyright (c) 2026, Lars Schumann, larsi.org@gmail.com
 //
 // The bars chart-family constructor: vertical/horizontal, stacked/grouped.
 // `orientation` is fixed for a graph's lifetime, but `mode` can be toggled live

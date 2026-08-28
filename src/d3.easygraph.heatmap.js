@@ -1,13 +1,16 @@
 // d3.easygraph.heatmap.js
-// Creative Commons Attribution-ShareAlike 3.0 License (CC BY-SA 3.0)
-// http://creativecommons.org/licenses/by-sa/3.0/
-// Copyright (c) 2015, Lars Schumann, larsi.org@gmail.com
+// MIT License
+// https://opensource.org/licenses/MIT
+// Copyright (c) 2026, Lars Schumann, larsi.org@gmail.com
 //
 // The heatmap chart-family constructor: a grid of colored cells over plain
 // continuous x/y axes (no band scale), colored via its own graph.color.$scale.
 
 d3.easygraph.heatmap = function(config) {
-  config.color = config.color || {};
+  // Cloned, not resolved in place -- same reasoning as core.js's x/y cloning: a caller reusing
+  // the same color config object literal across two chart instances would otherwise have the
+  // second construction silently overwrite the first chart's $scale on that shared object.
+  config.color = Object.assign({}, config.color);
   d3.easygraph._resolveProperty(config.color);
 
   // Overrides _build()'s shared Qualitative.Tableau10 default -- a set of unrelated categorical
@@ -25,7 +28,7 @@ d3.easygraph.heatmap = function(config) {
           dataMin = extent[0],
           dataMax = extent[1],
           dataDlt = dataMax - dataMin,
-          n       = graph.PALETTE_COLORS.length;
+          n       = graph.paletteColors.length;
 
       graph.color.$scale.domain(d3.range(n).map(function(i) { return dataMin + i * dataDlt / (n - 1); }));
 
@@ -38,15 +41,24 @@ d3.easygraph.heatmap = function(config) {
       });
 
       var heatmapCells = heatmapRow.selectAll(".heatmap_cells").data(function(d) { return d; });
-      var heatmapCellsEnter = heatmapCells.enter().append("rect").attr("class", "heatmap_cells");
+      // fill set immediately at enter -- a freshly entered cell should show its real color
+      // right away, not fade in from nothing; the transition below only matters for a cell
+      // that already existed and is changing color on a data update.
+      var heatmapCellsEnter = heatmapCells.enter().append("rect").attr("class", "heatmap_cells")
+        .style('fill', function(d) { return graph.color.$scale(d); });
       heatmapCells.exit().remove();
       heatmapCells = heatmapCellsEnter.merge(heatmapCells);
+      // x/y/width/height are pure layout (a function of the grid's row/col count, not of any
+      // cell's own value), so they're set immediately, never animated -- only fill (the
+      // actual value-driven attribute) transitions, same "structural now, animate the
+      // value" split bars.js's colorPerData transition already uses.
       heatmapCells
         .attr('x', function(d, i) { return i * heatmapCellW; })
         .attr('y', 0)
         .attr('width',  heatmapCellW)
-        .attr('height', heatmapCellH)
-        .style('fill',  function(d)    { return graph.color.$scale(d); });
+        .attr('height', heatmapCellH);
+      heatmapCells.transition().duration(graph.duration).ease(d3.easeCubicInOut)
+        .style('fill', function(d) { return graph.color.$scale(d); });
     }
 
     return {
@@ -54,7 +66,7 @@ d3.easygraph.heatmap = function(config) {
         // clamp(true): a color clip narrows the domain but the palette still has to cover
         // every cell, including the ones outside it -- clamp so those draw as the nearest
         // end color instead of extrapolating past the palette into an unintended hue
-        graph.color.$scale = d3.scaleLinear().range(graph.PALETTE_COLORS).clamp(true);
+        graph.color.$scale = d3.scaleLinear().range(graph.paletteColors).clamp(true);
       },
 
       // both real heatmap pages always pass explicit xRange/yRange; this

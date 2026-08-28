@@ -7,7 +7,7 @@ rect.pane{cursor:move;fill:none;pointer-events:all}
 .tick{font-size:12px}
 .axis line{stroke:#CCC;stroke-width:1.0px;stroke-dasharray:2,2}
 .axis path{fill:none;stroke:#999;stroke-width:1.0px}
-.data-areas{stroke:none}
+.data-ribbons{stroke:none}
 .data-lines{fill:none;stroke-width:1.5px}
 .data-bars{stroke:none;stroke:#333;stroke-width:1.5px}
 .heatmap_cells{shape-rendering:crispEdges}

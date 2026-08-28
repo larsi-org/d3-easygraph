@@ -9,6 +9,64 @@ All notable changes to this project are documented here. Format loosely follows
 - `batteryStateOfCharge` preset (label "Battery", unit `%`) -- larsi.org's ESP32 sensor-node
   firmware started reporting an onboard MAX17048 fuel gauge's state of charge, and the closest
   existing 0-100% preset, `relativeHumidity`, would have mislabeled the axis.
+- `heatmap` and `scatter` now honor `duration` (already shared config, already implemented by
+  `line`/`bars`) -- a cell's `fill` and a point's `cx`/`cy`/`fill` now transition smoothly on a
+  data update instead of swapping instantly. Deliberately *not* extended to `r`/`stroke-width`
+  (points, arrows) or `font-size` (labels): `scatter`'s `rescale(k)` re-renders on every zoom
+  tick and reads those back synchronously right afterward, so they have to stay instant --
+  transitioning them would fight `rescale()` and lag a live zoom gesture. Voronoi cells and
+  arrows are left untransitioned too -- their shape is fully geometry-derived each render, not
+  a smoothly-tweenable "value" the way a point's position or color is.
+
+### Changed
+- `line`'s `areas` config renamed to `ribbons` (and every internal artifact along with it --
+  `graph.$area`/`$area0` -> `graph.$ribbon`/`$ribbon0`, the `.data-areas` CSS/DOM class ->
+  `.data-ribbons`). "Area chart" conventionally means a stacked/cumulative filled area, which
+  isn't what this draws -- a filled min/max band around a line (e.g. a daily high/low range) is
+  its own established chart type, more commonly called a band/range/ribbon chart. Picked `ribbon`
+  over `band` (collides with `d3.scaleBand()`, already a load-bearing concept in `bars.js`) and
+  `range` (collides with `update()`'s own range args, a different concept entirely). Breaking
+  change -- any caller passing `areas: true` needs to change it to `ribbons: true`.
+- `graph.update(data, xRange, yRange)` is now `graph.update(data, ranges)`, with
+  `ranges: { x, y }` -- same info, one object instead of two positional args, so a future third
+  range (e.g. `color`, currently only settable via static `color.domain` config) has somewhere
+  to go without adding yet another positional param. Breaking change -- any caller passing
+  `xRange`/`yRange` needs to wrap them as `{ x: xRange, y: yRange }`.
+- `graph.PALETTE_COLORS` renamed to `graph.paletteColors` -- it was the one ALL-CAPS instance
+  property in an otherwise consistent camelCase (`$scale`) / underscore (`_module`) convention.
+  Breaking change for any caller reading it directly (`getPaletteColor(index)`, the documented
+  public accessor, is unaffected).
+- `line`'s `units` (a per-series unit-string array for the crosshair tooltip, already
+  implemented and in real use on larsi.org's `weather`/`epw` multi-series report pages) is now
+  a declared `familyDefaults` entry (`units: null`) and documented in the README's Line/ribbon
+  config column, next to `crosshairThreshold`. It was previously readable only by reading
+  `line.js`'s source -- present in the code, absent from every other surface (config defaults,
+  docs, tests).
+
+### Fixed
+- Source file headers said "Creative Commons Attribution-ShareAlike 3.0" (leftover from this
+  code's original home on larsi.org, pre-extraction) while `LICENSE`/`package.json` have always
+  said MIT -- all 7 files now say MIT, matching the license this repo actually ships under.
+- A *partial* `margin` object (e.g. `margin: { top: 10 }`) previously left `right`/`bottom`/
+  `left` as `undefined` forever -- `_build()`'s "fill in the blank" merge only applied when the
+  whole `margin` key was missing, not per-key. That cascaded into `NaN` width math with no
+  error anywhere. `margin` is now deep-merged per-key against the default, matching the
+  "omitted margin" case that already worked.
+- `x`/`y` (every chart family) and `color` (`heatmap`/`scatter`) config objects are now cloned
+  at construction instead of resolved in place. Previously `_build()` wrote `$scale`/`$axis`
+  directly onto whatever object a caller's `x`/`y`/`color` pointed to -- reusing the same
+  config object literal across two chart instances (e.g. a shared preset config) silently let
+  the second construction overwrite the first chart's own scale on that shared object.
+- `resolvePalette()` threw a bare `Cannot read properties of undefined (reading 'slice')` for
+  an unrecognized `colorPalette` name, deep inside `colors.js` with no context. Unlike
+  `getUnit()`'s deliberate silent fallback for a falsy/unrecognized preset (a preset is often
+  legitimately omitted), `colorPalette` always has a value by the time this runs, so an
+  unrecognized name is always a genuine typo -- it now throws a clear, named `Error` instead.
+- `line`/`scatter`'s `domain()` didn't guard against empty data (`update([])`) the way
+  `bars.js` already did -- `d3.extent`/`min`/`max` on an empty array return `undefined`, which
+  became the scale's own domain and broke axis rendering. Both now fall back to `[0, 1]`,
+  matching `bars.js`'s existing convention. "No data yet" (page loaded, first fetch hasn't
+  resolved) is a common real state, not just an edge case.
 
 ## [0.6.0] - 2026-08-23
 
@@ -36,7 +94,7 @@ All notable changes to this project are documented here. Format loosely follows
   already part of the same `d3@7` bundle. (`Category10` itself was later removed -- see Changed.)
 - `d3.easygraph.resolvePalette(name, classes)` and `d3.easygraph.colorScale(name, domain,
   options)`, standalone counterparts to the `colorPalette`/`colorClasses` resolution a chart
-  already does internally for its own `PALETTE_COLORS` — usable without building a chart at all.
+  already does internally for its own `paletteColors` — usable without building a chart at all.
   Added after finding three pages on the main site each hand-rolling their own sequential/
   diverging color scale (a Leaflet marker layer, a `d3.parcoords()` line color) instead of
   reusing a palette already named here — one of them turned out to be an exact, unknowing
@@ -54,7 +112,7 @@ All notable changes to this project are documented here. Format loosely follows
   that both files already load d3-easygraph anyway. Verified byte-identical output against the
   code it replaced across every tested count.
 - `scatter` accepts `color.quantize: true`, swapping the usual continuous color gradient for
-  `PALETTE_COLORS.length` discrete, equal-width bands over the domain — for data where a handful
+  `paletteColors.length` discrete, equal-width bands over the domain — for data where a handful
   of clearly separated ranges reads better than a smooth interpolation (e.g. aircraft altitude:
   a low/climbing band vs. a distinct cruise band, rather than every altitude getting its own
   subtly different shade). Pairs with the new core `colorClasses` config (any chart family, not

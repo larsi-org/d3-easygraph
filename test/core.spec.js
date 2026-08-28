@@ -56,6 +56,74 @@ test('omitted margin falls back to the default', async ({ page }) => {
   expect(margin).toEqual({ top: 20, right: 20, bottom: 30, left: 50 });
 });
 
+test('a partial margin object fills in only the missing keys, not the whole thing', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const margin = await page.evaluate(() => {
+    var g = d3.easygraph.line({ container: '#graph', height: 200, margin: { top: 5 } });
+    var m = g.margin;
+    g.destroy();
+    return m;
+  });
+  expect(margin).toEqual({ top: 5, right: 20, bottom: 30, left: 50 });
+});
+
+test('a shared x/y config object is cloned, not mutated, across two chart instances', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const result = await page.evaluate(() => {
+    var sharedY = { preset: 'temperatureC' };
+    var wrap2 = document.createElement('div');
+    document.body.appendChild(wrap2);
+
+    var g1 = d3.easygraph.line({ container: '#graph', height: 200, y: sharedY });
+    var g2 = d3.easygraph.line({ container: wrap2, height: 200, y: sharedY });
+
+    var originalUntouched = sharedY.$scale === undefined;
+    var independentScales = g1.y.$scale !== g2.y.$scale;
+
+    g1.destroy();
+    g2.destroy();
+    wrap2.remove();
+    return { originalUntouched, independentScales };
+  });
+  expect(result.originalUntouched).toBe(true);
+  expect(result.independentScales).toBe(true);
+});
+
+test('a shared color config object is cloned, not mutated, across two chart instances (heatmap)', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const result = await page.evaluate(() => {
+    var sharedColor = { preset: 'temperatureC' };
+    var wrap2 = document.createElement('div');
+    document.body.appendChild(wrap2);
+
+    var g1 = d3.easygraph.heatmap({ container: '#graph', height: 200, color: sharedColor });
+    var g2 = d3.easygraph.heatmap({ container: wrap2, height: 200, color: sharedColor });
+
+    var originalUntouched = sharedColor.$scale === undefined;
+    var independentScales = g1.color.$scale !== g2.color.$scale;
+
+    g1.destroy();
+    g2.destroy();
+    wrap2.remove();
+    return { originalUntouched, independentScales };
+  });
+  expect(result.originalUntouched).toBe(true);
+  expect(result.independentScales).toBe(true);
+});
+
+test('update(data, ranges) accepts { x, y } to pin either domain independently', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const domains = await page.evaluate(() => {
+    var g = d3.easygraph.line({ container: '#graph', height: 200 });
+    g.update([[{ x: 1, y: 1 }, { x: 2, y: 2 }]], { x: [0, 100] });
+    var domains = { x: g.x.$scale.domain(), y: g.y.$scale.domain() };
+    g.destroy();
+    return domains;
+  });
+  expect(domains.x).toEqual([0, 100]);
+  expect(domains.y).toEqual([1, 2]); // y auto-fits from data since ranges.y wasn't given
+});
+
 test('a preset fills in label/unit onto x/y config, but never a range -- that stays caller-supplied or unset', async ({ page }) => {
   await page.goto(FIXTURE);
   const y = await page.evaluate(() => {

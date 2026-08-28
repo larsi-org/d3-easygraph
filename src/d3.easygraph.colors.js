@@ -1,7 +1,7 @@
 // d3.easygraph.colors.js
-// Creative Commons Attribution-ShareAlike 3.0 License (CC BY-SA 3.0)
-// http://creativecommons.org/licenses/by-sa/3.0/
-// Copyright (c) 2015, Lars Schumann, larsi.org@gmail.com
+// MIT License
+// https://opensource.org/licenses/MIT
+// Copyright (c) 2026, Lars Schumann, larsi.org@gmail.com
 //
 // A small, easygraph-agnostic palette lookup: colorPalettes/resolvePalette/colorScale/
 // hueWheelPalette have no chart concepts of their own — no graph, no container, no SVG — so
@@ -10,7 +10,7 @@
 // quite as dependency-free: units.js needs nothing but its own data, while this file expects `d3`
 // (scaleLinear/scaleQuantize/range/hsl/rgb, and — as of 2026-08 — its bundled d3-scale-chromatic
 // schemes), same as core.js does.
-// Chart config resolution (folding colorPalette/colorClasses onto graph.PALETTE_COLORS) lives in
+// Chart config resolution (folding colorPalette/colorClasses onto graph.paletteColors) lives in
 // core.js, the only actual chart consumer that needs it — same division of labor as units.js's
 // getUnit() vs. core.js's _resolveProperty().
 
@@ -103,7 +103,7 @@ d3.easygraph.colorPalettes = (function() {
 // Resolves a colorPalette name (optionally suffixed ".reversed") + optional colorClasses (a
 // specific colorbrewer class count instead of the largest, ignored for the hardcoded extras
 // above, which aren't classed data) to a plain color array. This is what _build() uses
-// internally for graph.PALETTE_COLORS, exposed standalone so a caller that isn't building a
+// internally for graph.paletteColors, exposed standalone so a caller that isn't building a
 // whole chart (a Leaflet marker layer, a parcoords line color) can still resolve a named
 // palette without one.
 //
@@ -116,7 +116,17 @@ d3.easygraph.resolvePalette = function(paletteName, colorClasses) {
   var name = reversed ? paletteName.slice(0, -REVERSE_SUFFIX.length) : paletteName;
   var baseName = name.slice(name.indexOf(".") + 1); // "Diverging.RdYlBu" -> "RdYlBu", for schemeColors
   var colors = colorClasses ? schemeColors(baseName, colorClasses) : null;
-  if (!colors) colors = d3.easygraph.colorPalettes[name].slice(0);
+  if (!colors) {
+    // Unlike getUnit()'s deliberate silent fallback for a falsy/unrecognized preset (a preset
+    // is often legitimately omitted entirely), colorPalette always has a value by the time this
+    // runs -- core.js's own default, or an explicit caller string -- so an unrecognized name
+    // here is always a genuine typo, not a valid "no preference" case. Throwing a clear error
+    // beats a cryptic "Cannot read properties of undefined (reading 'slice')" a few lines down.
+    if (!d3.easygraph.colorPalettes[name]) {
+      throw new Error('d3.easygraph: unrecognized colorPalette "' + paletteName + '"');
+    }
+    colors = d3.easygraph.colorPalettes[name].slice(0);
+  }
   if (reversed) colors.reverse();
   return colors;
 };

@@ -34,7 +34,7 @@ test('default colorPalette is Qualitative.Tableau10', async ({ page }) => {
     div.id = 'temp-graph';
     document.body.appendChild(div);
     var graph = d3.easygraph.line({ container: '#temp-graph', height: 100 });
-    var result = { paletteColors: graph.PALETTE_COLORS, d3Tableau: d3.schemeTableau10 };
+    var result = { paletteColors: graph.paletteColors, d3Tableau: d3.schemeTableau10 };
     graph.destroy();
     div.remove();
     return result;
@@ -53,6 +53,20 @@ test('Qualitative.Category10 was removed -- resolvePalette no longer resolves it
     }
   });
   expect(threw).toBe(true);
+});
+
+test('resolvePalette throws a clear, named error for an unrecognized palette -- not a cryptic TypeError', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const message = await page.evaluate(() => {
+    try {
+      d3.easygraph.resolvePalette('Sequential.NotARealPalette');
+      return null;
+    } catch (e) {
+      return e.message;
+    }
+  });
+  expect(message).toContain('unrecognized colorPalette');
+  expect(message).toContain('Sequential.NotARealPalette');
 });
 
 test('Qualitative.Tableau10 and Qualitative.Observable10 resolve to d3-scale-chromatic\'s own schemes', async ({ page }) => {
@@ -87,7 +101,7 @@ test('colorScale builds a clamped linear scale spanning the palette across the g
   expect(aboveMax).toBe(true);
 });
 
-test('colorScale quantize:true builds a quantize scale with PALETTE_COLORS.length discrete bands', async ({ page }) => {
+test('colorScale quantize:true builds a quantize scale with paletteColors.length discrete bands', async ({ page }) => {
   await page.goto(FIXTURE);
   const { colorCount, bandCount } = await page.evaluate(() => {
     var colors = d3.easygraph.resolvePalette('Sequential.Blues', 4);

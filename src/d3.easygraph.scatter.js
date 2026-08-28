@@ -1,7 +1,7 @@
 // d3.easygraph.scatter.js
-// Creative Commons Attribution-ShareAlike 3.0 License (CC BY-SA 3.0)
-// http://creativecommons.org/licenses/by-sa/3.0/
-// Copyright (c) 2015, Lars Schumann, larsi.org@gmail.com
+// MIT License
+// https://opensource.org/licenses/MIT
+// Copyright (c) 2026, Lars Schumann, larsi.org@gmail.com
 //
 // The scatter chart-family constructor: colored circles at arbitrary x/y coordinates, colored
 // via its own graph.color.$scale -- same color-resolution shape as heatmap.js, just points
@@ -44,7 +44,7 @@
 // graph._lastData (already tracked by core.js's update() for the resize-reflow case) rather than
 // needing the caller to keep its own copy of the current data just to pass back in.
 //
-// color.quantize: true swaps the usual continuous color gradient for PALETTE_COLORS.length
+// color.quantize: true swaps the usual continuous color gradient for paletteColors.length
 // discrete, equal-width bands over the domain -- for data where a handful of clearly separated
 // ranges reads better than a smooth interpolation (e.g. aircraft altitude: low/climbing bands
 // vs. a cruise band, rather than every altitude getting its own subtly different shade). Pair
@@ -53,7 +53,11 @@
 // colorClasses: 4 for four bands from light to dark.
 
 d3.easygraph.scatter = function(config) {
-  config.color = config.color || {};
+  // Cloned, not resolved in place -- same reasoning as core.js's x/y cloning and heatmap.js's
+  // own color cloning: a caller reusing the same color config object literal across two chart
+  // instances would otherwise have the second construction silently overwrite the first
+  // chart's $scale on that shared object.
+  config.color = Object.assign({}, config.color);
   d3.easygraph._resolveProperty(config.color);
 
   return d3.easygraph._build(config, {
@@ -93,11 +97,11 @@ d3.easygraph.scatter = function(config) {
           dataMin = extent[0],
           dataMax = extent[1],
           dataDlt = dataMax - dataMin,
-          n       = graph.PALETTE_COLORS.length;
+          n       = graph.paletteColors.length;
 
       // color.quantize: true (see init() below) uses a d3.scaleQuantize instead of the
       // usual continuous scaleLinear -- its domain is just the two-element [min, max], not
-      // n evenly-spaced stops, since it divides that range into PALETTE_COLORS.length
+      // n evenly-spaced stops, since it divides that range into paletteColors.length
       // equal-width bands on its own.
       if (graph.color.quantize) {
         graph.color.$scale.domain([dataMin, dataMax]);
@@ -126,16 +130,27 @@ d3.easygraph.scatter = function(config) {
           .style("fill-opacity", graph.voronoiOpacity);
       }
 
+      // cx/cy/fill transition on graph.duration (a point moving/recoloring on a real data
+      // update, e.g. a live map redrawing the same station list, should animate smoothly);
+      // r/stroke-width deliberately don't -- rescale(k) re-renders on every zoom tick and
+      // reads r/stroke-width back synchronously right after calling it, so those two must
+      // always be instant. cx/cy/fill are unaffected by k, so they're safe to animate without
+      // fighting rescale(). A freshly entered point gets cx/cy/fill set immediately (not
+      // faded in) so it doesn't animate in from some arbitrary un-set DOM default.
       var points = graph.$pointsGroup.selectAll(".scatter-point").data(data);
-      var pointsEnter = points.enter().append("circle").attr("class", "scatter-point");
+      var pointsEnter = points.enter().append("circle").attr("class", "scatter-point")
+        .attr("cx", function(d) { return graph.x.$scale(d.x); })
+        .attr("cy", function(d) { return graph.y.$scale(d.y); })
+        .style("fill", function(d) { return graph.color.$scale(d.value); });
       points.exit().remove();
       points = pointsEnter.merge(points);
       points
+        .attr("r",  graph.radius / k)
+        .style("stroke-width", (graph.pointStrokeWidth / k) + "px");
+      points.transition().duration(graph.duration).ease(d3.easeCubicInOut)
         .attr("cx", function(d) { return graph.x.$scale(d.x); })
         .attr("cy", function(d) { return graph.y.$scale(d.y); })
-        .attr("r",  graph.radius / k)
-        .style("fill", function(d) { return graph.color.$scale(d.value); })
-        .style("stroke-width", (graph.pointStrokeWidth / k) + "px");
+        .style("fill", function(d) { return graph.color.$scale(d.value); });
 
       // Arrows live in their own group, appended after the points' group in init() (not on
       // first render()), so they draw on top of the points regardless of whether arrows gets
@@ -192,14 +207,14 @@ d3.easygraph.scatter = function(config) {
         // clamp(true): a color clip narrows the domain but the palette still has to cover
         // every point, including the ones outside it -- clamp so those draw as the nearest
         // end color instead of extrapolating past the palette into an unintended hue.
-        // color.quantize: true swaps this for a quantize scale -- PALETTE_COLORS.length
+        // color.quantize: true swaps this for a quantize scale -- paletteColors.length
         // discrete, equal-width color bands over the domain (e.g. altitude in clearly
         // separated bands) instead of one continuous gradient between them. A quantize
         // scale has no clamp() of its own to call -- values outside its domain still map
         // to the nearest end band by definition, same effect as clamp(true) above.
         graph.color.$scale = graph.color.quantize
-          ? d3.scaleQuantize().range(graph.PALETTE_COLORS)
-          : d3.scaleLinear().range(graph.PALETTE_COLORS).clamp(true);
+          ? d3.scaleQuantize().range(graph.paletteColors)
+          : d3.scaleLinear().range(graph.paletteColors).clamp(true);
         graph.$cellsGroup  = graph.$group.append("g").attr("class", "scatter-cells");
         graph.$pointsGroup = graph.$group.append("g").attr("class", "scatter-points");
         graph.$arrowsGroup = graph.$group.append("g").attr("class", "scatter-arrows");
@@ -211,10 +226,12 @@ d3.easygraph.scatter = function(config) {
       // color, x/y are never clamped -- a clip here means "zoom the axis to this range", and
       // a point outside it should draw past the edge (or get clipped by the chart's own
       // clip-path), not get dragged back onto it.
+      // Guards against empty data the same way bars.js already does -- d3.extent on an empty
+      // array returns [undefined, undefined], which would otherwise become the scale's domain.
       domain: function(data, xRange, yRange) {
         return {
-          x: xRange || d3.easygraph._clippedExtent(data.map(function(d) { return d.x; }), graph.x.clip),
-          y: yRange || d3.easygraph._clippedExtent(data.map(function(d) { return d.y; }), graph.y.clip)
+          x: xRange || (data.length ? d3.easygraph._clippedExtent(data.map(function(d) { return d.x; }), graph.x.clip) : [0, 1]),
+          y: yRange || (data.length ? d3.easygraph._clippedExtent(data.map(function(d) { return d.y; }), graph.y.clip) : [0, 1])
         };
       },
 

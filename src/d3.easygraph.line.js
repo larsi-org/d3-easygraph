@@ -1,9 +1,9 @@
 // d3.easygraph.line.js
-// Creative Commons Attribution-ShareAlike 3.0 License (CC BY-SA 3.0)
-// http://creativecommons.org/licenses/by-sa/3.0/
-// Copyright (c) 2015, Lars Schumann, larsi.org@gmail.com
+// MIT License
+// https://opensource.org/licenses/MIT
+// Copyright (c) 2026, Lars Schumann, larsi.org@gmail.com
 //
-// The continuous chart-family constructor: lines, areas, zoom, and crosshair — these
+// The continuous chart-family constructor: lines, ribbons, zoom, and crosshair — these
 // always travel together in practice and share a continuous (time/linear) x scale.
 
 // defined once at module level — never changes
@@ -26,11 +26,14 @@ function _nestedValues(data, acc) {
 d3.easygraph.line = function(config) {
   return d3.easygraph._build(config, {
     lines:              false,
-    areas:               false,
+    ribbons:            false,
     zoom:                false,
     crosshair:           false,
     crosshairThreshold:  10,
-    interpolate:         'linear'
+    interpolate:         'linear',
+    units:               null // optional per-series unit strings for the crosshair tooltip --
+                               // see _moveCrosshair() below; graph.unit (singular, from the
+                               // shared y preset) is the fallback when a series has no entry
   }, function(graph) {
     var _cx, _cy, _bisect;
 
@@ -41,11 +44,11 @@ d3.easygraph.line = function(config) {
 
         var _curve = _curveMap[graph.interpolate] || d3.curveLinear;
         var _definedLine = function(d) { return d.y != null; };
-        var _definedArea = function(d) { return d.min != null && d.max != null; };
-        graph.$area0 = d3.area().curve(_curve).defined(_definedArea).x(_cx)
+        var _definedRibbon = function(d) { return d.min != null && d.max != null; };
+        graph.$ribbon0 = d3.area().curve(_curve).defined(_definedRibbon).x(_cx)
           .y0(function(d) { return graph.y.$scale(0); })
           .y1(function(d) { return graph.y.$scale(0); });
-        graph.$area  = d3.area().curve(_curve).defined(_definedArea).x(_cx)
+        graph.$ribbon  = d3.area().curve(_curve).defined(_definedRibbon).x(_cx)
           .y0(function(d) { return graph.y.$scale(d.min); })
           .y1(function(d) { return graph.y.$scale(d.max); });
         graph.$line0 = d3.line().curve(_curve).defined(_definedLine).x(_cx).y(function(d) { return graph.y.$scale(0); });
@@ -54,7 +57,7 @@ d3.easygraph.line = function(config) {
         graph.draw = function() {
           graph.$svg.select("g.x.axis").call(graph.x.$axis);
           graph.$svg.select("g.y.axis").call(graph.y.$axis);
-          graph.$group.selectAll("path.data-areas").attr("d", graph.$area);
+          graph.$group.selectAll("path.data-ribbons").attr("d", graph.$ribbon);
           graph.$group.selectAll("path.data-lines").attr("d", graph.$line);
         };
 
@@ -150,21 +153,26 @@ d3.easygraph.line = function(config) {
       },
 
       domain: function(data, xRange, yRange) {
-        var xDomain = xRange || d3.easygraph._clippedExtent(_nestedValues(data, function(d) { return d.x; }), graph.x.clip);
+        // Guards against empty data (no series, or every series empty) the same way bars.js
+        // already does -- d3.extent/min/max on an empty array return undefined, which would
+        // otherwise become the scale's domain and break axis rendering. "No data yet" (e.g.
+        // page loaded, first fetch hasn't resolved) is a common real state, not an edge case.
+        var xValues = _nestedValues(data, function(d) { return d.x; });
+        var xDomain = xRange || (xValues.length ? d3.easygraph._clippedExtent(xValues, graph.x.clip) : [0, 1]);
 
         var yDomain;
         if (yRange) {
           yDomain = yRange;
-        } else if (graph.areas) {
-          // areas' band comes from each point's own precomputed min/max, not a plain value
+        } else if (graph.ribbons) {
+          // a ribbon's band comes from each point's own precomputed min/max, not a plain value
           // per point -- clip doesn't have a single value array to work from here, so this
           // path always uses the true extent regardless of graph.y.clip
-          yDomain = [
-            d3.min(data, function(a) { return d3.min(a, function(d) { return d.min; }); }),
-            d3.max(data, function(a) { return d3.max(a, function(d) { return d.max; }); })
-          ];
+          var ribbonMin = d3.min(data, function(a) { return d3.min(a, function(d) { return d.min; }); });
+          var ribbonMax = d3.max(data, function(a) { return d3.max(a, function(d) { return d.max; }); });
+          yDomain = (ribbonMin === undefined) ? [0, 1] : [ribbonMin, ribbonMax];
         } else {
-          yDomain = d3.easygraph._clippedExtent(_nestedValues(data, function(d) { return d.y; }), graph.y.clip);
+          var yValues = _nestedValues(data, function(d) { return d.y; });
+          yDomain = yValues.length ? d3.easygraph._clippedExtent(yValues, graph.y.clip) : [0, 1];
         }
 
         return { x: xDomain, y: yDomain };
@@ -179,22 +187,22 @@ d3.easygraph.line = function(config) {
 
         if (graph.crosshair) graph._crosshairData = data;
 
-        if (graph.areas) {
-          var dataAreas = graph.$group.selectAll(".data-areas").data(data);
-          var areasEntered = dataAreas.enter().append("path")
-            .attr("class",      "data-areas")
+        if (graph.ribbons) {
+          var dataRibbons = graph.$group.selectAll(".data-ribbons").data(data);
+          var ribbonsEntered = dataRibbons.enter().append("path")
+            .attr("class",      "data-ribbons")
             .attr("clip-path",  "url(#" + graph._clipId + ")")
-            .attr("d",          graph.$area0)
+            .attr("d",          graph.$ribbon0)
             .style("fill",      function(d, i) { return graph.getPaletteColor(i); })
             .style("opacity",   1e-6);
-          dataAreas.exit().remove();
-          dataAreas = areasEntered.merge(dataAreas);
-          dataAreas.transition().duration(graph.duration).ease(d3.easeCubicInOut)
-            .attr("d",        graph.$area)
+          dataRibbons.exit().remove();
+          dataRibbons = ribbonsEntered.merge(dataRibbons);
+          dataRibbons.transition().duration(graph.duration).ease(d3.easeCubicInOut)
+            .attr("d",        graph.$ribbon)
             .style("fill",    function(d, i) { return graph.getPaletteColor(i); })
             .style("opacity", 0.4);
         } else {
-          graph.$group.selectAll(".data-areas").remove();
+          graph.$group.selectAll(".data-ribbons").remove();
         }
 
         if (graph.lines) {

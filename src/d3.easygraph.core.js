@@ -1,7 +1,7 @@
 // d3.easygraph.core.js
-// Creative Commons Attribution-ShareAlike 3.0 License (CC BY-SA 3.0)
-// http://creativecommons.org/licenses/by-sa/3.0/
-// Copyright (c) 2015, Lars Schumann, larsi.org@gmail.com
+// MIT License
+// https://opensource.org/licenses/MIT
+// Copyright (c) 2026, Lars Schumann, larsi.org@gmail.com
 //
 // Shared scaffolding for every chart family: container sizing/resize, SVG/margin/
 // clip/title DOM, number/time formatting, x/y/color config resolution, and the
@@ -67,7 +67,13 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     throw new Error('d3.easygraph: container not found (' + JSON.stringify(graph.container) + ')');
   }
 
-  d3.easygraph._extend(graph, { margin: { top: 20, right: 20, bottom: 30, left: 50 } });
+  // Object.assign (not _extend) so a *partial* margin (e.g. { top: 10 }) still gets its own
+  // fresh object -- _extend only fills a key when the whole thing is undefined, so a partial
+  // margin would otherwise keep right/bottom/left as undefined forever, cascading into NaN
+  // width math with no error (see _measureWidth() below). Cloning here also means two charts
+  // constructed from the same shared margin object literal can't corrupt each other.
+  graph.margin = Object.assign({}, graph.margin);
+  d3.easygraph._extend(graph.margin, { top: 20, right: 20, bottom: 30, left: 50 });
   if (!(graph.height > 0)) {
     throw new Error('d3.easygraph: height must be a positive number');
   }
@@ -118,6 +124,15 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   graph._clipId = "d3-easygraph-clip-" + (_nextClipId++);
 
   d3.easygraph._extend(graph, familyDefaults);
+
+  // Clone x/y onto a fresh object rather than resolving in place -- _build() (via
+  // _resolveProperty below) writes $scale/$axis directly onto whatever object graph.x/graph.y
+  // point to. Left un-cloned, a caller reusing the same x/y config object literal across two
+  // chart instances would have the second construction silently overwrite the first chart's
+  // scale on that shared object.
+  graph.x = Object.assign({}, graph.x);
+  graph.y = Object.assign({}, graph.y);
+
   d3.easygraph._extend(graph, {
     x:            {},
     y:            {},
@@ -129,7 +144,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     oneYear:      false
   });
 
-  graph.PALETTE_COLORS = d3.easygraph.resolvePalette(graph.colorPalette, graph.colorClasses);
+  graph.paletteColors = d3.easygraph.resolvePalette(graph.colorPalette, graph.colorClasses);
 
   d3.easygraph._resolveProperty(graph.x);
   d3.easygraph._resolveProperty(graph.y);
@@ -192,7 +207,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   graph.$group = graph.$svg.append("g");
 
   graph.getPaletteColor = function(index) {
-    return graph.PALETTE_COLORS[index % graph.PALETTE_COLORS.length];
+    return graph.paletteColors[index % graph.paletteColors.length];
   };
 
   // module init() runs after core scaffolding above (scales/axes/svg/margin/clip/
@@ -247,13 +262,17 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     graph.duration = savedDuration;
   };
 
-  graph.update = function(data, xRange, yRange) {
+  // ranges: { x, y } optionally pin the x/y axis domains instead of auto-fitting to data --
+  // a single object rather than two positional args so a future range (e.g. color) has
+  // somewhere to go without another positional param.
+  graph.update = function(data, ranges) {
+    ranges = ranges || {};
     graph._lastData = data;
 
     graph.$svg.select("#title")
       .text((graph.unit) ? graph.label + " [" + graph.unit + "]" : graph.label);
 
-    var domains = graph._module.domain(data, xRange, yRange) || { x: [0, 1], y: [0, 1] };
+    var domains = graph._module.domain(data, ranges.x, ranges.y) || { x: [0, 1], y: [0, 1] };
     graph.x.$scale.domain(domains.x);
     graph.y.$scale.domain(domains.y);
 

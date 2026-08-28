@@ -2,9 +2,9 @@
 
 [![Build](https://github.com/larsi-org/d3-easygraph/actions/workflows/build.yml/badge.svg)](https://github.com/larsi-org/d3-easygraph/actions/workflows/build.yml)
 
-A small, batteries-included charting library built on [D3](https://d3js.org) v7: lines, filled
-areas, zoom, a hover crosshair, stacked/grouped bars (vertical and horizontal), heatmaps, and
-scatter plots — all through one consistent config object, with chart width that tracks its
+A small, batteries-included charting library built on [D3](https://d3js.org) v7: lines, min/max
+ribbon bands, zoom, a hover crosshair, stacked/grouped bars (vertical and horizontal), heatmaps,
+and scatter plots — all through one consistent config object, with chart width that tracks its
 container's rendered size (height stays fixed).
 
 **Live examples and docs:** [larsi.org/easygraph](https://larsi.org/easygraph)
@@ -15,10 +15,10 @@ Each chart family has its own constructor, taking only the config that family un
 
 | Family | Constructor | Config | Notes |
 | --- | --- | --- | --- |
-| Line / area | `d3.easygraph.line(config)` | `lines`, `areas`, `zoom`, `crosshair`, `crosshairThreshold`, `interpolate` | Continuous (time or linear) x axis. Zoom and crosshair can be synced across multiple charts via `d3.easygraph.syncZoom`/`syncCrosshair`. A point with `y: null` (or, for areas, `min`/`max: null`) breaks the line/area into a separate subpath there instead of drawing a straight segment through the gap — handy for a circular quantity like compass bearing, where a caller can insert a `null`-y point at each wraparound so the chart doesn't draw a false diagonal from 359° to 0°. |
+| Line / ribbon | `d3.easygraph.line(config)` | `lines`, `ribbons`, `zoom`, `crosshair`, `crosshairThreshold`, `interpolate`, `units` | Continuous (time or linear) x axis. Zoom and crosshair can be synced across multiple charts via `d3.easygraph.syncZoom`/`syncCrosshair`. `ribbons` draws a filled min/max band per series (e.g. a daily high/low range around a mean line) — not a stacked/cumulative area chart. A point with `y: null` (or, for ribbons, `min`/`max: null`) breaks the line/ribbon into a separate subpath there instead of drawing a straight segment through the gap — handy for a circular quantity like compass bearing, where a caller can insert a `null`-y point at each wraparound so the chart doesn't draw a false diagonal from 359° to 0°. `units: ["°F", "%"]` gives the crosshair tooltip a different unit string per series (index-matched to the series arrays passed to `update()`) — for a multi-series chart mixing quantities, where the single shared `y` preset's `unit` isn't right for all of them; a series past the end of `units`, or with a falsy entry, falls back to the shared `graph.unit`. |
 | Bars | `d3.easygraph.bars(config)` | `orientation` (`'v'`\|`'h'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData` | Category axis uses a `d3.scaleBand()`. `orientation` is fixed for a chart's lifetime; `mode` can be toggled live. |
 | Heatmap | `d3.easygraph.heatmap(config)` | `color` (unit/preset config for the color scale) | A grid of colored cells over plain continuous x/y axes. |
-| Scatter | `d3.easygraph.scatter(config)` | `color` (unit/preset config for the color scale, or a fixed `domain: [min, max]`), `radius`, `pointStrokeWidth`, `voronoi`, `voronoiOpacity`, `arrows`, `arrowColor`, `arrowStrokeWidth`, `arrowMinLength`, `arrowMaxLength`, `arrowHeadLength`, `arrowHeadAngle`, `labels`, `labelSize`, `labelOffset`, `labelMinZoom` | Colored circles at arbitrary `{ x, y, value }` points over plain continuous x/y axes. No geography built in — plot pre-projected pixel coordinates (e.g. lat/lng run through your own `d3.geoProjection`) to overlay points on a map you draw yourself. `voronoi: true` fills the region closer to each point than any other with that point's own color (via `d3.Delaunay`/`.voronoi()`, already part of the full `d3@7` bundle) — semi-transparent by default (`voronoiOpacity`, `0.6`) so a layer underneath stays visible. `arrows: true` draws a directional glyph (shaft + two-line chevron head) on top of any point that also carries `angle` (radians) and `magnitude` — a second, vector-shaped quantity (e.g. wind: speed + direction) layered on a scalar one (`value`'s own color) at the same position; a point missing either field just renders its circle with no arrow. `labels: true` draws each point's `label` (a string); a point missing it renders without one, and every label stays hidden below `labelMinZoom` (default 1, i.e. always on) for a caller with too many points to label all of them at once. `color`'s domain (like `x`/`y`'s, when data-driven) accepts `clip` — see below — or can be fixed outright via `color.domain: [min, max]`, so a value maps to the same color snapshot to snapshot instead of shifting as the current data's own spread changes (e.g. altitude). `graph.rescale(k)` shrinks point/arrow radius, length, and stroke-width, and label size, by `1/k` and re-renders — for a caller layering its own SVG-transform zoom on top (e.g. a zoomable map background) so markers stay a constant on-screen size instead of growing with the zoom. `color.quantize: true` swaps the usual continuous gradient for `PALETTE_COLORS.length` discrete, equal-width color bands over the domain — better than a smooth interpolation for data with a few clearly separated ranges (e.g. aircraft altitude: a low/climbing band vs. a distinct cruise band), especially paired with `colorClasses` (below) to control how many bands come out of a colorbrewer palette. |
+| Scatter | `d3.easygraph.scatter(config)` | `color` (unit/preset config for the color scale, or a fixed `domain: [min, max]`), `radius`, `pointStrokeWidth`, `voronoi`, `voronoiOpacity`, `arrows`, `arrowColor`, `arrowStrokeWidth`, `arrowMinLength`, `arrowMaxLength`, `arrowHeadLength`, `arrowHeadAngle`, `labels`, `labelSize`, `labelOffset`, `labelMinZoom` | Colored circles at arbitrary `{ x, y, value }` points over plain continuous x/y axes. No geography built in — plot pre-projected pixel coordinates (e.g. lat/lng run through your own `d3.geoProjection`) to overlay points on a map you draw yourself. `voronoi: true` fills the region closer to each point than any other with that point's own color (via `d3.Delaunay`/`.voronoi()`, already part of the full `d3@7` bundle) — semi-transparent by default (`voronoiOpacity`, `0.6`) so a layer underneath stays visible. `arrows: true` draws a directional glyph (shaft + two-line chevron head) on top of any point that also carries `angle` (radians) and `magnitude` — a second, vector-shaped quantity (e.g. wind: speed + direction) layered on a scalar one (`value`'s own color) at the same position; a point missing either field just renders its circle with no arrow. `labels: true` draws each point's `label` (a string); a point missing it renders without one, and every label stays hidden below `labelMinZoom` (default 1, i.e. always on) for a caller with too many points to label all of them at once. `color`'s domain (like `x`/`y`'s, when data-driven) accepts `clip` — see below — or can be fixed outright via `color.domain: [min, max]`, so a value maps to the same color snapshot to snapshot instead of shifting as the current data's own spread changes (e.g. altitude). `graph.rescale(k)` shrinks point/arrow radius, length, and stroke-width, and label size, by `1/k` and re-renders — for a caller layering its own SVG-transform zoom on top (e.g. a zoomable map background) so markers stay a constant on-screen size instead of growing with the zoom. `color.quantize: true` swaps the usual continuous gradient for `paletteColors.length` discrete, equal-width color bands over the domain — better than a smooth interpolation for data with a few clearly separated ranges (e.g. aircraft altitude: a low/climbing band vs. a distinct cruise band), especially paired with `colorClasses` (below) to control how many bands come out of a colorbrewer palette. |
 
 Shared config across all four: `container`, `label`, `x`/`y` (`scale`, `unit`, `label`, `noTick`,
 `preset`, `convert`, `clip`), `height`, `margin`, `colorPalette`, `colorClasses`, `duration`,
@@ -28,8 +28,8 @@ palette instead of its largest available one (3–9 shades per named palette); i
 `Qualitative.*` and the hardcoded extras, none of which are classed data.
 
 Any `x`/`y`/`color` config accepts `clip: [loQuantile, hiQuantile]` (e.g. `[0.05, 0.95]`) — when
-that property's domain would otherwise come straight from the data (no explicit `xRange`/`yRange`
-passed to `update()`, or `color`, whose domain is always data-driven), it's built from those
+that property's domain would otherwise come straight from the data (no explicit `ranges.x`/
+`ranges.y` passed to `update()`, or `color`, whose domain is always data-driven), it's built from those
 quantiles instead of the true min/max, so a single extreme outlier doesn't stretch the whole scale
 so far that every other value compresses into one end of it. Omitting `clip` (the default) keeps
 the exact same true-min/max behavior. `color` clamps values past the clipped domain to the
@@ -75,7 +75,7 @@ a plain explicit-precision helper.
 
 ## Color palettes (no chart required)
 
-The same `colorPalette`/`colorClasses` resolution a chart's `PALETTE_COLORS` goes through
+The same `colorPalette`/`colorClasses` resolution a chart's `paletteColors` goes through
 internally is also available standalone — no container, no chart construction:
 
 ```js
@@ -86,7 +86,7 @@ d3.easygraph.resolvePalette("Sequential.Blues", 4);         // the 4-class Blues
 d3.easygraph.colorScale("Diverging.RdYlBu.reversed", [dataMin, dataMax]);
 // => a ready d3.scaleLinear, clamped, with RdYlBu's colors (reversed) spread evenly across the domain
 d3.easygraph.colorScale("Sequential.Blues", [dataMin, dataMax], { classes: 4, quantize: true });
-// => a d3.scaleQuantize instead — PALETTE_COLORS.length discrete, equal-width bands
+// => a d3.scaleQuantize instead — paletteColors.length discrete, equal-width bands
 ```
 
 Handy for coloring something that isn't a d3-easygraph chart at all — a Leaflet marker layer, a
@@ -145,9 +145,9 @@ graph.update([
 </script>
 ```
 
-`graph.update(data, xRange, yRange)` re-renders with new data (`xRange`/`yRange` optionally
-pin the axis domains instead of auto-fitting to the data). Resize handling is automatic — no calls
-needed on your end.
+`graph.update(data, ranges)` re-renders with new data (`ranges: { x, y }` optionally pin the axis
+domains instead of auto-fitting to the data). Resize handling is automatic — no calls needed on
+your end.
 
 ## Examples
 
@@ -181,7 +181,7 @@ included in this repo):
 - `src/d3.easygraph.colors.js` — `colorPalettes`/`resolvePalette`/`colorScale` (named lookup)
   and `hueWheelPalette` (generated), the standalone palette functions above. Same division of
   labor as units.js: no chart concepts here, `core.js` is the only thing that folds a resolved
-  palette onto `graph.PALETTE_COLORS`.
+  palette onto `graph.paletteColors`.
 - `src/d3.easygraph.line.js`, `.bars.js`, `.heatmap.js`, `.scatter.js` — one constructor per chart
   family above, each implementing a small `prepareScales?`/`init?`/`domain`/`render`/`resize?`/
   `destroy?` hook interface (only `domain`/`render` are required; `prepareScales` is bars-only, for

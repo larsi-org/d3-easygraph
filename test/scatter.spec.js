@@ -64,6 +64,44 @@ test('resize updates point positions proportionally', async ({ page }) => {
   expect(cxAfter).toBeGreaterThan(0);
 });
 
+test('point cx/fill transition over graph.duration on a data update, not an instant swap', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const { immediateCx, settledCx, finalCx } = await page.evaluate(() => {
+    return new Promise((resolve) => {
+      var point = document.querySelector('circle.scatter-point');
+      // first point moves from x=0 (far left) to x=10 (far right) -- a big enough jump that
+      // an immediate vs. settled cx reliably differ
+      var moved = [
+        { x: 10, y: 10, value: 100 },
+        { x: 5,  y: 5,  value: 50 },
+        { x: 0,  y: 0,  value: 0 }
+      ];
+      window.graph.update(moved, { x: [0, 10], y: [0, 10] });
+      var immediateCx = point.getAttribute('cx');
+      setTimeout(function() {
+        resolve({
+          immediateCx: immediateCx,
+          settledCx: point.getAttribute('cx'),
+          finalCx: window.graph.x.$scale(10)
+        });
+      }, 700); // graph.duration defaults to 500ms
+    });
+  });
+  expect(immediateCx).not.toBe(settledCx);
+  expect(Number(settledCx)).toBeCloseTo(finalCx, 0);
+});
+
+test('rescale(k) re-renders synchronously, not through the same transition points/fill use', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const { rBeforeAnyWait } = await page.evaluate(() => {
+    window.graph.rescale(2);
+    // fixture uses the default radius (4) -- if rescale() were transitioned like cx/cy/fill,
+    // this synchronous read (no wait at all) would still show the old radius (4)
+    return { rBeforeAnyWait: document.querySelector('circle.scatter-point').getAttribute('r') };
+  });
+  expect(Number(rBeforeAnyWait)).toBe(2);
+});
+
 test('voronoi defaults to off -- no cells rendered unless explicitly enabled', async ({ page }) => {
   await page.goto(FIXTURE);
   await expect(page.locator('path.scatter-cell')).toHaveCount(0);
@@ -102,6 +140,16 @@ test('cells render semi-transparent so an underlying layer stays visible', async
   );
   expect(Number(opacity)).toBeCloseTo(0.6, 1);
   expect(Number(opacity)).toBeLessThan(1);
+});
+
+test('update([]) (no points at all) falls back to a [0,1] domain instead of undefined/NaN', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const domains = await page.evaluate(() => {
+    window.graph.update([]);
+    return { x: window.graph.x.$scale.domain(), y: window.graph.y.$scale.domain() };
+  });
+  expect(domains.x).toEqual([0, 1]);
+  expect(domains.y).toEqual([0, 1]);
 });
 
 test('x/y clip narrows the data-driven domain away from a single outlier point', async ({ page }) => {
@@ -145,7 +193,7 @@ test('color.domain fixes the scale to an explicit range, ignoring both the data 
   expect(last).toBe(40000);
 });
 
-test('color.quantize: true buckets points into PALETTE_COLORS.length discrete color bands, not a continuous gradient', async ({ page }) => {
+test('color.quantize: true buckets points into paletteColors.length discrete color bands, not a continuous gradient', async ({ page }) => {
   await page.goto(QUANTIZE_FIXTURE);
   const fills = await page.evaluate(() =>
     [...document.querySelectorAll('circle.scatter-point')].map((c) => getComputedStyle(c).fill)
@@ -159,7 +207,7 @@ test('color.quantize: true buckets points into PALETTE_COLORS.length discrete co
 
 test('colorClasses picks a specific class count from a Sequential palette instead of its largest available', async ({ page }) => {
   await page.goto(QUANTIZE_FIXTURE);
-  const paletteLength = await page.evaluate(() => window.graph.PALETTE_COLORS.length);
+  const paletteLength = await page.evaluate(() => window.graph.paletteColors.length);
   expect(paletteLength).toBe(4);
 });
 

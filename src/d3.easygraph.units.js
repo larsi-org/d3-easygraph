@@ -1,7 +1,7 @@
 // d3.easygraph.units.js
-// Creative Commons Attribution-ShareAlike 3.0 License (CC BY-SA 3.0)
-// http://creativecommons.org/licenses/by-sa/3.0/
-// Copyright (c) 2015, Lars Schumann, larsi.org@gmail.com
+// MIT License
+// https://opensource.org/licenses/MIT
+// Copyright (c) 2026, Lars Schumann, larsi.org@gmail.com
 //
 // A small, easygraph-agnostic unit-preset lookup: a static table of physical-quantity unit
 // definitions (label, unit, scale, convert) and one function to fetch one by name. No config

@@ -5,10 +5,10 @@ const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/line.html');
 const CLIP_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/line-clip.html');
 const GAP_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/line-gap.html');
 
-test('renders lines and areas with the right element counts', async ({ page }) => {
+test('renders lines and ribbons with the right element counts', async ({ page }) => {
   await page.goto(FIXTURE);
   await expect(page.locator('path.data-lines')).toHaveCount(1);
-  await expect(page.locator('path.data-areas')).toHaveCount(1);
+  await expect(page.locator('path.data-ribbons')).toHaveCount(1);
 });
 
 test('resize updates graph.width and the svg width attribute', async ({ page }) => {
@@ -49,11 +49,51 @@ test('zoom pane has touch-action: none so iOS cannot hijack the gesture to zoom 
   expect(touchAction).toBe('none');
 });
 
+test('update([]) (no series at all) falls back to a real domain instead of undefined/NaN', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const domains = await page.evaluate(() => {
+    window.graph.update([]);
+    return { x: window.graph.x.$scale.domain(), y: window.graph.y.$scale.domain() };
+  });
+  expect(domains.x.length).toBe(2);
+  expect(domains.x.every((d) => d !== undefined)).toBe(true);
+  expect(domains.y).toEqual([0, 1]);
+});
+
 test('y clip narrows the data-driven domain away from a single outlier point', async ({ page }) => {
   await page.goto(CLIP_FIXTURE);
   const yMax = await page.evaluate(() => window.graph.y.$scale.domain()[1]);
   // fixture's outlier point is y=1000, far past every other point (0-80)
   expect(yMax).toBeLessThan(500);
+});
+
+test('units[i] gives the crosshair tooltip a per-series unit string, falling back to graph.unit', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const html = await page.evaluate(() => {
+    var wrap = document.createElement('div');
+    document.body.appendChild(wrap);
+    var g = d3.easygraph.line({
+      container: wrap,
+      x: { scale: 'time' },
+      y: { preset: 'temperatureC' },
+      height: 200,
+      crosshair: true,
+      lines: true,
+      units: ['°F', null] // series 0 overrides, series 1 has no entry -- falls back to graph.unit
+    });
+    var t0 = new Date('2026-01-01T00:00:00');
+    g.update([
+      [ { x: t0, y: 1 }, { x: new Date('2026-01-01T01:00:00'), y: 2 } ],
+      [ { x: t0, y: 3 }, { x: new Date('2026-01-01T01:00:00'), y: 4 } ]
+    ]);
+    g._moveCrosshair(g.x.$scale(t0));
+    var html = g.$crosshairTip.html();
+    g.destroy();
+    wrap.remove();
+    return html;
+  });
+  expect(html).toContain('1°F'); // series 0's own units[0]
+  expect(html).toContain('3°C'); // series 1 falls back to graph.unit (from the y preset)
 });
 
 test('destroy() removes the svg and the crosshair tooltip; a later resize does not throw', async ({ page }) => {
@@ -74,15 +114,15 @@ test('destroy() removes the svg and the crosshair tooltip; a later resize does n
   expect(errors).toEqual([]);
 });
 
-test('a null-y point breaks the line and area into separate subpaths (gap)', async ({ page }) => {
+test('a null-y point breaks the line and ribbon into separate subpaths (gap)', async ({ page }) => {
   await page.goto(GAP_FIXTURE);
 
-  const [lineD, areaD] = await page.evaluate(() => [
+  const [lineD, ribbonD] = await page.evaluate(() => [
     document.querySelector('path.data-lines').getAttribute('d'),
-    document.querySelector('path.data-areas').getAttribute('d')
+    document.querySelector('path.data-ribbons').getAttribute('d')
   ]);
 
   // one gap among 4 real points -> two subpaths -> 2 "move to" commands
   expect((lineD.match(/M/g) || []).length).toBe(2);
-  expect((areaD.match(/M/g) || []).length).toBe(2);
+  expect((ribbonD.match(/M/g) || []).length).toBe(2);
 });
