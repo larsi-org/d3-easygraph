@@ -14,13 +14,14 @@
 // core.js, the only actual chart consumer that needs it — same division of labor as units.js's
 // getUnit() vs. core.js's _resolveProperty().
 
-// Every palette name is now "Kind.Name" -- Sequential (a plain value gradient), Diverging (a
-// gradient with a meaningful midpoint), or Qualitative (unordered, mutually distinct categories)
-// -- the same three groups colorbrewer.schemeGroups itself uses. This replaced an earlier scheme
-// keyed by *source* (a bare colorbrewer name, "D3_"-prefixed for d3's own categorical schemes,
-// "LS_"-prefixed for the hand-picked extras below): nobody choosing a palette actually cares
-// whether the data came from colorbrewer, d3-scale-chromatic, or was hand-picked -- what matters
-// is what kind of quantity it's meant to represent, which the new prefix says directly.
+// Every palette name is "Kind.Name" -- Sequential (a plain value gradient), Diverging (a gradient
+// with a meaningful midpoint), or Qualitative (unordered, mutually distinct categories) -- the
+// same three groups colorbrewer.schemeGroups itself uses. The kind leads because it's what a
+// caller is actually choosing on: what sort of quantity am I representing.
+//
+// The only other thing a name carries is an "LS-" marker on the six palettes hand-picked for
+// specific pages on larsi.org, so they're distinguishable from the externally designed and
+// tested schemes at a glance. See the colorPalettes map below for why nothing else is marked.
 //
 // The three arrays below are colorbrewer's own three groups (SEQUENTIAL folds in its
 // single-hue/multi-hue split, which doesn't affect lookup) plus D3's own (non-ColorBrewer)
@@ -78,25 +79,34 @@ function schemeColors(name, classes) {
 }
 
 // Every scheme above (see schemeColors) at its largest class count, flattened to a plain
-// {"Kind.Name": [colors]} map, plus a handful of hand-picked extras for cases nothing above
-// covers: Category20/20b/20c (removed from d3-scale-chromatic itself as of D3 v5, no scheme*
-// export to source from) and the Sequential/Diverging/Qualitative-classified LS originals (see
-// CHANGELOG for how each was classified). Computed once at load time (not rebuilt per chart
-// instance) since it depends only on the `d3` global, not on any particular graph's config.
+// {"Kind.Name": [colors]} map, plus the entries d3 can't supply.
+//
+// The `LS-` marker means "hand-picked for one page on larsi.org" rather than an external,
+// published, tested scheme. That's the only distinction a caller choosing a palette actually
+// needs -- how vetted is this for my data -- so it's the only one encoded in a name. Note what
+// is deliberately *not* marked: Category20/20b/20c are hardcoded here purely because D3 dropped
+// them from d3-scale-chromatic in v5, which is a packaging accident, not a property of the
+// palette. They're as externally-designed as Set1 or Tableau10 and are named like them. Marking
+// them (an earlier idea was a `D3-` prefix) would have drawn the line at "which file is this
+// defined in" instead of "who designed it", and left the unmarked set silently meaning
+// "ColorBrewer, or Tableau, or Observable, or Google" -- four origins wearing no marker at all.
+//
+// Computed once at load time (not rebuilt per chart instance) since it depends only on the `d3`
+// global, not on any particular graph's config.
 d3.easygraph.colorPalettes = (function() {
   var palettes = {};
   DIVERGING.forEach(function(name) { palettes["Diverging." + name] = schemeColors(name); });
-  palettes["Diverging.BuMaRd"]         = ["#00F","#F0F","#F00"];
-  palettes["Diverging.BuCyGnYlRd"]     = ["#00F","#0FF","#0F0","#FF0","#F00"];
+  palettes["Diverging.LS-BuMaRd"]         = ["#00F","#F0F","#F00"];
+  palettes["Diverging.LS-BuCyGnYlRd"]     = ["#00F","#0FF","#0F0","#FF0","#F00"];
   QUALITATIVE.forEach(function(name) { palettes["Qualitative." + name] = schemeColors(name); });
-  palettes["Qualitative.Category20"]   = ["#1f77b4","#aec7e8","#ff7f0e","#ffbb78","#2ca02c","#98df8a","#d62728","#ff9896","#9467bd","#c5b0d5","#8c564b","#c49c94","#e377c2","#f7b6d2","#7f7f7f","#c7c7c7","#bcbd22","#dbdb8d","#17becf","#9edae5"];
-  palettes["Qualitative.Category20b"]  = ["#393b79","#5254a3","#6b6ecf","#9c9ede","#637939","#8ca252","#b5cf6b","#cedb9c","#8c6d31","#bd9e39","#e7ba52","#e7cb94","#843c39","#ad494a","#d6616b","#e7969c","#7b4173","#a55194","#ce6dbd","#de9ed6"];
-  palettes["Qualitative.Category20c"]  = ["#3182bd","#6baed6","#9ecae1","#c6dbef","#e6550d","#fd8d3c","#fdae6b","#fdd0a2","#31a354","#74c476","#a1d99b","#c7e9c0","#756bb1","#9e9ac8","#bcbddc","#dadaeb","#636363","#969696","#bdbdbd","#d9d9d9"];
-  palettes["Qualitative.SustainZones"] = ["#F66","#6F6","#66F","#EE6","#6FF","#F6F","#B22","#2B2","#22B","#AA2","#2BB","#B2B","#D44","#4D4","#44D","#CC4","#4DD","#D4D","#900","#090","#009","#880","#099","#909"];
-  palettes["Qualitative.RdGnBu"]       = ["#F00","#0F0","#00F"];
-  palettes["Qualitative.SunArc"]       = ["#F84","#FC4","#B12"];
+  palettes["Qualitative.Category20"]      = ["#1f77b4","#aec7e8","#ff7f0e","#ffbb78","#2ca02c","#98df8a","#d62728","#ff9896","#9467bd","#c5b0d5","#8c564b","#c49c94","#e377c2","#f7b6d2","#7f7f7f","#c7c7c7","#bcbd22","#dbdb8d","#17becf","#9edae5"];
+  palettes["Qualitative.Category20b"]     = ["#393b79","#5254a3","#6b6ecf","#9c9ede","#637939","#8ca252","#b5cf6b","#cedb9c","#8c6d31","#bd9e39","#e7ba52","#e7cb94","#843c39","#ad494a","#d6616b","#e7969c","#7b4173","#a55194","#ce6dbd","#de9ed6"];
+  palettes["Qualitative.Category20c"]     = ["#3182bd","#6baed6","#9ecae1","#c6dbef","#e6550d","#fd8d3c","#fdae6b","#fdd0a2","#31a354","#74c476","#a1d99b","#c7e9c0","#756bb1","#9e9ac8","#bcbddc","#dadaeb","#636363","#969696","#bdbdbd","#d9d9d9"];
+  palettes["Qualitative.LS-SustainZones"] = ["#F66","#6F6","#66F","#EE6","#6FF","#F6F","#B22","#2B2","#22B","#AA2","#2BB","#B2B","#D44","#4D4","#44D","#CC4","#4DD","#D4D","#900","#090","#009","#880","#099","#909"];
+  palettes["Qualitative.LS-RdGnBu"]       = ["#F00","#0F0","#00F"];
+  palettes["Qualitative.LS-SunArc"]       = ["#F84","#FC4","#B12"];
   SEQUENTIAL.forEach(function(name) { palettes["Sequential." + name] = schemeColors(name); });
-  palettes["Sequential.Gy"]            = ["#000","#FFF"];
+  palettes["Sequential.LS-Gy"]            = ["#000","#FFF"];
   return palettes;
 })();
 

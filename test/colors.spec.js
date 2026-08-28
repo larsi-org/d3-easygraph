@@ -160,3 +160,37 @@ test('hueWheelPalette(count) is deterministic -- same count always produces the 
   }));
   expect(a).toEqual(b);
 });
+
+test('the six hand-picked palettes carry an LS- marker; external schemes do not', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var names = Object.keys(d3.easygraph.colorPalettes);
+    return {
+      marked: names.filter(function (n) { return n.indexOf('.LS-') > -1; }).sort(),
+      // Category20* are D3's own published schemes, hardcoded only because d3-scale-chromatic
+      // dropped them in v5 -- a packaging accident, so they stay named like any other external set
+      category20Unmarked: names.filter(function (n) { return n.indexOf('Category20') > -1; }).sort(),
+      externalsUnmarked: ['Qualitative.Tableau10', 'Qualitative.Observable10', 'Sequential.Turbo', 'Qualitative.Set1']
+        .every(function (n) { return names.indexOf(n) > -1; })
+    };
+  });
+  expect(r.marked).toEqual([
+    'Diverging.LS-BuCyGnYlRd', 'Diverging.LS-BuMaRd', 'Qualitative.LS-RdGnBu',
+    'Qualitative.LS-SunArc', 'Qualitative.LS-SustainZones', 'Sequential.LS-Gy'
+  ]);
+  expect(r.category20Unmarked).toEqual(['Qualitative.Category20', 'Qualitative.Category20b', 'Qualitative.Category20c']);
+  expect(r.externalsUnmarked).toBe(true);
+});
+
+test('an LS- palette resolves, reverses, and drives a color scale like any other', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var fwd = d3.easygraph.resolvePalette('Qualitative.LS-SunArc');
+    var rev = d3.easygraph.resolvePalette('Qualitative.LS-SunArc.reversed');
+    var scale = d3.easygraph.colorScale('Diverging.LS-BuMaRd', [0, 100]);
+    return { fwd: fwd, rev: rev, scaleEnds: [d3.rgb(scale(0)).toString(), d3.rgb(scale(100)).toString()] };
+  });
+  expect(r.fwd).toEqual(['#F84', '#FC4', '#B12']);
+  expect(r.rev).toEqual(['#B12', '#FC4', '#F84']);   // .reversed still parses past the marker
+  expect(r.scaleEnds).toEqual(['rgb(0, 0, 255)', 'rgb(255, 0, 0)']);
+});

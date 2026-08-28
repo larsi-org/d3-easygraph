@@ -63,6 +63,16 @@ All notable changes to this project are documented here. Format loosely follows
   object happens to expose.
 
 ### Changed
+- The six palettes hand-picked for individual larsi.org pages now carry an `LS-` marker:
+  `Diverging.LS-BuMaRd`, `Diverging.LS-BuCyGnYlRd`, `Qualitative.LS-SustainZones`,
+  `Qualitative.LS-RdGnBu`, `Qualitative.LS-SunArc`, `Sequential.LS-Gy`. The distinction a caller
+  actually needs when picking a palette is *how vetted is this for my data*, and that's the only
+  thing now encoded in a name. Deliberately **not** marked: `Category20`/`20b`/`20c`, which are
+  D3's own published schemes and appear hardcoded only because d3-scale-chromatic dropped them in
+  v5 -- a packaging accident, not a property of the palette. Marking those (a `D3-` prefix was
+  considered) would have drawn the line at "which file is this defined in" rather than "who
+  designed it", and left the unmarked set silently meaning "ColorBrewer, or Tableau, or
+  Observable, or Google". The README now groups every palette by real provenance instead.
 - `interpolate` renamed to `curve`, matching d3 itself: d3 renamed this concept in v4 (2016), so
   a d3 v7 library still calling it `interpolate` read as a decade-old copy-paste. `curve` also now
   accepts a d3 curve factory directly (`d3.curveNatural`, `d3.curveCatmullRom.alpha(0.5)`, ...)

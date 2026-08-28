@@ -104,6 +104,32 @@ you've already named here. `d3.easygraph.colorPalettes` (the full resolved `{nam
 [colors]}` map `resolvePalette` reads from) is public too, for a caller that wants to list every
 available palette name (see the [Colorbrewer demo page](https://larsi.org/graphics/colorbrewer/)).
 
+### Where the palettes come from
+
+Almost all of them are externally designed and tested schemes, and are named plainly:
+
+| source | names |
+| --- | --- |
+| [ColorBrewer](https://colorbrewer2.org) | the sequential, diverging and qualitative sets — `Blues`, `RdYlBu`, `Set1`, … |
+| Tableau | `Tableau10` (the library default) |
+| Observable | `Observable10` |
+| Google | `Turbo` |
+| D3 | `Category20`, `Category20b`, `Category20c` — written out by hand here only because D3 dropped them from `d3-scale-chromatic` in v5, not because they're any less standard |
+
+The six names carrying an **`LS-`** marker are the exception: hand-picked for one specific page on
+[larsi.org](https://larsi.org) rather than researched for general use. Pick them knowing that.
+
+| name | picked for |
+| --- | --- |
+| `Qualitative.LS-RdGnBu`, `Qualitative.LS-SunArc` | a few visually distinct line series (`SunArc` is a warm sunrise/noon/sunset triad) |
+| `Qualitative.LS-SustainZones` | coloring named thermal zones in a building model |
+| `Diverging.LS-BuMaRd`, `Diverging.LS-BuCyGnYlRd` | alternatives tried against `RdBu` on one heatmap |
+| `Sequential.LS-Gy` | a plain black-to-white ramp |
+
+That marker is the only provenance encoded in a name, because it's the only distinction that
+changes how you'd use one: *is this vetted for general data, or one person's pick for one chart.*
+Which upstream package a standard scheme happens to ship in isn't a property of the palette.
+
 `resolvePalette`/`colorScale` are both name-based lookups — for a caller that instead needs an
 arbitrary, caller-chosen *count* of colors with no natural name (a polygon's side count, an IFS's
 transform count), `hueWheelPalette(count)` generates one instead of looking one up:
