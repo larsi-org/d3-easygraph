@@ -48,6 +48,10 @@ All notable changes to this project are documented here. Format loosely follows
   a smoothly-tweenable "value" the way a point's position or color is.
 
 ### Changed
+- The per-family chart name behind the accessible-name fallback is `graph._chartType`, an
+  internal the family always sets -- it's assigned after the config merge rather than through
+  it, so a caller passing `_chartType` can't override it. It was briefly a plain `chartType`
+  entry in each family's defaults, which read like a config key a caller was meant to set.
 - `oneYear` renamed to `timeFormatMulti`. The old name described one caller's use case (an
   EnergyPlus year of hourly data) rather than what the flag does: pick a per-tick time format
   from the tick's own precision instead of one fixed format across the whole axis. Breaking

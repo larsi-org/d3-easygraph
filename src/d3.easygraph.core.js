@@ -152,6 +152,12 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
 
   d3.easygraph._extend(graph, familyDefaults);
 
+  // Assigned after the merge, not through it: _extend only fills keys the caller left unset, so
+  // routing this through familyDefaults would let a caller's own `_chartType` win. It isn't
+  // config -- it's the family's own name, used only for the accessible-name fallback in
+  // update() -- so the family always wins.
+  graph._chartType = familyDefaults._chartType;
+
   // Clone x/y onto a fresh object rather than resolving in place -- _build() (via
   // _resolveProperty below) writes $scale/$axis directly onto whatever object graph.x/graph.y
   // point to. Left un-cloned, a caller reusing the same x/y config object literal across two
@@ -324,8 +330,8 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     graph.$title.text(titleText);
     // Mirrored onto the SVG's own accessible name. Falls back to the family name so a chart
     // with no label at all still announces as something rather than as its axis tick numbers.
-    graph.$a11yTitle.text(titleText || graph.chartType + " chart");
-    graph.$svgRoot.attr("aria-label", titleText || graph.chartType + " chart");
+    graph.$a11yTitle.text(titleText || graph._chartType + " chart");
+    graph.$svgRoot.attr("aria-label", titleText || graph._chartType + " chart");
 
     var domains = graph._module.domain(data, ranges.x, ranges.y) || { x: [0, 1], y: [0, 1] };
     graph.x.$scale.domain(domains.x);

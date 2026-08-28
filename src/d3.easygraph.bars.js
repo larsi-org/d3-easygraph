@@ -12,10 +12,10 @@
 
 d3.easygraph.bars = function(config) {
   return d3.easygraph._build(config, {
-    chartType:     'bar',
-    orientation:   'v',
-    mode:          'grouped',
-    colorPerData:  false
+    _chartType:   'bar',
+    orientation:  'v',
+    mode:         'grouped',
+    colorPerData: false
   }, function(graph) {
     // enter/exit/merge bar group <g> elements
     function _bindGroups(data) {

@@ -26,17 +26,17 @@ function _nestedValues(data, acc) {
 
 d3.easygraph.line = function(config) {
   return d3.easygraph._build(config, {
-    chartType:          'line',
+    _chartType:         'line',
     lines:              false,
     ribbons:            false,
     stackedArea:        false,
-    zoom:                false,
-    crosshair:           false,
-    crosshairThreshold:  10,
-    interpolate:         'linear',
-    units:               null // optional per-series unit strings for the crosshair tooltip --
-                               // see _moveCrosshair() below; graph.unit (singular, from the
-                               // shared y preset) is the fallback when a series has no entry
+    zoom:               false,
+    crosshair:          false,
+    crosshairThreshold: 10,
+    interpolate:        'linear',
+    units:              null // optional per-series unit strings for the crosshair tooltip --
+                             // see _moveCrosshair() below; graph.unit (singular, from the
+                             // shared y preset) is the fallback when a series has no entry
   }, function(graph) {
     var _cx, _cy, _bisect;
 

@@ -322,3 +322,22 @@ test('the bundle leaks no helper globals onto window', async ({ page }) => {
   });
   expect(leaked).toEqual([]);
 });
+
+test('_chartType is internal: a caller cannot override the accessible-name fallback', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const result = await page.evaluate(() => {
+    // passing _chartType in config must not win -- it isn't config, it's the family's own name
+    var g = d3.easygraph.line({ container: '#graph', height: 200, _chartType: 'hacked' });
+    g.update([[{ x: 1, y: 1 }]]);
+    var r = {
+      chartType: g._chartType,
+      ariaLabel: document.querySelector('#graph svg').getAttribute('aria-label'),
+      noPublicAlias: g.chartType === undefined
+    };
+    g.destroy();
+    return r;
+  });
+  expect(result.chartType).toBe('line');
+  expect(result.ariaLabel).toBe('line chart');
+  expect(result.noPublicAlias).toBe(true);
+});

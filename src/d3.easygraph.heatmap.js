@@ -18,7 +18,7 @@ d3.easygraph.heatmap = function(config) {
   // does as line/bars/scatter's per-series colors. A caller's own colorPalette in config still
   // wins (config is folded onto graph before familyDefaults is even consulted).
   return d3.easygraph._build(config, {
-    chartType:    'heatmap',
+    _chartType:   'heatmap',
     colorPalette: 'Diverging.RdBu.reversed'
   }, function(graph) {
     function render(data) {
