@@ -168,6 +168,15 @@ All notable changes to this project are documented here. Format loosely follows
   docs, tests).
 
 ### Fixed
+- `bars`' `mode` now rejects an unrecognized value instead of silently rendering grouped -- the
+  same silent fall-through already fixed for `orientation`, missed on its twin. Re-checked on
+  every `update()`, not just at construction, since `mode` is meant to be toggled on a live chart.
+- `x`/`y`'s `scale` now rejects an unrecognized value instead of silently falling back to linear.
+  A mistyped `'time'` produced a plausible-looking chart that plotted Dates as numbers.
+- A `line` chart with data but none of `lines`/`ribbons`/`stackedArea` enabled now warns on the
+  console instead of silently drawing axes and nothing else -- the likeliest first-run mistake.
+  A warning rather than an error on purpose: those flags are meant to be toggled on a live chart,
+  so being momentarily in that state is legitimate.
 - **Only line charts re-rendered their axes on resize.** `_layout()` updates each scale's pixel
   range, but the tick DOM has to be re-rendered separately -- and that only happened inside
   `line.js`'s `draw()`. Bars, heatmap and scatter therefore kept their ticks frozen at pre-resize

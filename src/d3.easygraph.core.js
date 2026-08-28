@@ -274,6 +274,17 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   d3.easygraph._resolveProperty(graph.x);
   d3.easygraph._resolveProperty(graph.y);
 
+  // Every read of `scale` is written as "time, else linear", so an unrecognized value used to
+  // fall through to a linear scale silently -- a mistyped 'time' produced a chart that looked
+  // plausible and plotted Dates as numbers. Undefined is fine and means linear.
+  ['x', 'y'].forEach(function(axis) {
+    var scale = graph[axis].scale;
+    if (scale !== undefined && scale !== 'linear' && scale !== 'time') {
+      throw new Error('d3.easygraph: ' + axis + '.scale must be "linear" or "time", got ' +
+                      JSON.stringify(scale));
+    }
+  });
+
   // Resolved lazily rather than copied onto graph.label/graph.unit at construction: the copy
   // meant a caller who set graph.y.label afterwards saw nothing change (the title only ever
   // read the construction-time snapshot), and left two competing sources of truth for the same

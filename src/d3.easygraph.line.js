@@ -223,6 +223,17 @@ d3.easygraph.line = function(config) {
       },
 
       render: function(data) {
+        // A line chart with none of the three mark types enabled draws axes and nothing else --
+        // the likeliest first-run mistake, and previously a silent one. A warning rather than an
+        // error on purpose: the flags are meant to be toggled on a live chart (larsi.org's own
+        // pages do `graph.ribbons = !hourly` between renders), so a caller can legitimately be
+        // mid-flight with all three off, and throwing would break that. Only warns when there's
+        // actually data being asked for, so an empty first render stays quiet.
+        if (data.length && !graph.lines && !graph.ribbons && !graph.stackedArea) {
+          console.warn('d3.easygraph: line chart has data but none of lines/ribbons/stackedArea ' +
+                       'enabled, so nothing will be drawn');
+        }
+
         if (graph.zoom) {
           // baseline for zoom rescaling; reset transform so new domain is "home"
           graph.$xScaleRef = graph.x.$scale.copy();

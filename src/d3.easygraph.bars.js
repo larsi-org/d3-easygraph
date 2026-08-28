@@ -20,6 +20,16 @@ d3.easygraph.bars = function(config) {
     names:        null // optional per-series names, index-matched to the series arrays passed to
                        // update() -- what legendItems() labels each entry with
   }, function(graph) {
+    // `mode`, unlike `orientation`, is meant to be toggled on a live chart, so it's re-checked on
+    // every update() rather than only at construction -- a bad value assigned afterwards would
+    // otherwise fall through to "grouped" just as silently as a bad one passed in.
+    function _checkMode() {
+      if (graph.mode !== 'stacked' && graph.mode !== 'grouped') {
+        throw new Error('d3.easygraph: mode must be "stacked" or "grouped", got ' +
+                        JSON.stringify(graph.mode));
+      }
+    }
+
     // enter/exit/merge bar group <g> elements
     function _bindGroups(data) {
       var sel = graph.$group.selectAll("g.bar-groups").data(data);
@@ -147,13 +157,14 @@ d3.easygraph.bars = function(config) {
 
     return {
       prepareScales: function() {
-        // Checked rather than left to fall through: every orientation test below is written as
-        // "vertical, else horizontal", so a typo used to silently produce a horizontal chart
-        // instead of an error.
+        // Both of these are checked rather than left to fall through: every test below is
+        // written as "one value, else the other", so a typo used to silently produce the wrong
+        // chart instead of an error.
         if (graph.orientation !== 'vertical' && graph.orientation !== 'horizontal') {
           throw new Error('d3.easygraph: orientation must be "vertical" or "horizontal", got ' +
                           JSON.stringify(graph.orientation));
         }
+        _checkMode();
         if (graph.orientation === 'vertical') {
           graph.x.$scale = d3.scaleBand().rangeRound([0, graph.width]).padding(.2);
           graph.y.$scale = (graph.y.scale === 'time') ? d3.scaleTime() : d3.scaleLinear();
@@ -166,6 +177,7 @@ d3.easygraph.bars = function(config) {
       },
 
       domain: function(data, xRange, yRange) {
+        _checkMode(); // runs before every render, so a live `graph.mode = ...` is checked too
         var isH = graph.orientation === 'horizontal';
         var isStacked = graph.mode === 'stacked';
 

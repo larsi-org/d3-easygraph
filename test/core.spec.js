@@ -715,3 +715,48 @@ test('`names` also labels each crosshair row', async ({ page }) => {
   expect(html).toContain('Indoor 21°C');
   expect(html).toContain('Outdoor 5°C');
 });
+
+test('x/y scale rejects an unrecognized value instead of silently falling back to linear', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    function build(cfg) {
+      try {
+        var g = d3.easygraph.line(Object.assign({ container: '#graph', height: 200 }, cfg));
+        var isTime = g.x.$scale.domain()[0] instanceof Date;
+        g.destroy();
+        return 'built (' + (isTime ? 'time' : 'linear') + ')';
+      } catch (e) { return e.message; }
+    }
+    return {
+      typo:      build({ x: { scale: 'tiem' } }),
+      linear:    build({ x: { scale: 'linear' } }),
+      time:      build({ x: { scale: 'time' } }),
+      omitted:   build({}),
+      yTypo:     build({ y: { scale: 'lienar' } })
+    };
+  });
+  expect(r.typo).toContain('x.scale must be "linear" or "time"');
+  expect(r.typo).toContain('tiem');
+  expect(r.yTypo).toContain('y.scale must be "linear" or "time"');
+  expect(r.linear).toBe('built (linear)');
+  expect(r.time).toBe('built (time)');
+  expect(r.omitted).toBe('built (linear)');   // undefined stays valid, and means linear
+});
+
+test('a line chart with data but no mark type enabled warns instead of silently drawing nothing', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const warnings = [];
+  page.on('console', (m) => { if (m.type() === 'warning') warnings.push(m.text()); });
+  const marks = await page.evaluate(() => {
+    var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
+    var g = d3.easygraph.line({ container: w, height: 200 }); // no lines/ribbons/stackedArea
+    g.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
+    var withData = w.querySelectorAll('path.data-lines, path.data-ribbons, path.data-stack').length;
+    g.update([]); // an empty render must stay quiet -- nothing was asked for
+    g.destroy(); w.remove();
+    return withData;
+  });
+  expect(marks).toBe(0);
+  expect(warnings.length).toBe(1); // exactly one: the data render, not the empty one
+  expect(warnings[0]).toContain('none of lines/ribbons/stackedArea');
+});

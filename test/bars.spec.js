@@ -72,3 +72,33 @@ test('update([]) with no data yields a real [0,1] value domain, not [0, undefine
   expect(result.y[1]).not.toBeNull();
   expect(result.bars).toBe(0);
 });
+
+test('mode rejects an unrecognized value, at construction and on a live toggle', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
+    var data = [[{ x: 'a', y: 1 }], [{ x: 'a', y: 2 }]];
+
+    var atConstruction;
+    try {
+      var bad = d3.easygraph.bars({ container: w, height: 200, mode: 'stakced' });
+      bad.update(data); atConstruction = 'NO ERROR';
+    } catch (e) { atConstruction = e.message; }
+
+    // the live-toggle path -- mode is documented as switchable on a rendered chart
+    var g = d3.easygraph.bars({ container: w, height: 200, mode: 'grouped' });
+    g.update(data);
+    var onToggle;
+    try { g.mode = 'Stacked'; g.update(data); onToggle = 'NO ERROR'; }
+    catch (e) { onToggle = e.message; }
+
+    g.mode = 'stacked'; g.update(data);          // a correct toggle still works
+    var validToggleBars = w.querySelectorAll('rect.data-bars').length;
+    g.destroy(); w.remove();
+    return { atConstruction, onToggle, validToggleBars };
+  });
+  expect(r.atConstruction).toContain('mode must be "stacked" or "grouped"');
+  expect(r.atConstruction).toContain('stakced');
+  expect(r.onToggle).toContain('mode must be "stacked" or "grouped"'); // case matters
+  expect(r.validToggleBars).toBe(2);
+});

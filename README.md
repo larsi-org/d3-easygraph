@@ -41,6 +41,20 @@ Bars' value axis always includes zero, so `clip` has no effect there.
 
 `tickLabels: false` blanks an axis's tick text while keeping its tick marks and gridlines.
 
+`x`/`y`'s `scale` must be `'linear'` (the default) or `'time'`; bars' `orientation` must be
+`'vertical'` or `'horizontal'` and its `mode` `'stacked'` or `'grouped'`. Each is checked rather
+than left to fall through, since every internal test on them reads as "one value, else the other"
+— a typo would otherwise render the wrong chart with no complaint. `mode` is re-checked on every
+`update()`, so a bad value assigned to a live chart is caught too.
+
+A `line` chart with data but none of `lines`/`ribbons`/`stackedArea` enabled draws axes and
+nothing else, and warns on the console saying so. That's a warning rather than an error because
+the flags are meant to be toggled on a live chart, so being briefly in that state is legitimate.
+
+Config keys a family doesn't understand are ignored without complaint — `zoom` on a bar chart, a
+misspelled `colorPallete`. That's the deliberate cost of letting you hang your own properties on a
+config (see **Public API**), which the library can't tell apart from a typo.
+
 `container` accepts a CSS selector string, a DOM element, or a d3 selection. `container` must
 resolve to an element, and `height` must be a positive number *greater than
 `margin.top + margin.bottom`* — otherwise there's no room left to plot in. Both are checked at
