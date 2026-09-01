@@ -18,22 +18,26 @@ d3.easygraph.round = function(x, n) {
   return n ? Math.round(x * Math.pow(10, n)) / Math.pow(10, n) : Math.round(x);
 };
 
-// Nearest 8-/4-point compass label for a raw bearing in degrees (0 = north, clockwise) -- a
+// Nearest 16-/8-/4-point compass label for a raw bearing in degrees (0 = north, clockwise) -- a
 // plain string lookup, not a `convert`: every preset's convert() feeds a numeric d3.scaleLinear
 // axis (see core.js), so a label-returning function isn't usable as one and doesn't belong in
-// `presets` above. No FROM/TO wind-direction semantic either -- purely "which of 8/4 labels is
-// this angle closest to," so a caller distinguishing wind blowing from vs. toward a bearing
+// `presets` above. No FROM/TO wind-direction semantic either -- purely "which of 16/8/4 labels
+// is this angle closest to," so a caller distinguishing wind blowing from vs. toward a bearing
 // (see e.g. larsi.org's weather/report.php) applies that adjustment before calling this, not
-// after. Both add 360 before flooring to guard a slightly negative input (e.g. -1, which should
-// read as 359/N, not throw off the bucketing), then mask off the low bits (equivalent to % 8 /
-// % 4 for the non-negative dividend each always produces, cheaper) before scaling up into an
-// index on the shared 16-entry `_compassPoints` -- compassPoint8 steps by 2 (indices
-// 0/2/4/.../14), compassPoint4 by 4 (indices 0/4/8/12), so all granularities stay a single
-// source of truth for the label spellings.
+// after. All three add 360 before flooring to guard a slightly negative input (e.g. -1, which
+// should read as 359/N, not throw off the bucketing), then mask off the low bits (equivalent to
+// % 16 / % 8 / % 4 for the non-negative dividend each always produces, cheaper) before scaling
+// up into an index on the shared 16-entry `_compassPoints` -- compassPoint16 steps by 1 (every
+// index), compassPoint8 by 2 (indices 0/2/4/.../14), compassPoint4 by 4 (indices 0/4/8/12), so
+// all three granularities stay a single source of truth for the label spellings.
 var _compassPoints = [
   'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
   'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'
 ];
+d3.easygraph.compassPoint16 = function(direction) {
+  var index = Math.floor((direction + 360 + 11.25) / 22.5) & 15;
+  return _compassPoints[index];
+};
 d3.easygraph.compassPoint8 = function(direction) {
   var index = 2 * (Math.floor((direction + 360 + 22.5) / 45) & 7);
   return _compassPoints[index];

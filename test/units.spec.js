@@ -114,6 +114,34 @@ test('round(x, n) rounds to n decimal places, or the nearest integer when n is o
   expect(results).toEqual([68.5, 69, 69, 29.92]);
 });
 
+test('compassPoint16(direction) returns the nearest 16-point compass label', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const results = await page.evaluate(() => [
+    d3.easygraph.compassPoint16(0),     // N
+    d3.easygraph.compassPoint16(23),    // NNE
+    d3.easygraph.compassPoint16(45),    // NE
+    d3.easygraph.compassPoint16(68),    // ENE
+    d3.easygraph.compassPoint16(90),    // E
+    d3.easygraph.compassPoint16(113),   // ESE
+    d3.easygraph.compassPoint16(135),   // SE
+    d3.easygraph.compassPoint16(158),   // SSE
+    d3.easygraph.compassPoint16(180),   // S
+    d3.easygraph.compassPoint16(203),   // SSW
+    d3.easygraph.compassPoint16(225),   // SW
+    d3.easygraph.compassPoint16(248),   // WSW
+    d3.easygraph.compassPoint16(270),   // W
+    d3.easygraph.compassPoint16(293),   // WNW
+    d3.easygraph.compassPoint16(315),   // NW
+    d3.easygraph.compassPoint16(338),   // NNW
+    d3.easygraph.compassPoint16(360),   // wraps back to N
+    d3.easygraph.compassPoint16(-1)     // negative input reads as 359, still N
+  ]);
+  expect(results).toEqual([
+    'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+    'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW', 'N', 'N'
+  ]);
+});
+
 test('compassPoint8(direction) returns the nearest 8-point compass label', async ({ page }) => {
   await page.goto(FIXTURE);
   const results = await page.evaluate(() => [

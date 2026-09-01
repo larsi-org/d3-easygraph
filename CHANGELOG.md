@@ -6,11 +6,12 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
-- `d3.easygraph.compassPoint8(direction)` and `compassPoint4(direction)`, plain utilities
-  returning the nearest 8-/4-point compass label (`"N"`, `"NE"`, `"E"`, ...) for a raw bearing in
-  degrees. Neither is a `convert` -- presets' `convert()` feeds a numeric `d3.scaleLinear` axis,
-  so a label-returning function isn't usable as one and doesn't belong in `presets`. No FROM/TO
-  wind-direction semantic either, purely "which of 8/4 labels is this angle closest to."
+- `d3.easygraph.compassPoint16(direction)`, `compassPoint8(direction)`, and
+  `compassPoint4(direction)`, plain utilities returning the nearest 16-/8-/4-point compass label
+  (`"N"`, `"NNE"`, `"NE"`, ...) for a raw bearing in degrees. None is a `convert` -- presets'
+  `convert()` feeds a numeric `d3.scaleLinear` axis, so a label-returning function isn't usable
+  as one and doesn't belong in `presets`. No FROM/TO wind-direction semantic either, purely
+  "which of 16/8/4 labels is this angle closest to."
 
 ## [0.7.0] - 2026-08-28
 
