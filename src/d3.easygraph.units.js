@@ -24,26 +24,38 @@ d3.easygraph.round = function(x, n) {
 // `presets` above. No FROM/TO wind-direction semantic either -- purely "which of 16/8/4 labels
 // is this angle closest to," so a caller distinguishing wind blowing from vs. toward a bearing
 // (see e.g. larsi.org's weather/report.php) applies that adjustment before calling this, not
-// after. All three add 360 before flooring to guard a slightly negative input (e.g. -1, which
-// should read as 359/N, not throw off the bucketing), then mask off the low bits (equivalent to
-// % 16 / % 8 / % 4 for the non-negative dividend each always produces, cheaper) before scaling
-// up into an index on the shared 16-entry `_compassPoints` -- compassPoint16 steps by 1 (every
-// index), compassPoint8 by 2 (indices 0/2/4/.../14), compassPoint4 by 4 (indices 0/4/8/12), so
-// all three granularities stay a single source of truth for the label spellings.
+// after.
+//
+// All three share one building block: _segment32 buckets direction into 32 raw, uncentered
+// 11.25-degree segments (segment 0 = [0, 11.25)), adding 360 first to guard a slightly negative
+// input (e.g. -1, which should read as segment 31/just-before-N, not throw off the bucketing).
+// 11.25 evenly divides 22.5/45/90 (the 16-/8-/4-point sector widths), so every centered compass
+// bucket's boundaries land exactly on a _segment32 boundary too -- no direction value can ever
+// straddle a raw segment in a way that would make it ambiguous which compass bucket it belongs
+// to. That means each compass index can be recovered from the raw segment number alone via a
+// shift-and-mask (verified exhaustively against the original per-function floor/offset formulas
+// at 0.01-degree resolution, -720 to 720): compassPoint16 pairs up 2 consecutive segments per
+// bucket, compassPoint8 groups 4, compassPoint4 groups 8 -- scaling each into an index on the
+// shared 16-entry `_compassPoints` as it goes (compassPoint16 steps by 1/every index,
+// compassPoint8 by 2/indices 0,2,4,...,14, compassPoint4 by 4/indices 0,4,8,12), so all three
+// granularities stay a single source of truth for the label spellings.
+function _segment32(direction) {
+  return Math.floor((direction + 360) / 11.25) & 0x1f;
+}
 var _compassPoints = [
   'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
   'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'
 ];
 d3.easygraph.compassPoint16 = function(direction) {
-  var index = Math.floor((direction + 360 + 11.25) / 22.5) & 15;
+  var index = ((_segment32(direction) + 1) >> 1) & 0x0f;
   return _compassPoints[index];
 };
 d3.easygraph.compassPoint8 = function(direction) {
-  var index = 2 * (Math.floor((direction + 360 + 22.5) / 45) & 7);
+  var index = ((_segment32(direction) + 2) >> 1) & 0x0e;
   return _compassPoints[index];
 };
 d3.easygraph.compassPoint4 = function(direction) {
-  var index = 4 * (Math.floor((direction + 360 + 45) / 90) & 3);
+  var index = ((_segment32(direction) + 4) >> 1) & 0x0c;
   return _compassPoints[index];
 };
 
