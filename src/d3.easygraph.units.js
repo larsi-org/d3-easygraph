@@ -18,6 +18,21 @@ d3.easygraph.round = function(x, n) {
   return n ? Math.round(x * Math.pow(10, n)) / Math.pow(10, n) : Math.round(x);
 };
 
+// Nearest 8-point compass label for a raw bearing in degrees (0 = north, clockwise) -- a
+// plain string lookup, not a `convert`: every preset's convert() feeds a numeric d3.scaleLinear
+// axis (see core.js), so a label-returning function isn't usable as one and doesn't belong in
+// `presets` above. No FROM/TO wind-direction semantic either -- purely "which of 8 labels is
+// this angle closest to," so a caller distinguishing wind blowing from vs. toward a bearing
+// (see e.g. larsi.org's weather/report.php) applies that adjustment before calling this, not
+// after. +360 before flooring guards a slightly negative input (e.g. -1, which should read as
+// 359/N, not throw off the bucketing); & 7 wraps the result into the 8-entry array (equivalent
+// to % 8 for the non-negative dividend this always produces, cheaper).
+var _compassPoints = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+d3.easygraph.compassPoint = function(direction) {
+  var index = Math.floor((direction + 360 + 22.5) / 45) & 7;
+  return _compassPoints[index];
+};
+
 function _identity(v) { return v; }
 
 // the raw conversion formulas -- named for readability, referenced by the presets table below

@@ -114,6 +114,26 @@ test('round(x, n) rounds to n decimal places, or the nearest integer when n is o
   expect(results).toEqual([68.5, 69, 69, 29.92]);
 });
 
+test('compassPoint(direction) returns the nearest 8-point compass label', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const results = await page.evaluate(() => [
+    d3.easygraph.compassPoint(0),     // N
+    d3.easygraph.compassPoint(22),    // still N, just under the N/NE boundary
+    d3.easygraph.compassPoint(23),    // NE, just over it
+    d3.easygraph.compassPoint(45),    // NE
+    d3.easygraph.compassPoint(90),    // E
+    d3.easygraph.compassPoint(135),   // SE
+    d3.easygraph.compassPoint(180),   // S
+    d3.easygraph.compassPoint(225),   // SW
+    d3.easygraph.compassPoint(270),   // W
+    d3.easygraph.compassPoint(315),   // NW
+    d3.easygraph.compassPoint(337),   // still NW, just under the NW/N wraparound boundary
+    d3.easygraph.compassPoint(360),   // wraps back to N
+    d3.easygraph.compassPoint(-1)     // negative input reads as 359, still N
+  ]);
+  expect(results).toEqual(['N', 'N', 'NE', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'NW', 'N', 'N']);
+});
+
 test('presets and colorPalettes are extensible -- the documented way to add your own', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {

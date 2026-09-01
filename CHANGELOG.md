@@ -3,6 +3,15 @@
 All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- `d3.easygraph.compassPoint(direction)`, a plain utility returning the nearest 8-point compass
+  label (`"N"`, `"NE"`, `"E"`, ...) for a raw bearing in degrees. Not a `convert` -- presets'
+  `convert()` feeds a numeric `d3.scaleLinear` axis, so a label-returning function isn't usable
+  as one and doesn't belong in `presets`. No FROM/TO wind-direction semantic either, purely
+  "which of 8 labels is this angle closest to."
+
 ## [0.7.0] - 2026-08-28
 
 ### Added
