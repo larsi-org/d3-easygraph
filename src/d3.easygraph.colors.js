@@ -4,18 +4,18 @@
 // Copyright (c) 2026, Lars Schumann, larsi.org@gmail.com
 //
 // A small, easygraph-agnostic palette lookup: colorPalettes/resolvePalette/colorScale/
-// hueWheelPalette have no chart concepts of their own — no graph, no container, no SVG — so
+// hueWheelPalette have no chart concepts of their own - no graph, no container, no SVG - so
 // they're reusable well beyond charting (e.g. coloring a Leaflet marker, a parcoords line, or a
 // canvas point cloud). Same shape as d3.easygraph.units.js's standalone preset table, just not
 // quite as dependency-free: units.js needs nothing but its own data, while this file expects `d3`
-// (scaleLinear/scaleQuantize/range/hsl/rgb, and — as of 2026-08 — its bundled d3-scale-chromatic
+// (scaleLinear/scaleQuantize/range/hsl/rgb, and - as of 2026-08 - its bundled d3-scale-chromatic
 // schemes), same as core.js does.
 // Chart config resolution (folding colorPalette/colorClasses onto graph.paletteColors) lives in
-// core.js, the only actual chart consumer that needs it — same division of labor as units.js's
+// core.js, the only actual chart consumer that needs it - same division of labor as units.js's
 // getUnit() vs. core.js's _resolveProperty().
 
-// Every palette name is "Kind.Name" -- Sequential (a plain value gradient), Diverging (a gradient
-// with a meaningful midpoint), or Qualitative (unordered, mutually distinct categories) -- the
+// Every palette name is "Kind.Name" - Sequential (a plain value gradient), Diverging (a gradient
+// with a meaningful midpoint), or Qualitative (unordered, mutually distinct categories) - the
 // same three groups colorbrewer.schemeGroups itself uses. The kind leads because it's what a
 // caller is actually choosing on: what sort of quantity am I representing.
 //
@@ -26,7 +26,7 @@
 // The three arrays below are colorbrewer's own three groups (SEQUENTIAL folds in its
 // single-hue/multi-hue split, which doesn't affect lookup) plus D3's own (non-ColorBrewer)
 // categorical schemes appended to QUALITATIVE, since they're the same kind and same "flat array,
-// no per-class-count variant" lookup shape -- sourced directly from d3-scale-chromatic's
+// no per-class-count variant" lookup shape - sourced directly from d3-scale-chromatic's
 // d3.scheme* exports (already part of the full d3@7 bundle every caller already loads) rather
 // than a second copy via the standalone `colorbrewer` package. Verified byte-identical against
 // colorbrewer's own data for every name/class-count here except PuOr, which d3 stores in the
@@ -36,10 +36,10 @@ var DIVERGING   = ["BrBG","PiYG","PRGn","PuOr","RdBu","RdGy","RdYlBu","RdYlGn","
 var QUALITATIVE = ["Accent","Dark2","Paired","Pastel1","Pastel2","Set1","Set2","Set3","Tableau10","Observable10"];
 var SEQUENTIAL  = ["BuGn","BuPu","GnBu","OrRd","PuBu","PuBuGn","PuRd","RdPu","YlGn","YlGnBu","YlOrBr","YlOrRd","Blues","Greens","Greys","Oranges","Purples","Reds","Turbo"];
 
-// Some d3-scale-chromatic schemes (Turbo among them -- Viridis/Inferno/Magma/Plasma/Cividis/
+// Some d3-scale-chromatic schemes (Turbo among them - Viridis/Inferno/Magma/Plasma/Cividis/
 // Warm/Cool/CubehelixDefault/Rainbow/Sinebow are the others, none added above since nothing here
 // names them yet) ship only as a continuous d3.interpolateX(t) function, no discrete d3.schemeX
-// array at all -- unlike colorbrewer's schemes, which come pre-split into classes 3..11. Sampled
+// array at all - unlike colorbrewer's schemes, which come pre-split into classes 3..11. Sampled
 // at DEFAULT_INTERPOLATE_SAMPLES evenly-spaced points across [0, 1] (or `classes`, taking over
 // the same role it plays for a classed colorbrewer scheme: how many discrete stops to return) to
 // fit the same flat-color-array shape every other palette here uses. 9 matches the largest class
@@ -50,13 +50,13 @@ var DEFAULT_INTERPOLATE_SAMPLES = 9;
 // Sequential/diverging schemes are d3 arrays indexed by class count (classes 3..11, with the
 // leading indices unused, so the largest class's colors are the *last* element); qualitative
 // schemes are a single flat array of color strings, no per-class-count variant, so the last
-// element is a string rather than an array -- that shape difference, not a hardcoded list of
+// element is a string rather than an array - that shape difference, not a hardcoded list of
 // which names are which, is what schemeColors actually branches on, so it handles any d3.scheme*
 // export correctly without needing to know about it in advance. Colorbrewer's own smaller-class
 // variants are verified literal prefixes of its largest set, so slicing a flat array reproduces
 // them exactly. `classes` omitted (or not available) resolves to the largest/full set. Takes the
-// bare d3 scheme name ("RdYlBu", not "Diverging.RdYlBu") -- resolvePalette strips the kind prefix
-// before calling this. Falls back to sampling d3.interpolateX when d3.schemeX doesn't exist --
+// bare d3 scheme name ("RdYlBu", not "Diverging.RdYlBu") - resolvePalette strips the kind prefix
+// before calling this. Falls back to sampling d3.interpolateX when d3.schemeX doesn't exist -
 // see DEFAULT_INTERPOLATE_SAMPLES above.
 function schemeColors(name, classes) {
   var scheme = d3["scheme" + name];
@@ -83,13 +83,13 @@ function schemeColors(name, classes) {
 //
 // The `LS-` marker means "hand-picked for one page on larsi.org" rather than an external,
 // published, tested scheme. That's the only distinction a caller choosing a palette actually
-// needs -- how vetted is this for my data -- so it's the only one encoded in a name. Note what
+// needs - how vetted is this for my data - so it's the only one encoded in a name. Note what
 // is deliberately *not* marked: Category20/20b/20c are hardcoded here purely because D3 dropped
 // them from d3-scale-chromatic in v5, which is a packaging accident, not a property of the
 // palette. They're as externally-designed as Set1 or Tableau10 and are named like them. Marking
 // them (an earlier idea was a `D3-` prefix) would have drawn the line at "which file is this
 // defined in" instead of "who designed it", and left the unmarked set silently meaning
-// "ColorBrewer, or Tableau, or Observable, or Google" -- four origins wearing no marker at all.
+// "ColorBrewer, or Tableau, or Observable, or Google" - four origins wearing no marker at all.
 //
 // Computed once at load time (not rebuilt per chart instance) since it depends only on the `d3`
 // global, not on any particular graph's config.
@@ -118,7 +118,7 @@ d3.easygraph.colorPalettes = (function() {
 // palette without one.
 //
 // colorPalettes already has every name's *largest* size precomputed, so the common case (no
-// colorClasses) reads straight from that cache -- schemeColors only gets called when a specific,
+// colorClasses) reads straight from that cache - schemeColors only gets called when a specific,
 // possibly-non-largest class count is actually requested, the one thing the cache can't answer.
 d3.easygraph.resolvePalette = function(paletteName, colorClasses) {
   var REVERSE_SUFFIX = ".reversed";
@@ -129,7 +129,7 @@ d3.easygraph.resolvePalette = function(paletteName, colorClasses) {
   if (!colors) {
     // Unlike getUnit()'s deliberate silent fallback for a falsy/unrecognized preset (a preset
     // is often legitimately omitted entirely), colorPalette always has a value by the time this
-    // runs -- core.js's own default, or an explicit caller string -- so an unrecognized name
+    // runs - core.js's own default, or an explicit caller string - so an unrecognized name
     // here is always a genuine typo, not a valid "no preference" case. Throwing a clear error
     // beats a cryptic "Cannot read properties of undefined (reading 'slice')" a few lines down.
     if (!d3.easygraph.colorPalettes[name]) {
@@ -141,7 +141,7 @@ d3.easygraph.resolvePalette = function(paletteName, colorClasses) {
   return colors;
 };
 
-// Builds a ready color(value) scale from a palette name + [min, max] domain -- the same
+// Builds a ready color(value) scale from a palette name + [min, max] domain - the same
 // n-evenly-spaced-stops + clamp()/quantize() construction .heatmap()/.scatter() build for
 // their own graph.color.$scale, exposed standalone for a non-chart caller with its own
 // already-known domain (heatmap/scatter instead recompute their domain from live data on
@@ -156,10 +156,10 @@ d3.easygraph.colorScale = function(paletteName, domain, options) {
   return d3.scaleLinear().range(colors).domain(stops).clamp(true);
 };
 
-// Evenly spaced hues around the color wheel, one per index -- for unordered categorical data (a
+// Evenly spaced hues around the color wheel, one per index - for unordered categorical data (a
 // vertex id, a transform id) with no inherent ordering to respect, unlike colorScale's sequential/
 // diverging schemes above (which is why a sequential scheme, not this, is the right fit for
-// ordered data -- see larsi.org's Lorenz Attractor page, which samples
+// ordered data - see larsi.org's Lorenz Attractor page, which samples
 // colorScale('Sequential.YlGnBu', ...) instead of this for exactly that reason). Generated rather
 // than looked up by name, since the count needed is caller-specific and unbounded (a polygon's
 // side count, an IFS's transform count) rather than one of a fixed set of named schemes. Returns
@@ -176,7 +176,7 @@ d3.easygraph.hueWheelPalette = function(count) {
   return palette;
 };
 
-// Zips colors and labels into the { index, color, label } rows a legend is drawn from -- the
+// Zips colors and labels into the { index, color, label } rows a legend is drawn from - the
 // data, not the DOM. Deliberately renders nothing: the legends this replaces across larsi.org
 // are drawn four different ways (inline <span>s, a <table> with extra data columns, a
 // separately positioned <svg>, swatches inside the chart's own margin), two of them HTML rather
@@ -185,7 +185,7 @@ d3.easygraph.hueWheelPalette = function(count) {
 //
 // `colors` takes either an array of CSS colors or a palette name to resolve (so a caller with a
 // named palette doesn't have to resolve it first). `labels` is optional and may be shorter than
-// the colors -- an entry with no label just comes back with `label: undefined`, the same
+// the colors - an entry with no label just comes back with `label: undefined`, the same
 // no-generic-placeholder rule the chart title follows.
 //
 // The chart-aware counterpart is graph.legendItems(), which fills both arguments in from the

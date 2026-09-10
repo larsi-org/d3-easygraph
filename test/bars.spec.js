@@ -38,7 +38,7 @@ test('resize never produces a negative bar width (regression)', async ({ page })
 
   const widthBefore = await page.evaluate(() => window.graph.width);
 
-  // shrink below the margin sum (64px) — a transient/degenerate reading the
+  // shrink below the margin sum (64px) - a transient/degenerate reading the
   // core guard should reject rather than drive graph.width negative
   await page.evaluate(() => { document.querySelector('#wrap').style.width = '10px'; });
   await page.waitForTimeout(200);
@@ -85,7 +85,7 @@ test('mode rejects an unrecognized value, at construction and on a live toggle',
       bad.update(data); atConstruction = 'NO ERROR';
     } catch (e) { atConstruction = e.message; }
 
-    // the live-toggle path -- mode is documented as switchable on a rendered chart
+    // the live-toggle path - mode is documented as switchable on a rendered chart
     var g = d3.easygraph.bars({ container: w, height: 200, mode: 'grouped' });
     g.update(data);
     var onToggle;
@@ -148,7 +148,7 @@ test('horizontal bars render: stacked series pick up where the previous one ends
   expect(r.rects.length).toBe(2);
   // first series sits at the origin
   expect(r.rects[0].x).toBeCloseTo(r.scale.at0, 0);
-  // second starts exactly where the first ended -- the y0 offset, the whole point of stacking
+  // second starts exactly where the first ended - the y0 offset, the whole point of stacking
   expect(r.rects[1].x).toBeCloseTo(r.scale.at10, 0);
   // and the stack's right edge lands on the combined total
   expect(r.rects[1].x + r.rects[1].width).toBeCloseTo(r.scale.at30, 0);

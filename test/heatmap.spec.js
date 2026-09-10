@@ -47,7 +47,7 @@ test('cell fill transitions over graph.duration on a data update, not an instant
   const { immediateFill, settledFill, finalFill } = await page.evaluate(() => {
     return new Promise((resolve) => {
       var cell = document.querySelector('rect.heatmap-cells');
-      // first cell's value flips from 1 (near the domain's low end) to 9 (its high end) --
+      // first cell's value flips from 1 (near the domain's low end) to 9 (its high end) -
       // a big enough jump that an immediate vs. settled color reliably differ
       var flipped = window.testData.map(function(row) { return row.map(function(v) { return 10 - v; }); });
       window.graph.update(flipped, { x: [0, 6], y: [0, 4] });

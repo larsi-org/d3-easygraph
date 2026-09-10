@@ -124,7 +124,7 @@ test('update(data, ranges) accepts { x, y } to pin either domain independently',
   expect(domains.y).toEqual([1, 2]); // y auto-fits from data since ranges.y wasn't given
 });
 
-test('a preset fills in label/unit onto x/y config, but never a range -- that stays caller-supplied or unset', async ({ page }) => {
+test('a preset fills in label/unit onto x/y config, but never a range - that stays caller-supplied or unset', async ({ page }) => {
   await page.goto(FIXTURE);
   const y = await page.evaluate(() => {
     var g = d3.easygraph.line({ container: '#graph', height: 200, y: { preset: 'temperatureC' } });
@@ -146,12 +146,12 @@ test('_clippedExtent returns the true min/max when no clip is given', async ({ p
 test('_clippedExtent narrows to the given quantiles when a clip is given', async ({ page }) => {
   await page.goto(FIXTURE);
   const extent = await page.evaluate(() => d3.easygraph._clippedExtent([0, 10, 20, 30, 1000], [0, 0.5]));
-  // median of [0,10,20,30,1000] is 20 -- the outlier no longer reaches the upper bound
+  // median of [0,10,20,30,1000] is 20 - the outlier no longer reaches the upper bound
   expect(extent[0]).toBe(0);
   expect(extent[1]).toBe(20);
 });
 
-test('label is optional: no label, no preset, no placeholder text needed -- the title renders blank', async ({ page }) => {
+test('label is optional: no label, no preset, no placeholder text needed - the title renders blank', async ({ page }) => {
   await page.goto(FIXTURE);
   const title = await page.evaluate(() => {
     var g = d3.easygraph.line({ container: '#graph', height: 200 });
@@ -200,7 +200,7 @@ test('the caller\'s config object is never mutated, and two charts can share one
   expect(result.bothTornDown).toBe(true);
 });
 
-test('the chart title is a class, not a page-unique id -- N charts do not collide', async ({ page }) => {
+test('the chart title is a class, not a page-unique id - N charts do not collide', async ({ page }) => {
   await page.goto(FIXTURE);
   const result = await page.evaluate(() => {
     var wrap2 = document.createElement('div');
@@ -326,7 +326,7 @@ test('the bundle leaks no helper globals onto window', async ({ page }) => {
 test('_chartType is internal: a caller cannot override the accessible-name fallback', async ({ page }) => {
   await page.goto(FIXTURE);
   const result = await page.evaluate(() => {
-    // passing _chartType in config must not win -- it isn't config, it's the family's own name
+    // passing _chartType in config must not win - it isn't config, it's the family's own name
     var g = d3.easygraph.line({ container: '#graph', height: 200, _chartType: 'hacked' });
     g.update([[{ x: 1, y: 1 }]]);
     var r = {
@@ -599,7 +599,7 @@ test('every family re-renders its axes on resize, not just line (regression)', a
       }, [[1, 2, 3], [4, 5, 6]])
     };
   });
-  // after shrinking, the furthest-right tick must sit inside the new plot area -- before this
+  // after shrinking, the furthest-right tick must sit inside the new plot area - before this
   // fix bars/scatter/heatmap left theirs frozen hundreds of px outside it
   for (const family of ['line', 'bars', 'scatter', 'heatmap']) {
     expect(r[family].tickX).toBeLessThanOrEqual(r[family].plotWidth + 1);
@@ -752,7 +752,7 @@ test('a line chart with data but no mark type enabled warns instead of silently 
     var g = d3.easygraph.line({ container: w, height: 200 }); // no lines/ribbons/stackedArea
     g.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
     var withData = w.querySelectorAll('path.data-lines, path.data-ribbons, path.data-stack').length;
-    g.update([]); // an empty render must stay quiet -- nothing was asked for
+    g.update([]); // an empty render must stay quiet - nothing was asked for
     g.destroy(); w.remove();
     return withData;
   });
@@ -829,7 +829,7 @@ test('a pinned color domain survives a resize reflow and a scatter rescale()', a
       afterResize:  [afterResize[0], afterResize[afterResize.length - 1]]
     };
   });
-  // all three must stay pinned -- both re-render paths would otherwise fall back to the
+  // all three must stay pinned - both re-render paths would otherwise fall back to the
   // data's own 40-60 extent
   expect(r.afterUpdate).toEqual([0, 1000]);
   expect(r.afterRescale).toEqual([0, 1000]);

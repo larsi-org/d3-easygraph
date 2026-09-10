@@ -7,13 +7,13 @@
 // continuous x/y axes (no band scale), colored via its own graph.color.$scale.
 
 d3.easygraph.heatmap = function(config) {
-  // Both the config and its color sub-object are cloned rather than resolved in place -- the
+  // Both the config and its color sub-object are cloned rather than resolved in place - the
   // caller's own object is never written to (core.js's _build() clones again for the same
   // reason; see its comment for what went wrong when it didn't).
   config = Object.assign({}, config);
   config.color = d3.easygraph._resolveProperty(Object.assign({}, config.color));
 
-  // Overrides _build()'s shared Qualitative.Tableau10 default -- a set of unrelated categorical
+  // Overrides _build()'s shared Qualitative.Tableau10 default - a set of unrelated categorical
   // hues makes no sense spread across a heatmap's continuous scaleLinear gradient the way it
   // does as line/bars/scatter's per-series colors. A caller's own colorPalette in config still
   // wins (config is folded onto graph before familyDefaults is even consulted).
@@ -52,7 +52,7 @@ d3.easygraph.heatmap = function(config) {
       });
 
       var heatmapCells = heatmapRow.selectAll(".heatmap-cells").data(function(d) { return d; });
-      // fill set immediately at enter -- a freshly entered cell should show its real color
+      // fill set immediately at enter - a freshly entered cell should show its real color
       // right away, not fade in from nothing; the transition below only matters for a cell
       // that already existed and is changing color on a data update.
       var heatmapCellsEnter = heatmapCells.enter().append("rect").attr("class", "heatmap-cells")
@@ -60,7 +60,7 @@ d3.easygraph.heatmap = function(config) {
       heatmapCells.exit().remove();
       heatmapCells = heatmapCellsEnter.merge(heatmapCells);
       // x/y/width/height are pure layout (a function of the grid's row/col count, not of any
-      // cell's own value), so they're set immediately, never animated -- only fill (the
+      // cell's own value), so they're set immediately, never animated - only fill (the
       // actual value-driven attribute) transitions, same "structural now, animate the
       // value" split bars.js's colorPerData transition already uses.
       heatmapCells
@@ -75,12 +75,12 @@ d3.easygraph.heatmap = function(config) {
     return {
       init: function() {
         // clamp(true): a color clip narrows the domain but the palette still has to cover
-        // every cell, including the ones outside it -- clamp so those draw as the nearest
+        // every cell, including the ones outside it - clamp so those draw as the nearest
         // end color instead of extrapolating past the palette into an unintended hue
         graph.color.$scale = d3.scaleLinear().range(graph.paletteColors).clamp(true);
       },
 
-      // With no explicit range, the axes span the grid's own dimensions -- a 6x4 grid gets
+      // With no explicit range, the axes span the grid's own dimensions - a 6x4 grid gets
       // x: [0, 6], y: [0, 4], so the tick values line up with cell boundaries. The previous
       // [0, 1] fallback drew a 0-1 axis underneath a grid of any size, which was meaningless
       // for every caller that didn't pass ranges of its own.

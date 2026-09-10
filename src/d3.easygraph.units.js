@@ -5,10 +5,10 @@
 //
 // A small, easygraph-agnostic unit-preset lookup: a static table of physical-quantity unit
 // definitions (label, unit, scale, convert) and one function to fetch one by name. No config
-// merging, no chart concepts — just data, reusable well beyond charting (e.g. converting a raw
+// merging, no chart concepts - just data, reusable well beyond charting (e.g. converting a raw
 // value for a map marker). Chart config resolution (folding a preset, plus a call-site label
 // fallback, onto a graph's x/y/color config) lives in core.js, the only actual consumer that
-// needs it. Deliberately no default `range` per preset (removed 2026-07) -- a sensible axis
+// needs it. Deliberately no default `range` per preset (removed 2026-07) - a sensible axis
 // range is data-dependent (what a station/sensor actually observes), not a property of the
 // physical quantity itself, so a generic one-size-fits-all range was never the right fit; a
 // chart with no `range` in its `y` config auto-scales from whatever data is currently loaded.
@@ -18,10 +18,10 @@ d3.easygraph.round = function(x, n) {
   return n ? Math.round(x * Math.pow(10, n)) / Math.pow(10, n) : Math.round(x);
 };
 
-// Nearest 16-/8-/4-point compass label for a raw bearing in degrees (0 = north, clockwise) -- a
+// Nearest 16-/8-/4-point compass label for a raw bearing in degrees (0 = north, clockwise) - a
 // plain string lookup, not a `convert`: every preset's convert() feeds a numeric d3.scaleLinear
 // axis (see core.js), so a label-returning function isn't usable as one and doesn't belong in
-// `presets` above. No FROM/TO wind-direction semantic either -- purely "which of 16/8/4 labels
+// `presets` above. No FROM/TO wind-direction semantic either - purely "which of 16/8/4 labels
 // is this angle closest to," so a caller distinguishing wind blowing from vs. toward a bearing
 // (see e.g. larsi.org's weather/report.php) applies that adjustment before calling this, not
 // after.
@@ -30,12 +30,12 @@ d3.easygraph.round = function(x, n) {
 // 11.25-degree segments (segment 0 = [0, 11.25)), adding 360 first to guard a slightly negative
 // input (e.g. -1, which should read as segment 31/just-before-N, not throw off the bucketing).
 // 11.25 evenly divides 22.5/45/90 (the 16-/8-/4-point sector widths), so every centered compass
-// bucket's boundaries land exactly on a _segment32 boundary too -- no direction value can ever
+// bucket's boundaries land exactly on a _segment32 boundary too - no direction value can ever
 // straddle a raw segment in a way that would make it ambiguous which compass bucket it belongs
 // to. That means each compass index can be recovered from the raw segment number alone via a
 // shift-and-mask (verified exhaustively against the original per-function floor/offset formulas
 // at 0.01-degree resolution, -720 to 720): compassPoint16 pairs up 2 consecutive segments per
-// bucket, compassPoint8 groups 4, compassPoint4 groups 8 -- scaling each into an index on the
+// bucket, compassPoint8 groups 4, compassPoint4 groups 8 - scaling each into an index on the
 // shared 16-entry `_compassPoints` as it goes (compassPoint16 steps by 1/every index,
 // compassPoint8 by 2/indices 0,2,4,...,14, compassPoint4 by 4/indices 0,4,8,12), so all three
 // granularities stay a single source of truth for the label spellings.
@@ -61,7 +61,7 @@ d3.easygraph.compassPoint4 = function(direction) {
 
 function _identity(v) { return v; }
 
-// the raw conversion formulas -- named for readability, referenced by the presets table below
+// the raw conversion formulas - named for readability, referenced by the presets table below
 function _temperatureC2F(v)    { return v * 1.8 + 32; }
 function _pressureHpa2Inhg(v)  { return v * 0.02953; }
 function _windSpeedMs2Kmph(v)  { return v * 3.6; }
@@ -70,7 +70,7 @@ function _rainFallMm2Inches(v) { return v / 25.4; }
 
 // wraps a raw convert(v) formula so it also accepts an optional decimals arg: convert(v) stays
 // the raw, unrounded value (safe for e.g. color-scale interpolation); convert(v, d) rounds it
-// via d3.easygraph.round(..., d) -- sugar for round(convert(v), d) in one call
+// via d3.easygraph.round(..., d) - sugar for round(convert(v), d) in one call
 function _withRounding(rawConvert) {
   return function(v, d) {
     var converted = rawConvert(v);
@@ -78,10 +78,10 @@ function _withRounding(rawConvert) {
   };
 }
 
-// shared by every preset with no real conversion -- computed once, referenced everywhere below
+// shared by every preset with no real conversion - computed once, referenced everywhere below
 var _roundedIdentity = _withRounding(_identity);
 
-// every preset is a complete unit definition — `convert` is always present (identity when a
+// every preset is a complete unit definition - `convert` is always present (identity when a
 // quantity needs no conversion), so getUnit() never needs a second fallback merge to fill gaps
 d3.easygraph.presets = {
   default:              {                             unit: '',          scale: 'linear', convert: _roundedIdentity },

@@ -1,9 +1,9 @@
-// d3.easygraph -- UMD wrapper (opening half; see _outro.js for the close).
-// MIT License -- https://opensource.org/licenses/MIT
+// d3.easygraph - UMD wrapper (opening half; see _outro.js for the close).
+// MIT License - https://opensource.org/licenses/MIT
 // Copyright (c) 2026, Lars Schumann, larsi.org@gmail.com
 //
 // Wraps the concatenated build so it works as a <script> tag (attaching to the global d3, the
-// classic d3-plugin convention), as a CommonJS/bundler import, and as an AMD module -- and, just
+// classic d3-plugin convention), as a CommonJS/bundler import, and as an AMD module - and, just
 // as importantly, so the build's own internal helpers stay function-scoped instead of leaking
 // onto `window`. Inside the factory `d3` is a parameter, so every `d3.` reference in the source
 // files below resolves to whatever the host handed us.

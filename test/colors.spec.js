@@ -42,7 +42,7 @@ test('default colorPalette is Qualitative.Tableau10', async ({ page }) => {
   expect(paletteColors).toEqual(d3Tableau);
 });
 
-test('Qualitative.Category10 was removed -- resolvePalette no longer resolves it', async ({ page }) => {
+test('Qualitative.Category10 was removed - resolvePalette no longer resolves it', async ({ page }) => {
   await page.goto(FIXTURE);
   const threw = await page.evaluate(() => {
     try {
@@ -55,7 +55,7 @@ test('Qualitative.Category10 was removed -- resolvePalette no longer resolves it
   expect(threw).toBe(true);
 });
 
-test('resolvePalette throws a clear, named error for an unrecognized palette -- not a cryptic TypeError', async ({ page }) => {
+test('resolvePalette throws a clear, named error for an unrecognized palette - not a cryptic TypeError', async ({ page }) => {
   await page.goto(FIXTURE);
   const message = await page.evaluate(() => {
     try {
@@ -152,7 +152,7 @@ test('resolvePalette classes picks the sample count for an interpolate-only sche
   expect(length).toBe(24);
 });
 
-test('hueWheelPalette(count) is deterministic -- same count always produces the same colors', async ({ page }) => {
+test('hueWheelPalette(count) is deterministic - same count always produces the same colors', async ({ page }) => {
   await page.goto(FIXTURE);
   const { a, b } = await page.evaluate(() => ({
     a: d3.easygraph.hueWheelPalette(7),
@@ -168,7 +168,7 @@ test('the six hand-picked palettes carry an LS- marker; external schemes do not'
     return {
       marked: names.filter(function (n) { return n.indexOf('.LS-') > -1; }).sort(),
       // Category20* are D3's own published schemes, hardcoded only because d3-scale-chromatic
-      // dropped them in v5 -- a packaging accident, so they stay named like any other external set
+      // dropped them in v5 - a packaging accident, so they stay named like any other external set
       category20Unmarked: names.filter(function (n) { return n.indexOf('Category20') > -1; }).sort(),
       externalsUnmarked: ['Qualitative.Tableau10', 'Qualitative.Observable10', 'Sequential.Turbo', 'Qualitative.Set1']
         .every(function (n) { return names.indexOf(n) > -1; })

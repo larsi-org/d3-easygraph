@@ -10,7 +10,7 @@
 <body>
 <div id="wrap"><div id="graph"></div></div>
 <script>
-// Every value sits in a tight 40-60 range, far inside the fixed [0, 40000] domain below --
+// Every value sits in a tight 40-60 range, far inside the fixed [0, 40000] domain below -
 // proves the domain used is the fixed one, not one derived from this data.
 window.testData = [
   { x: 0, y: 0, value: 40 },
@@ -23,7 +23,7 @@ window.graph = d3.easygraph.scatter({
   label:     " ",
   x:         { scale: "linear" },
   y:         { scale: "linear" },
-  // clip alongside domain -- proves domain wins and clip is simply ignored, not combined
+  // clip alongside domain - proves domain wins and clip is simply ignored, not combined
   // with it or erroring out
   color:     { domain: [0, 40000], clip: [0.05, 0.95] },
   height:    320,

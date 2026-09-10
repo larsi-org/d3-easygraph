@@ -135,7 +135,7 @@ test('units[i] gives the crosshair tooltip a per-series unit string, falling bac
       height: 200,
       crosshair: true,
       lines: true,
-      units: ['°F', null] // series 0 overrides, series 1 has no entry -- falls back to graph.unit
+      units: ['°F', null] // series 0 overrides, series 1 has no entry - falls back to graph.unit
     });
     var t0 = new Date('2026-01-01T00:00:00');
     g.update([
@@ -218,7 +218,7 @@ test('null, undefined and an absent key all mark a gap; NaN and Infinity do not 
   // a gap never disturbs the domain
   expect(r.nullGap.yDomain).toEqual([1, 3]);
 
-  // NaN is NOT a gap -- it is drawn, producing invalid path data
+  // NaN is NOT a gap - it is drawn, producing invalid path data
   expect(r.nan.subpaths).toBe(1);
   // Infinity is not a gap either, and additionally corrupts the domain
   expect(r.infinity.subpaths).toBe(1);

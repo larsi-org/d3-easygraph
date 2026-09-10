@@ -15,7 +15,7 @@ test('getUnit returns a preset\'s complete label/unit/scale/convert', async ({ p
   expect(resolved.converted).toBe(32); // 0°C -> 32°F
 });
 
-test('presets have no range property -- a sensible axis range is data-dependent, not a fixed property of the quantity', async ({ page }) => {
+test('presets have no range property - a sensible axis range is data-dependent, not a fixed property of the quantity', async ({ page }) => {
   await page.goto(FIXTURE);
   const ranges = await page.evaluate(() =>
     Object.keys(d3.easygraph.presets).map((name) => d3.easygraph.presets[name].range)
@@ -181,7 +181,7 @@ test('compassPoint4(direction) returns the nearest 4-point compass label', async
   expect(results).toEqual(['N', 'N', 'E', 'E', 'E', 'S', 'S', 'W', 'W', 'N', 'N', 'N']);
 });
 
-test('presets and colorPalettes are extensible -- the documented way to add your own', async ({ page }) => {
+test('presets and colorPalettes are extensible - the documented way to add your own', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
     d3.easygraph.presets.soilMoisture =

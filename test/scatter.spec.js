@@ -24,7 +24,7 @@ test('a point\'s own radius overrides the graph-level radius (bubble chart)', as
     var g = d3.easygraph.scatter({ container: wrap, height: 200, radius: 4 });
     g.update([
       { x: 0, y: 0, value: 0, radius: 10 },
-      { x: 1, y: 1, value: 1 } // no radius -- falls back to the graph-level default (4)
+      { x: 1, y: 1, value: 1 } // no radius - falls back to the graph-level default (4)
     ], { x: [0, 1], y: [0, 1] });
     var rs = [...wrap.querySelectorAll('circle.scatter-point')].map((c) => Number(c.getAttribute('r')));
     g.destroy();
@@ -59,7 +59,7 @@ test('points are positioned via the x/y scale, not raw data coordinates', async 
     var cys = [...document.querySelectorAll('circle.scatter-point')].map((c) => Number(c.getAttribute('cy')));
     return { graphWidth, graphHeight, cxs, cys };
   });
-  // domain [0,10] over range [0, graphWidth] -- x=0/5/10 map to 0/half/full width
+  // domain [0,10] over range [0, graphWidth] - x=0/5/10 map to 0/half/full width
   expect(positions.cxs[0]).toBeCloseTo(0, 0);
   expect(positions.cxs[1]).toBeCloseTo(positions.graphWidth / 2, 0);
   expect(positions.cxs[2]).toBeCloseTo(positions.graphWidth, 0);
@@ -103,7 +103,7 @@ test('point cx/fill transition over graph.duration on a data update, not an inst
   const { immediateCx, settledCx, finalCx } = await page.evaluate(() => {
     return new Promise((resolve) => {
       var point = document.querySelector('circle.scatter-point');
-      // first point moves from x=0 (far left) to x=10 (far right) -- a big enough jump that
+      // first point moves from x=0 (far left) to x=10 (far right) - a big enough jump that
       // an immediate vs. settled cx reliably differ
       var moved = [
         { x: 10, y: 10, value: 100 },
@@ -129,14 +129,14 @@ test('rescale(k) re-renders synchronously, not through the same transition point
   await page.goto(FIXTURE);
   const { rBeforeAnyWait } = await page.evaluate(() => {
     window.graph.rescale(2);
-    // fixture uses the default radius (4) -- if rescale() were transitioned like cx/cy/fill,
+    // fixture uses the default radius (4) - if rescale() were transitioned like cx/cy/fill,
     // this synchronous read (no wait at all) would still show the old radius (4)
     return { rBeforeAnyWait: document.querySelector('circle.scatter-point').getAttribute('r') };
   });
   expect(Number(rBeforeAnyWait)).toBe(2);
 });
 
-test('voronoi defaults to off -- no cells rendered unless explicitly enabled', async ({ page }) => {
+test('voronoi defaults to off - no cells rendered unless explicitly enabled', async ({ page }) => {
   await page.goto(FIXTURE);
   await expect(page.locator('path.scatter-cell')).toHaveCount(0);
 });
@@ -205,7 +205,7 @@ test('color clip narrows the domain away from a single outlier value, clamped ra
     var domainMax = domain[domain.length - 1];
     return {
       domainMax:      domainMax,
-      // fixture's outlier value (1000) is past the clipped domain -- clamp(true) means it
+      // fixture's outlier value (1000) is past the clipped domain - clamp(true) means it
       // resolves to exactly the same color as the domain's own top edge, not an
       // extrapolated one past it
       outlierColor:   scale(1000),
@@ -221,7 +221,7 @@ test('color.domain fixes the scale to an explicit range, ignoring both the data 
   await page.goto(COLOR_DOMAIN_FIXTURE);
   const domain = await page.evaluate(() => window.graph.color.$scale.domain());
   const first = domain[0], last = domain[domain.length - 1];
-  // fixture's data values are all 40-60, and clip is set alongside domain -- if either the
+  // fixture's data values are all 40-60, and clip is set alongside domain - if either the
   // data or the clip won out instead of the fixed domain, this would be nowhere near 0-40000
   expect(first).toBe(0);
   expect(last).toBe(40000);
@@ -232,7 +232,7 @@ test('color.quantize: true buckets points into paletteColors.length discrete col
   const fills = await page.evaluate(() =>
     [...document.querySelectorAll('circle.scatter-point')].map((c) => getComputedStyle(c).fill)
   );
-  // 5 points across 4 bands (colorClasses: 4) -- exactly 4 distinct colors, not 5
+  // 5 points across 4 bands (colorClasses: 4) - exactly 4 distinct colors, not 5
   expect(new Set(fills).size).toBe(4);
   // the two points in the same 30-40k band (32000 and 38000) get the identical color, not
   // two subtly different shades the way a continuous gradient would produce
@@ -245,7 +245,7 @@ test('colorClasses picks a specific class count from a Sequential palette instea
   expect(paletteLength).toBe(4);
 });
 
-test('arrows defaults to off -- no arrow glyphs rendered', async ({ page }) => {
+test('arrows defaults to off - no arrow glyphs rendered', async ({ page }) => {
   await page.goto(FIXTURE);
   await expect(page.locator('path.scatter-arrow')).toHaveCount(0);
 });
@@ -272,7 +272,7 @@ test('an angle=0 arrow points along +x (screen right) from its own point', async
   await page.goto(ARROWS_FIXTURE);
   const shape = await page.evaluate(() => {
     var d = document.querySelectorAll('path.scatter-arrow')[0].getAttribute('d');
-    // "M{cx},{cy}L{tipX},{tipY}M..." -- pull the shaft's start/end points back out
+    // "M{cx},{cy}L{tipX},{tipY}M..." - pull the shaft's start/end points back out
     var m = d.match(/^M([\d.\-]+),([\d.\-]+)L([\d.\-]+),([\d.\-]+)/);
     return { cx: +m[1], cy: +m[2], tipX: +m[3], tipY: +m[4] };
   });
@@ -291,7 +291,7 @@ test('an angle=PI/2 arrow points along +y (screen down) from its own point', asy
   expect(shape.tipX).toBeCloseTo(shape.cx, 0);
 });
 
-test('magnitude scales arrow shaft length -- a bigger magnitude draws a longer shaft', async ({ page }) => {
+test('magnitude scales arrow shaft length - a bigger magnitude draws a longer shaft', async ({ page }) => {
   await page.goto(ARROWS_FIXTURE);
   const lengths = await page.evaluate(() => {
     return [...document.querySelectorAll('path.scatter-arrow')].map((el) => {
@@ -312,7 +312,7 @@ test('rescale(k) shrinks point radius by 1/k, for a caller layering its own zoom
     window.graph.rescale(2);
     return +document.querySelector('circle.scatter-point').getAttribute('r');
   });
-  // fixture uses the default radius (4) -- rescale(2) should halve it
+  // fixture uses the default radius (4) - rescale(2) should halve it
   expect(before).toBe(4);
   expect(after).toBe(2);
 });
@@ -345,7 +345,7 @@ test('rescale(k) shrinks arrow shaft length by 1/k too', async ({ page }) => {
   expect(after).toBeCloseTo(before / 2, 5);
 });
 
-test('labels defaults to off -- no label text rendered', async ({ page }) => {
+test('labels defaults to off - no label text rendered', async ({ page }) => {
   await page.goto(FIXTURE);
   await expect(page.locator('text.scatter-label')).toHaveCount(0);
 });
@@ -355,7 +355,7 @@ test('labels: true renders one text per point that has a label, skipping the res
   const texts = await page.evaluate(() =>
     [...document.querySelectorAll('text.scatter-label')].map((el) => el.textContent)
   );
-  // fixture has 3 points -- 2 with a label ("AAA", "BBB"), 1 without
+  // fixture has 3 points - 2 with a label ("AAA", "BBB"), 1 without
   expect(texts.sort()).toEqual(['AAA', 'BBB']);
 });
 

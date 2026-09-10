@@ -6,15 +6,15 @@
 // Shared scaffolding for every chart family: container sizing/resize, SVG/margin/
 // clip/title DOM, number/time formatting, x/y/color config resolution, and the
 // shared _build() that d3.easygraph.line/.bars/.heatmap call into with their own hooks.
-// Two standalone lookups live in their own files, loaded right after this one — unit presets
+// Two standalone lookups live in their own files, loaded right after this one - unit presets
 // (d3.easygraph.presets / getUnit()) in d3.easygraph.units.js, color palettes
-// (colorPalettes / resolvePalette / colorScale) in d3.easygraph.colors.js — neither has
+// (colorPalettes / resolvePalette / colorScale) in d3.easygraph.colors.js - neither has
 // any chart concepts of its own; this file is the only thing that folds either onto a graph's
 // config.
 
 d3.easygraph = {};
 
-// shallow "fill in the blanks" merge — dst wins where already set
+// shallow "fill in the blanks" merge - dst wins where already set
 d3.easygraph._extend = function(dst, src) {
   for (var key in src) {
     if (src.hasOwnProperty(key) && dst[key] === undefined) dst[key] = src[key];
@@ -23,7 +23,7 @@ d3.easygraph._extend = function(dst, src) {
 };
 
 // resolves a preset (via units.js's getUnit(), which always returns a complete unit
-// definition) onto an x/y/color config object. label/unit are genuinely optional — if
+// definition) onto an x/y/color config object. label/unit are genuinely optional - if
 // neither the caller nor a preset supplies one, they stay undefined, and the title text
 // (see near the bottom of _build()) renders blank rather than some generic placeholder.
 d3.easygraph._resolveProperty = function(prop) {
@@ -32,7 +32,7 @@ d3.easygraph._resolveProperty = function(prop) {
 };
 
 // [min, max] across a flat array of numbers, optionally clipped to the given
-// [loQuantile, hiQuantile] (e.g. [0.05, 0.95]) instead of the true min/max -- a single
+// [loQuantile, hiQuantile] (e.g. [0.05, 0.95]) instead of the true min/max - a single
 // extreme outlier no longer stretches the whole domain so far that everything else
 // compresses into one end of it. Any x/y/color config accepts a `clip` of this shape;
 // omitting it (the default everywhere) keeps the exact same true-min/max behavior as
@@ -43,10 +43,10 @@ d3.easygraph._clippedExtent = function(values, clip) {
   return [d3.quantileSorted(sorted, clip[0]), d3.quantileSorted(sorted, clip[1])];
 };
 
-// Stacks layered series, accumulating y0 offsets bottom-up -- shared by bars.js's stacked
+// Stacks layered series, accumulating y0 offsets bottom-up - shared by bars.js's stacked
 // mode and line.js's stackedArea, the same accumulation either way regardless of what shape
 // gets drawn from the result. Assumes series are index-aligned (each series' j-th point
-// corresponds to the same category/x position across every series) -- fine for bars'
+// corresponds to the same category/x position across every series) - fine for bars'
 // same-length category arrays; a stacked area caller needs its series sampled at the same x
 // points for the same reason.
 d3.easygraph._computeStacked = function(data) {
@@ -63,18 +63,18 @@ d3.easygraph._computeStacked = function(data) {
 };
 
 // Validates update()'s `data` at the boundary, the same way the constructor already validates
-// `container` and `height` -- this was the one input with no guard, and the one newcomers get
+// `container` and `height` - this was the one input with no guard, and the one newcomers get
 // wrong first. Each family declares its expected shape (_dataShape):
-//   'series' -- an array of series, each an array of points   (line, bars)
-//   'points' -- one flat array of point objects               (scatter)
-//   'grid'   -- an array of rows, each an array of numbers    (heatmap)
+//   'series' - an array of series, each an array of points   (line, bars)
+//   'points' - one flat array of point objects               (scatter)
+//   'grid'   - an array of rows, each an array of numbers    (heatmap)
 // Getting it wrong used to either throw from deep inside d3 with a minified variable name, or
-// -- worse, for scatter and heatmap -- silently render a chart full of NaN with no complaint.
+// - worse, for scatter and heatmap - silently render a chart full of NaN with no complaint.
 // An empty array is always allowed: "no data yet" is a normal state while a fetch is in flight.
 var _shapeHelp = {
-  series: "an array of series, each an array of points -- e.g. [[{x, y}, {x, y}]]",
-  points: "a flat array of point objects -- e.g. [{x, y, value}, {x, y, value}]",
-  grid:   "an array of rows, each an array of numbers -- e.g. [[1, 2], [3, 4]]"
+  series: "an array of series, each an array of points - e.g. [[{x, y}, {x, y}]]",
+  points: "a flat array of point objects - e.g. [{x, y, value}, {x, y, value}]",
+  grid:   "an array of rows, each an array of numbers - e.g. [[1, 2], [3, 4]]"
 };
 d3.easygraph._checkData = function(data, shape, family) {
   var prefix = 'd3.easygraph: ' + family + '.update() expects ' + _shapeHelp[shape] + ', but got ';
@@ -97,7 +97,7 @@ d3.easygraph._checkData = function(data, shape, family) {
 
 // The color scale's domain, in precedence order: a per-render `ranges.color`, then a static
 // `color.domain` config, then the data's own (optionally clipped) extent. That's the same idea as
-// ranges.x/ranges.y beating an auto-fitted axis, one step further -- a value passed to *this*
+// ranges.x/ranges.y beating an auto-fitted axis, one step further - a value passed to *this*
 // render beats one fixed at construction, which beats whatever the data happens to span.
 // `clip` applies only to the last of the three: once a domain is given outright there's no
 // data-driven extent left to clip. Shared by heatmap and scatter so the precedence is defined
@@ -107,7 +107,7 @@ d3.easygraph._colorDomain = function(graph, values) {
   return perRender || graph.color.domain || d3.easygraph._clippedExtent(values, graph.color.clip);
 };
 
-// One legend row per series -- color from the palette, label from the graph's `names` config.
+// One legend row per series - color from the palette, label from the graph's `names` config.
 // Shared by line and bars, the two families whose data is an array of series. Falls back to the
 // length of `names` when nothing has been rendered yet, so a legend can be drawn before the first
 // update() resolves. A series with no name comes back with `label: undefined` rather than a
@@ -124,7 +124,7 @@ d3.easygraph._seriesLegendItems = function(graph) {
 
 // Legend rows for the families whose color comes from a scale rather than a series index
 // (heatmap, scatter). A quantize scale has discrete bands, so each row carries its own from/to
-// edges -- rebuilt from the scale's interior thresholds() plus the domain's two ends, which is
+// edges - rebuilt from the scale's interior thresholds() plus the domain's two ends, which is
 // exactly the fiddly reconstruction callers were hand-rolling. A continuous scale has no bands,
 // so its rows are the evenly spaced stops the gradient is built from, each with its own value.
 // Labels use graph.numberFormat, so a legend reads in the same notation as the axis ticks.
@@ -135,7 +135,7 @@ d3.easygraph._colorScaleLegendItems = function(graph) {
   if (!scale || !graph._lastData) return [];
   var colors = scale.range(), fmt = graph.numberFormat;
 
-  if (scale.thresholds) { // d3.scaleQuantize -- discrete bands
+  if (scale.thresholds) { // d3.scaleQuantize - discrete bands
     var domain = scale.domain();
     var edges = [domain[0]].concat(scale.thresholds()).concat([domain[domain.length - 1]]);
     return colors.map(function(color, i) {
@@ -144,7 +144,7 @@ d3.easygraph._colorScaleLegendItems = function(graph) {
     });
   }
 
-  var stops = scale.domain(); // d3.scaleLinear -- one stop per palette color
+  var stops = scale.domain(); // d3.scaleLinear - one stop per palette color
   return colors.map(function(color, i) {
     return { index: i, color: color, value: stops[i], label: fmt(stops[i]) };
   });
@@ -164,13 +164,13 @@ function _resolveContainer(container) {
 // caller's container reference
 var _nextClipId = 0;
 
-// shared constructor body — each family (line/bars/heatmap) calls this with its own
+// shared constructor body - each family (line/bars/heatmap) calls this with its own
 // defaults and a moduleFactory(graph) returning { prepareScales?, init?, domain, render, resize? }
 d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // Shallow-cloned, never used by reference. _build() writes ~45 properties onto this object
   // (scales, axes, SVG selections, internal state) and overwrites `height` with the plot-area
-  // height, so using the caller's own config object as the graph -- which is what this did
-  // before -- meant constructing a second chart from the same config literal silently
+  // height, so using the caller's own config object as the graph - which is what this did
+  // before - meant constructing a second chart from the same config literal silently
   // corrupted the first one: they were literally the same object, so the first chart's
   // height/DOM/observer references were overwritten and it became unreachable and
   // un-destroyable (its SVG orphaned, its ResizeObserver never disconnected). The nested
@@ -183,7 +183,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   }
 
   // Object.assign (not _extend) so a *partial* margin (e.g. { top: 10 }) still gets its own
-  // fresh object -- _extend only fills a key when the whole thing is undefined, so a partial
+  // fresh object - _extend only fills a key when the whole thing is undefined, so a partial
   // margin would otherwise keep right/bottom/left as undefined forever, cascading into NaN
   // width math with no error (see _measureWidth() below). Cloning here also means two charts
   // constructed from the same shared margin object literal can't corrupt each other.
@@ -216,7 +216,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   }
 
   // kept on the instance too, not just d3.easygraph, for a caller that reads it off a live
-  // chart (graphics/colorbrewer/index.php on the main site) -- the real, load-time-computed
+  // chart (graphics/colorbrewer/index.php on the main site) - the real, load-time-computed
   // copy lives in d3.easygraph.colors.js.
   graph.colorPalettes = d3.easygraph.colorPalettes;
 
@@ -243,7 +243,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
 
   // Re-applies both axes to whatever the scales currently say, with no transition. Every family
   // needs this after a resize, because _layout() changes the scales' pixel ranges but doesn't
-  // re-render the tick DOM. It used to live inside line.js's draw() -- so line charts got correct
+  // re-render the tick DOM. It used to live inside line.js's draw() - so line charts got correct
   // axes on resize and bars/heatmap/scatter silently kept their ticks frozen at pre-resize
   // positions, ending up outside the plot area entirely on a shrink.
   graph._drawAxes = function() {
@@ -256,13 +256,13 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   d3.easygraph._extend(graph, familyDefaults);
 
   // Assigned after the merge, not through it: _extend only fills keys the caller left unset, so
-  // routing these through familyDefaults would let a caller's own value win. Neither is config --
+  // routing these through familyDefaults would let a caller's own value win. Neither is config -
   // one is the family's own name (the accessible-name fallback in update()), the other its
-  // expected data shape (see _checkData) -- so the family always wins.
+  // expected data shape (see _checkData) - so the family always wins.
   graph._chartType = familyDefaults._chartType;
   graph._dataShape = familyDefaults._dataShape;
 
-  // Clone x/y onto a fresh object rather than resolving in place -- _build() (via
+  // Clone x/y onto a fresh object rather than resolving in place - _build() (via
   // _resolveProperty below) writes $scale/$axis directly onto whatever object graph.x/graph.y
   // point to. Left un-cloned, a caller reusing the same x/y config object literal across two
   // chart instances would have the second construction silently overwrite the first chart's
@@ -271,11 +271,11 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   graph.y = Object.assign({}, graph.y);
 
   // x/y are already guaranteed to be objects by the clone above, so they're deliberately not
-  // listed here -- _extend only fills a key that's still undefined.
+  // listed here - _extend only fills a key that's still undefined.
   d3.easygraph._extend(graph, {
     colorPalette:    'Qualitative.Tableau10',
     colorClasses:    null, // request a specific class count (e.g. 4) from a Sequential/Diverging
-                            // palette instead of the largest available -- ignored for Qualitative
+                            // palette instead of the largest available - ignored for Qualitative
                             // and the hardcoded extras, which aren't classed data
     duration:        500,
     timeFormatMulti: false
@@ -287,7 +287,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   d3.easygraph._resolveProperty(graph.y);
 
   // Every read of `scale` is written as "time, else linear", so an unrecognized value used to
-  // fall through to a linear scale silently -- a mistyped 'time' produced a chart that looked
+  // fall through to a linear scale silently - a mistyped 'time' produced a chart that looked
   // plausible and plotted Dates as numbers. Undefined is fine and means linear.
   ['x', 'y'].forEach(function(axis) {
     var scale = graph[axis].scale;
@@ -300,7 +300,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // Resolved lazily rather than copied onto graph.label/graph.unit at construction: the copy
   // meant a caller who set graph.y.label afterwards saw nothing change (the title only ever
   // read the construction-time snapshot), and left two competing sources of truth for the same
-  // string. graph.label/graph.unit still win when set -- they're the explicit override -- but
+  // string. graph.label/graph.unit still win when set - they're the explicit override - but
   // the y config is now the live fallback rather than a one-time seed.
   graph.resolvedLabel = function() {
     return (graph.label !== undefined) ? graph.label : graph.y.label;
@@ -328,7 +328,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   if (graph.x.scale === 'linear' && !graph.x.$scale.bandwidth) graph.x.$axis.tickFormat(graph.numberFormat);
   if (graph.x.scale === 'time'   && graph.timeFormatMulti)     graph.x.$axis.tickFormat(graph.timeFormatShort);
   // tickLabels: false blanks the tick *text* and keeps the tick marks and gridlines, which is
-  // exactly what this does -- the old name for it, noTick, both read as a double negative when
+  // exactly what this does - the old name for it, noTick, both read as a double negative when
   // written out (noTick: false) and over-promised, since the ticks themselves stay.
   if (graph.x.tickLabels === false)                            graph.x.$axis.tickFormat(function() { return ''; });
 
@@ -336,7 +336,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   if (graph.y.scale === 'linear' && !graph.y.$scale.bandwidth) graph.y.$axis.tickFormat(graph.numberFormat);
   if (graph.y.tickLabels === false)                            graph.y.$axis.tickFormat(function() { return ''; });
 
-  // The "easygraph" class is what every rule in d3.easygraph.css is scoped under -- without it
+  // The "easygraph" class is what every rule in d3.easygraph.css is scoped under - without it
   // the stylesheet's generic selectors (a bare #title, .tick, .axis) would restyle any host
   // page element that happened to share those names. role/aria-label give assistive tech
   // something better than the axis tick numbers read out as one run-on string; the <title>
@@ -361,7 +361,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // A class, not id="title": an id is unique per *document*, so N charts on one page produced
   // N duplicate ids, and the stylesheet's matching bare #title rule reached into the host page
   // and restyled its own #title element (an <h1 id="title"> visibly shrank to the chart
-  // title's 16px). Nothing needs to look this up by id -- graph.$title holds the selection.
+  // title's 16px). Nothing needs to look this up by id - graph.$title holds the selection.
   graph.$title = graph.$svg
     .append("g")
       .attr("class", "y axis")
@@ -384,7 +384,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     return graph.paletteColors[index % graph.paletteColors.length];
   };
 
-  // The { index, color, label } rows a legend is drawn from -- data, never DOM. Each family
+  // The { index, color, label } rows a legend is drawn from - data, never DOM. Each family
   // answers it differently (line/bars have series; heatmap/scatter have a color scale), so the
   // work is a module hook; see d3.easygraph.legendItems in colors.js for the chart-free form and
   // for why this stops at the data rather than rendering anything.
@@ -394,7 +394,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
 
   // module init() runs after core scaffolding above (scales/axes/svg/margin/clip/
   // group all exist) so e.g. line.js's zoom pane can be appended right after
-  // graph.$group, and crosshair after that — same DOM order as before
+  // graph.$group, and crosshair after that - same DOM order as before
   if (graph._module.init) graph._module.init();
 
   // re-applies everything that depends on the container's rendered width;
@@ -449,7 +449,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     graph.duration = savedDuration;
   };
 
-  // ranges: { x, y } optionally pin the x/y axis domains instead of auto-fitting to data --
+  // ranges: { x, y } optionally pin the x/y axis domains instead of auto-fitting to data -
   // a single object rather than two positional args so a future range (e.g. color) has
   // somewhere to go without another positional param.
   graph.update = function(data, ranges) {
@@ -462,8 +462,8 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     d3.easygraph._checkData(data, graph._dataShape, graph._chartType);
     ranges = ranges || {};
     graph._lastData = data;
-    // Kept alongside _lastData so a resize reflow or a scatter rescale() -- both of which
-    // re-render from stored state rather than a fresh update() -- don't silently drop back to a
+    // Kept alongside _lastData so a resize reflow or a scatter rescale() - both of which
+    // re-render from stored state rather than a fresh update() - don't silently drop back to a
     // data-driven color domain.
     graph._lastRanges = ranges;
 

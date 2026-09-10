@@ -5,7 +5,7 @@
 //
 // The bars chart-family constructor: vertical/horizontal, stacked/grouped.
 // `orientation` is fixed for a graph's lifetime, but `mode` can be toggled live
-// (see data_monthly.php/h.php's dropdown) — domain()/render() always re-read the
+// (see data_monthly.php/h.php's dropdown) - domain()/render() always re-read the
 // live config rather than caching a choice made at construction. Stacking itself
 // (accumulating y0 offsets) is d3.easygraph._computeStacked() in core.js, shared with
 // line.js's stackedArea.
@@ -18,10 +18,10 @@ d3.easygraph.bars = function(config) {
     mode:         'grouped',
     colorPerData: false,
     names:        null // optional per-series names, index-matched to the series arrays passed to
-                       // update() -- what legendItems() labels each entry with
+                       // update() - what legendItems() labels each entry with
   }, function(graph) {
     // `mode`, unlike `orientation`, is meant to be toggled on a live chart, so it's re-checked on
-    // every update() rather than only at construction -- a bad value assigned afterwards would
+    // every update() rather than only at construction - a bad value assigned afterwards would
     // otherwise fall through to "grouped" just as silently as a bad one passed in.
     function _checkMode() {
       if (graph.mode !== 'stacked' && graph.mode !== 'grouped') {
@@ -38,7 +38,7 @@ d3.easygraph.bars = function(config) {
       return enter.merge(sel);
     }
 
-    // optional per-datum color transition -- colorPerData: true colors each bar from its own
+    // optional per-datum color transition - colorPerData: true colors each bar from its own
     // `color` field instead of the series' palette color (the field was a bare `d.c` before
     // 1.0, the one single-letter name in a data format that otherwise spells everything out:
     // value, radius, label, angle, magnitude)
@@ -187,7 +187,7 @@ d3.easygraph.bars = function(config) {
         var stacked = isStacked ? d3.easygraph._computeStacked(data) : undefined;
 
         // d3.max over empty/all-empty data returns undefined, which would otherwise land in
-        // the domain as [0, undefined] -- same empty-data guard line/scatter's domain() have.
+        // the domain as [0, undefined] - same empty-data guard line/scatter's domain() have.
         function groupedMax() {
           var max = d3.max(data, function(a) { return d3.max(a, function(d) { return d.y; }); });
           return (max === undefined) ? 1 : max;
