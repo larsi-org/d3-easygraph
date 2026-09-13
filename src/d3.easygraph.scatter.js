@@ -144,7 +144,17 @@ d3.easygraph.scatter = function(config) {
       // always be instant. cx/cy/fill are unaffected by k, so they're safe to animate without
       // fighting rescale(). A freshly entered point gets cx/cy/fill set immediately (not
       // faded in) so it doesn't animate in from some arbitrary un-set DOM default.
-      var points = graph.$pointsGroup.selectAll(".scatter-point").data(data);
+      //
+      // Keyed by `label` (falling back to index when a point has none, matching the old
+      // always-index join exactly) rather than joined positionally: a caller whose point count
+      // changes between updates because some entries are conditionally dropped (e.g. weather's
+      // Pressure & Wind map filtering out stations with no reading that hour) would otherwise
+      // have every point *after* a dropped one shift down an index, so the existing DOM circle
+      // at that index - still mid-transition or about to start one - suddenly represents a
+      // different station and visibly flies from the old station's position to the new one.
+      // A caller that never sets `label` keeps the exact index-based identity this always had.
+      var points = graph.$pointsGroup.selectAll(".scatter-point")
+        .data(data, function(d, i) { return d.label != null ? d.label : i; });
       var pointsEnter = points.enter().append("circle").attr("class", "scatter-point")
         .attr("cx", function(d) { return graph.x.$scale(d.x); })
         .attr("cy", function(d) { return graph.y.$scale(d.y); })

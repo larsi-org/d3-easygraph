@@ -5,6 +5,16 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Fixed
+- `scatter`'s point circles now join on `label` (falling back to index when a point has none,
+  preserving the old behavior exactly for callers that never set it) instead of always joining
+  positionally. A caller whose point count changes between `update()` calls because some entries
+  are conditionally dropped (e.g. weather's Pressure & Wind map filtering out stations with no
+  reading for the selected hour) previously had every point after a dropped one shift down an
+  index, so the existing DOM circle at that index - mid-transition or about to start one - would
+  suddenly represent a different station and visibly fly across the map to the new station's
+  position instead of just recoloring in place.
+
 ### Added
 - `d3.easygraph.compassPoint16(direction)`, `compassPoint8(direction)`, and
   `compassPoint4(direction)`, plain utilities returning the nearest 16-/8-/4-point compass label
