@@ -246,6 +246,28 @@ d3.easygraph.line = function(config) {
 
         if (graph.crosshair) graph._crosshairData = data;
 
+        // A series' point count changing between updates (e.g. a chart's own hourly/daily
+        // toggle, `weather/report.php` and `sensors/report.php`'s bucketSeries()/data_hourly.php's
+        // dailyFromHourly() re-aggregating the same time range into far fewer points) is a
+        // structural change, not a continuously interpolatable one - same "structural now,
+        // animate the value" split bars.js's layout attrs and heatmap.js's cell geometry
+        // already use. d3's default string interpolator for the `d` attribute pairs the old
+        // and new path's numeric tokens positionally, so transitioning between two paths with
+        // sharply different vertex counts produces a warped, "melting" intermediate shape
+        // instead of a clean morph - worse the bigger the swing (very visible reducing a full
+        // year of hourly EnergyPlus data, 8760 points, to 365 daily ones; present but subtler
+        // at the report pages' month-at-a-time scale). Skip the animation - snap straight to
+        // the new shape - only for a series that already existed last render and changed
+        // length; a brand-new series (no previous entry at that index at all) still grows in
+        // smoothly from $ribbon0/$stack0/$line0's flat baseline, which shares the new data's
+        // own point count and x-positions on both ends, so it was never affected by this.
+        var prevLengths = graph._prevSeriesLengths;
+        function _duration(d, i) {
+          var prevLen = prevLengths && prevLengths[i];
+          return (prevLen != null && prevLen !== data[i].length) ? 0 : graph.duration;
+        }
+        graph._prevSeriesLengths = data.map(function(series) { return series.length; });
+
         if (graph.ribbons) {
           var dataRibbons = graph.$group.selectAll(".data-ribbons").data(data);
           var ribbonsEntered = dataRibbons.enter().append("path")
@@ -256,7 +278,7 @@ d3.easygraph.line = function(config) {
             .style("opacity",   1e-6);
           dataRibbons.exit().remove();
           dataRibbons = ribbonsEntered.merge(dataRibbons);
-          dataRibbons.transition().duration(graph.duration).ease(d3.easeCubicInOut)
+          dataRibbons.transition().duration(_duration).ease(d3.easeCubicInOut)
             .attr("d",        graph.$ribbon)
             .style("fill",    function(d, i) { return graph.getPaletteColor(i); })
             .style("opacity", 0.4);
@@ -275,7 +297,7 @@ d3.easygraph.line = function(config) {
             .style("opacity",   1e-6);
           dataStack.exit().remove();
           dataStack = stackEntered.merge(dataStack);
-          dataStack.transition().duration(graph.duration).ease(d3.easeCubicInOut)
+          dataStack.transition().duration(_duration).ease(d3.easeCubicInOut)
             .attr("d",        graph.$stack)
             .style("fill",    function(d, i) { return graph.getPaletteColor(i); })
             .style("opacity", 1);
@@ -293,7 +315,7 @@ d3.easygraph.line = function(config) {
             .style("opacity",  1e-6);
           dataLines.exit().remove();
           dataLines = linesEntered.merge(dataLines);
-          dataLines.transition().duration(graph.duration).ease(d3.easeCubicInOut)
+          dataLines.transition().duration(_duration).ease(d3.easeCubicInOut)
             .attr("d",        graph.$line)
             .style("stroke",  function(d, i) { return graph.getPaletteColor(i); })
             .style("opacity", 1);

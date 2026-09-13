@@ -14,6 +14,16 @@ All notable changes to this project are documented here. Format loosely follows
   index, so the existing DOM circle at that index - mid-transition or about to start one - would
   suddenly represent a different station and visibly fly across the map to the new station's
   position instead of just recoloring in place.
+- `line`'s ribbons/stack/lines paths no longer animate a `d`-attribute transition for a series
+  whose point count changed since the last `update()` (e.g. a chart's own hourly/daily toggle -
+  `weather/report.php`'s and `sensors/report.php`'s bucketSeries(), `easygraph/data_hourly.php`'s
+  dailyFromHourly()). d3's default string interpolator for `d` pairs the old and new path's
+  numeric tokens positionally, so a sharply different vertex count produced a warped, "melting"
+  intermediate shape instead of a clean morph - most visible reducing a full year of hourly
+  EnergyPlus data (8760 points) to 365 daily ones. That series now snaps straight to its new
+  shape instead; a brand-new series (no previous entry at that index at all) still grows in
+  smoothly from the flat baseline as before, and a series whose point count is unchanged still
+  transitions normally.
 
 ### Added
 - `d3.easygraph.compassPoint16(direction)`, `compassPoint8(direction)`, and

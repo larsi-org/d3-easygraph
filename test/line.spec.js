@@ -11,6 +11,52 @@ test('renders lines and ribbons with the right element counts', async ({ page })
   await expect(page.locator('path.data-ribbons')).toHaveCount(1);
 });
 
+test('a series whose point count changes snaps its path instantly instead of morphing', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const { dSoonAfter, finalD } = await page.evaluate(() => {
+    return new Promise((resolve) => {
+      // second update has half as many points as the fixture's initial 4-point series - the
+      // hourly/daily-toggle shape this fix targets. Even a duration:0 transition is scheduled
+      // through d3's timer rather than applied synchronously, so this reads back after a short
+      // wait - well under graph.duration's 500ms default - rather than immediately.
+      var reduced = [[
+        { x: new Date("2026-01-01T00:00:00"), y: 2, min: 1, max: 3 },
+        { x: new Date("2026-01-01T18:00:00"), y: 4, min: 2, max: 5 }
+      ]];
+      window.graph.update(reduced);
+      var path = document.querySelector('path.data-lines');
+      setTimeout(function() {
+        resolve({ dSoonAfter: path.getAttribute('d'), finalD: window.graph.$line(reduced[0]) });
+      }, 50);
+    });
+  });
+  expect(dSoonAfter).toBe(finalD);
+});
+
+test('a series whose point count stays the same still transitions smoothly (regression)', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const { immediateD, settledD, finalD } = await page.evaluate(() => {
+    return new Promise((resolve) => {
+      // same length (4 points) as the fixture's initial series, values moved enough that an
+      // immediate vs. settled `d` reliably differ
+      var moved = [[
+        { x: new Date("2026-01-01T00:00:00"), y: 20, min: 19, max: 21 },
+        { x: new Date("2026-01-01T06:00:00"), y: 22, min: 20, max: 23 },
+        { x: new Date("2026-01-01T12:00:00"), y: 21, min: 19, max: 22 },
+        { x: new Date("2026-01-01T18:00:00"), y: 24, min: 22, max: 25 }
+      ]];
+      window.graph.update(moved);
+      var path = document.querySelector('path.data-lines');
+      var immediateD = path.getAttribute('d');
+      setTimeout(function() {
+        resolve({ immediateD: immediateD, settledD: path.getAttribute('d'), finalD: window.graph.$line(moved[0]) });
+      }, 700); // graph.duration defaults to 500ms
+    });
+  });
+  expect(immediateD).not.toBe(finalD);
+  expect(settledD).toBe(finalD);
+});
+
 test('stackedArea stacks series cumulatively, each layer riding on top of the previous', async ({ page }) => {
   await page.goto(FIXTURE);
   const result = await page.evaluate(() => {
