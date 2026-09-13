@@ -315,6 +315,27 @@ wrong - passing a flat array where a chart wants one series per row (or the reve
 either throw from deep inside D3 or, worse, silently render a chart full of `NaN`. An empty array
 is always valid: "no data yet" is a normal state while a first fetch is in flight.
 
+### Update-to-update identity and animation
+
+`scatter` joins each `update()`'s points to existing circles by `label` first, falling back to
+array position only for a point with no `label` at all. This matters whenever the number of
+points can change between calls - e.g. a live map filtering out stations with no reading this
+hour. Without a stable identity, a point dropped from the middle of the array shifts every point
+after it down an index, so an existing circle - mid-transition or about to start one - gets
+rebound to a different point and visibly flies to its new position instead of just recoloring in
+place. Give every point a `label` (it still works as the join key with `labels: false` - it just
+isn't drawn) whenever the point set can grow, shrink, or reorder between updates; a fixed point
+set (same stations/entities every render) is safe either way.
+
+`line`'s ribbons/stack/lines paths skip the `d`-attribute transition entirely for any series
+whose point count changed since the last render - e.g. toggling between hourly and daily
+aggregation - rather than animating it. d3's default string interpolator for `d` pairs the old
+and new path's numeric tokens positionally, so a sharply different vertex count produces a
+warped, "melting" intermediate shape instead of a clean morph; that series' path snaps straight
+to its new shape instead. This is automatic, nothing to configure - a brand-new series (no
+previous entry at that index at all) still grows in smoothly from the flat baseline as before,
+and a series whose point count is unchanged still transitions normally.
+
 ### Missing and non-finite values
 
 **`null`, `undefined`, and an absent key all mark a gap** - the series breaks into a separate
