@@ -11,6 +11,67 @@ test('renders lines and ribbons with the right element counts', async ({ page })
   await expect(page.locator('path.data-ribbons')).toHaveCount(1);
 });
 
+test('sigmaBand renders a path nested between ribbons and the line in z-order', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const order = await page.evaluate(() => {
+    var wrap = document.createElement('div');
+    document.body.appendChild(wrap);
+    var g = d3.easygraph.line({ container: wrap, height: 200, lines: true, ribbons: true, sigmaBand: true });
+    g.update([[
+      { x: 0, y: 10, min: 5, max: 15, sigmaMin: 8, sigmaMax: 12 },
+      { x: 1, y: 12, min: 6, max: 18, sigmaMin: 9, sigmaMax: 15 }
+    ]]);
+    var classes = Array.from(wrap.querySelectorAll('path')).map(function(p) { return p.getAttribute('class'); });
+    g.destroy();
+    wrap.remove();
+    return classes;
+  });
+  expect(order.indexOf('data-ribbons')).toBeGreaterThanOrEqual(0);
+  expect(order.indexOf('data-sigma')).toBeGreaterThan(order.indexOf('data-ribbons'));
+  expect(order.indexOf('data-lines')).toBeGreaterThan(order.indexOf('data-sigma'));
+});
+
+test('a point missing sigmaMin/sigmaMax skips the sigma band there without affecting ribbons/lines', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const d = await page.evaluate(() => {
+    var wrap = document.createElement('div');
+    document.body.appendChild(wrap);
+    var g = d3.easygraph.line({ container: wrap, height: 200, lines: true, ribbons: true, sigmaBand: true });
+    g.update([[
+      { x: 0, y: 10, min: 5, max: 15 }, // no sigma this point
+      { x: 1, y: 12, min: 6, max: 18, sigmaMin: 9, sigmaMax: 15 }
+    ]]);
+    var sigmaD = wrap.querySelector('path.data-sigma').getAttribute('d');
+    var linesCount = wrap.querySelectorAll('path.data-lines').length;
+    var ribbonsCount = wrap.querySelectorAll('path.data-ribbons').length;
+    g.destroy();
+    wrap.remove();
+    return { sigmaD: sigmaD, linesCount: linesCount, ribbonsCount: ribbonsCount };
+  });
+  // only the second point is defined for sigma, so d3.area() draws a degenerate single-point
+  // path there rather than throwing or drawing a false band across the undefined first point
+  expect(d.sigmaD).not.toMatch(/NaN/);
+  expect(d.linesCount).toBe(1);
+  expect(d.ribbonsCount).toBe(1);
+});
+
+test('sigmaBand widens the y domain to its own extent when ribbons is off', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const yDomain = await page.evaluate(() => {
+    var wrap = document.createElement('div');
+    document.body.appendChild(wrap);
+    var g = d3.easygraph.line({ container: wrap, height: 200, lines: true, sigmaBand: true });
+    g.update([[
+      { x: 0, y: 10, sigmaMin: 2, sigmaMax: 18 }
+    ]]);
+    var domain = g.y.$scale.domain();
+    g.destroy();
+    wrap.remove();
+    return domain;
+  });
+  expect(yDomain).toEqual([2, 18]);
+});
+
 test('a series whose point count changes snaps its path instantly instead of morphing', async ({ page }) => {
   await page.goto(FIXTURE);
   const { dSoonAfter, finalD } = await page.evaluate(() => {

@@ -26,6 +26,13 @@ All notable changes to this project are documented here. Format loosely follows
   transitions normally.
 
 ### Added
+- `line` gains `sigmaBand`, a second band nested inside `ribbons`' min/max one, drawn from each
+  point's `sigmaMin`/`sigmaMax` (typically mean +-1 standard deviation) at a higher opacity - the
+  faint-extreme-band/darker-typical-band/mean-line look common on climate/weather dashboards.
+  Independent of `ribbons` (a caller can have either without the other, though the normal case
+  is both together), same optional-per-point/gap-breaking convention, and shares `ribbons`'
+  z-order and point-count-change instant-snap behavior (nests visually between the ribbon and
+  the line, and skips its own transition exactly when `ribbons`/`lines` would skip theirs).
 - `d3.easygraph.compassPoint16(direction)`, `compassPoint8(direction)`, and
   `compassPoint4(direction)`, plain utilities returning the nearest 16-/8-/4-point compass label
   (`"N"`, `"NNE"`, `"NE"`, ...) for a raw bearing in degrees. None is a `convert` - presets'

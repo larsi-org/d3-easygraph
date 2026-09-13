@@ -37,6 +37,7 @@ d3.easygraph.line = function(config) {
     _dataShape:         'series',
     lines:              false,
     ribbons:            false,
+    sigmaBand:          false,
     stackedArea:        false,
     zoom:               false,
     crosshair:          false,
@@ -66,6 +67,18 @@ d3.easygraph.line = function(config) {
         graph.$ribbon  = d3.area().curve(_curve).defined(_definedRibbon).x(_cx)
           .y0(function(d) { return graph.y.$scale(d.min); })
           .y1(function(d) { return graph.y.$scale(d.max); });
+        // sigmaBand: a second, narrower band (typically mean +-1 standard deviation) nested
+        // inside ribbons' wider min/max one - same shape/gap convention as ribbons (a point
+        // missing sigmaMin/sigmaMax just isn't drawn there), a separate feature since a caller
+        // may have one without the other (min/max always derivable from raw samples; sigma
+        // needs a sum-of-squares alongside them - see bucket-series.js/daily-from-hourly.js).
+        var _definedSigma = function(d) { return d.sigmaMin != null && d.sigmaMax != null; };
+        graph.$sigma0 = d3.area().curve(_curve).defined(_definedSigma).x(_cx)
+          .y0(function(d) { return graph.y.$scale(0); })
+          .y1(function(d) { return graph.y.$scale(0); });
+        graph.$sigma  = d3.area().curve(_curve).defined(_definedSigma).x(_cx)
+          .y0(function(d) { return graph.y.$scale(d.sigmaMin); })
+          .y1(function(d) { return graph.y.$scale(d.sigmaMax); });
         graph.$line0 = d3.line().curve(_curve).defined(_definedLine).x(_cx).y(function(d) { return graph.y.$scale(0); });
         graph.$line  = d3.line().curve(_curve).defined(_definedLine).x(_cx).y(_cy);
         // stackedArea's points are d3.easygraph._computeStacked()'s output - same shape as a
@@ -87,6 +100,7 @@ d3.easygraph.line = function(config) {
         graph._redraw = function() {
           graph._drawAxes();
           graph.$group.selectAll("path.data-ribbons").attr("d", graph.$ribbon);
+          graph.$group.selectAll("path.data-sigma").attr("d", graph.$sigma);
           graph.$group.selectAll("path.data-stack").attr("d", graph.$stack);
           graph.$group.selectAll("path.data-lines").attr("d", graph.$line);
         };
@@ -211,12 +225,20 @@ d3.easygraph.line = function(config) {
             return d3.max(series, function(d) { return d.y0 + d.y; });
           });
           yDomain = [0, (stackedMax === undefined) ? 1 : stackedMax];
-        } else if (graph.ribbons) {
-          // a ribbon's band comes from each point's own precomputed min/max, not a plain value
-          // per point - clip doesn't have a single value array to work from here, so this
-          // path always uses the true extent regardless of graph.y.clip
-          var ribbonMin = d3.min(data, function(a) { return d3.min(a, function(d) { return d.min; }); });
-          var ribbonMax = d3.max(data, function(a) { return d3.max(a, function(d) { return d.max; }); });
+        } else if (graph.ribbons || graph.sigmaBand) {
+          // A ribbon's/sigma band's extent comes from each point's own precomputed min/max (or
+          // sigmaMin/sigmaMax), not a plain value per point - clip doesn't have a single value
+          // array to work from here, so this path always uses the true extent regardless of
+          // graph.y.clip. Both keys are folded in whenever both bands are on (the normal case -
+          // a sigma band nests inside the wider min/max one) as two separate d3.min/max passes
+          // combined afterward, so a point missing one of the two (same optional-per-point
+          // convention _definedRibbon/_definedSigma already rely on for gaps) doesn't poison
+          // the other's extent - d3.min/max already skip null/undefined/NaN on their own, which
+          // a single combined pass using plain Math.min/max on the two raw values wouldn't.
+          function nestedMin(key) { return d3.min(data, function(a) { return d3.min(a, function(d) { return d[key]; }); }); }
+          function nestedMax(key) { return d3.max(data, function(a) { return d3.max(a, function(d) { return d[key]; }); }); }
+          var ribbonMin = d3.min([graph.ribbons ? nestedMin('min') : undefined, graph.sigmaBand ? nestedMin('sigmaMin') : undefined]);
+          var ribbonMax = d3.max([graph.ribbons ? nestedMax('max') : undefined, graph.sigmaBand ? nestedMax('sigmaMax') : undefined]);
           yDomain = (ribbonMin === undefined) ? [0, 1] : [ribbonMin, ribbonMax];
         } else {
           var yValues = _nestedValues(data, function(d) { return d.y; });
@@ -284,6 +306,26 @@ d3.easygraph.line = function(config) {
             .style("opacity", 0.4);
         } else {
           graph.$group.selectAll(".data-ribbons").remove();
+        }
+
+        // Appended right after ribbons (before stack/lines) so a sigma band always draws on
+        // top of the wider min/max ribbon it nests inside, but under the mean line.
+        if (graph.sigmaBand) {
+          var dataSigma = graph.$group.selectAll(".data-sigma").data(data);
+          var sigmaEntered = dataSigma.enter().append("path")
+            .attr("class",      "data-sigma")
+            .attr("clip-path",  "url(#" + graph._clipId + ")")
+            .attr("d",          graph.$sigma0)
+            .style("fill",      function(d, i) { return graph.getPaletteColor(i); })
+            .style("opacity",   1e-6);
+          dataSigma.exit().remove();
+          dataSigma = sigmaEntered.merge(dataSigma);
+          dataSigma.transition().duration(_duration).ease(d3.easeCubicInOut)
+            .attr("d",        graph.$sigma)
+            .style("fill",    function(d, i) { return graph.getPaletteColor(i); })
+            .style("opacity", 0.7);
+        } else {
+          graph.$group.selectAll(".data-sigma").remove();
         }
 
         if (graph.stackedArea) {

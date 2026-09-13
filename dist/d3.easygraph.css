@@ -14,6 +14,7 @@
 .easygraph .axis line{stroke:#CCC;stroke-width:1.0px;stroke-dasharray:2,2}
 .easygraph .axis path{fill:none;stroke:#999;stroke-width:1.0px}
 .easygraph .data-ribbons{stroke:none}
+.easygraph .data-sigma{stroke:none}
 .easygraph .data-stack{stroke:none}
 .easygraph .data-lines{fill:none;stroke-width:1.5px}
 .easygraph .data-bars{stroke:none;stroke:#333;stroke-width:1.5px}
