@@ -309,7 +309,13 @@ d3.easygraph.line = function(config) {
         }
 
         // Appended right after ribbons (before stack/lines) so a sigma band always draws on
-        // top of the wider min/max ribbon it nests inside, but under the mean line.
+        // top of the wider min/max ribbon it nests inside, but under the mean line. Its own
+        // opacity is 0.5, not the ~0.7 the band is meant to *look* like - the browser's normal
+        // source-over compositing stacks it on top of the ribbon's own 0.4 wherever the two
+        // overlap (everywhere sigmaMin/sigmaMax is defined, since that range always nests
+        // inside min/max), and two same-color layers combine as 1-(1-a)(1-b): 1-(1-0.5)(1-0.4)
+        // = 0.7. Setting this to the visually-intended 0.7 directly would compound with the
+        // ribbon underneath into ~0.82, reading darker than intended.
         if (graph.sigmaBand) {
           var dataSigma = graph.$group.selectAll(".data-sigma").data(data);
           var sigmaEntered = dataSigma.enter().append("path")
@@ -323,7 +329,7 @@ d3.easygraph.line = function(config) {
           dataSigma.transition().duration(_duration).ease(d3.easeCubicInOut)
             .attr("d",        graph.$sigma)
             .style("fill",    function(d, i) { return graph.getPaletteColor(i); })
-            .style("opacity", 0.7);
+            .style("opacity", 0.5);
         } else {
           graph.$group.selectAll(".data-sigma").remove();
         }
