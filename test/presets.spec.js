@@ -211,7 +211,7 @@ test('presets and colorPalettes are extensible - the documented way to add your 
       y: { preset: 'soilMoisture' }, colorPalette: 'Sequential.MyBrand'
     });
     g.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
-    var title = g.$title.text();
+    var title = g.$yTitle.text();
     var strokeUsesCustomPalette = g.paletteColor(0) === '#eef';
     g.destroy(); wrap.remove();
 
@@ -223,7 +223,7 @@ test('presets and colorPalettes are extensible - the documented way to add your 
   expect(r.unitSymbol).toBe('%');
   expect(r.palette).toEqual(['#eef', '#88a', '#114']);
   expect(r.reversed).toEqual(['#114', '#88a', '#eef']); // .reversed works on a caller-added name
-  expect(r.title).toBe('Soil Moisture [%]');            // a custom preset drives the chart title
+  expect(r.title).toBe('Soil Moisture [%]');            // a custom preset drives the y axis title
   expect(r.strokeUsesCustomPalette).toBe(true);
 });
 

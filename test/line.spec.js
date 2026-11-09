@@ -185,7 +185,7 @@ test('resize updates graph.width and the svg width attribute', async ({ page }) 
   const [width, plotWidth] = await page.evaluate(() => [window.graph.width, window.graph.plotWidth]);
   expect(plotWidth).toBeGreaterThan(0);
   expect(svgWidth).toBe(width);
-  expect(plotWidth).toBe(width - 70); // margin.left(50) + margin.right(20)
+  expect(plotWidth).toBe(width - 90); // margin.left(50) + 20 for the y axis title + margin.right(20)
 });
 
 test('zoom then resize keeps $xScaleRef range in sync (regression)', async ({ page }) => {

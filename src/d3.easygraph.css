@@ -10,6 +10,7 @@
    size, which a static CSS rule can't do. */
 .easygraph rect.easygraph-pane{cursor:move;fill:none;pointer-events:all}
 .easygraph .easygraph-title{text-anchor:middle;font-size:16px;fill:#333}
+.easygraph .easygraph-axis-title{font-size:12px;fill:#333}
 .easygraph .tick{font-size:12px}
 .easygraph .easygraph-axis line{stroke:#CCC;stroke-width:1.0px;stroke-dasharray:2,2}
 .easygraph .easygraph-axis path{fill:none;stroke:#999;stroke-width:1.0px}

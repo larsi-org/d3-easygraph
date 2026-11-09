@@ -196,11 +196,11 @@ d3.easygraph.line = function(config) {
             graph.$crosshairTip.html(html).style("display", null);
 
             var svgRect = graph.$svg.node().ownerSVGElement.getBoundingClientRect();
-            var tipX = svgRect.left + window.scrollX + graph.margin.left + mouseX + 12;
-            var tipY = svgRect.top  + window.scrollY + graph.margin.top;
+            var tipX = svgRect.left + window.scrollX + graph._margin.left + mouseX + 12;
+            var tipY = svgRect.top  + window.scrollY + graph._margin.top;
             var tipW = graph.$crosshairTip.node().offsetWidth;
             if (tipX + tipW > window.scrollX + window.innerWidth) {
-              tipX = svgRect.left + window.scrollX + graph.margin.left + mouseX - 12 - tipW;
+              tipX = svgRect.left + window.scrollX + graph._margin.left + mouseX - 12 - tipW;
             }
             graph.$crosshairTip.style("left", tipX + "px").style("top", tipY + "px");
           };

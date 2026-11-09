@@ -181,9 +181,6 @@ d3.easygraph.bars = function(config) {
         var isH = graph.orientation === 'horizontal';
         var isStacked = graph.mode === 'stacked';
 
-        if (isH) {
-          var h = xRange; xRange = yRange; yRange = h;
-        }
         var stacked = isStacked ? d3.easygraph._computeStacked(data) : undefined;
 
         // d3.max over empty/all-empty data returns undefined, which would otherwise land in

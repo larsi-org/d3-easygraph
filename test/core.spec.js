@@ -151,7 +151,7 @@ test('_clippedExtent narrows to the given quantiles when a clip is given', async
   expect(extent[1]).toBe(20);
 });
 
-test('label is optional: no label, no preset, no placeholder text needed - the title renders blank', async ({ page }) => {
+test('title is optional: no title, no preset, no placeholder text needed - the title renders blank', async ({ page }) => {
   await page.goto(FIXTURE);
   const title = await page.evaluate(() => {
     var g = d3.easygraph.line({ container: '#graph', height: 200 });
@@ -206,8 +206,8 @@ test('the chart title is a class, not a page-unique id - N charts do not collide
     var wrap2 = document.createElement('div');
     wrap2.style.width = '600px';
     document.body.appendChild(wrap2);
-    var g1 = d3.easygraph.line({ container: '#graph', height: 200, y: { preset: 'temperatureC' } });
-    var g2 = d3.easygraph.line({ container: wrap2,   height: 200, y: { preset: 'relativeHumidity' } });
+    var g1 = d3.easygraph.line({ container: '#graph', height: 200, title: 'First' });
+    var g2 = d3.easygraph.line({ container: wrap2,   height: 200, title: 'Second' });
     g1.update([[{ x: 1, y: 1 }]]);
     g2.update([[{ x: 1, y: 1 }]]);
     var r = {
@@ -221,8 +221,8 @@ test('the chart title is a class, not a page-unique id - N charts do not collide
   });
   expect(result.idTitleElements).toBe(0);
   expect(result.titleClassElements).toBe(2);
-  expect(result.firstTitle).toBe('Temperature [°C]');
-  expect(result.secondTitle).toBe('Relative Humidity [%]');
+  expect(result.firstTitle).toBe('First');
+  expect(result.secondTitle).toBe('Second');
 });
 
 test('the stylesheet does not restyle a host page element named #title / .tick / .axis', async ({ page }) => {
@@ -246,27 +246,67 @@ test('the stylesheet does not restyle a host page element named #title / .tick /
   expect(result.tickFontSize).toBe('16px');
 });
 
-test('setting graph.y.label after construction updates the title; graph.title still overrides', async ({ page }) => {
+test('the y axis title is y.label plus y.unit (a preset supplies both) and follows later changes; title is separate', async ({ page }) => {
   await page.goto(FIXTURE);
-  const titles = await page.evaluate(() => {
+  const r = await page.evaluate(() => {
     var g = d3.easygraph.line({ container: '#graph', height: 200, y: { preset: 'temperatureC' } });
     g.update([[{ x: 1, y: 1 }]]);
-    var fromPreset = g.$title.text();
-
+    var out = { fromPreset: g.$yTitle.text(), title: g.$title.text() };
     g.y.label = 'Cabin Temperature';
     g.update([[{ x: 1, y: 1 }]]);
-    var fromYConfig = g.$title.text();
-
-    g.title = 'Explicit Override';
+    out.fromYConfig = g.$yTitle.text();
+    g.title = 'Heading';
     g.update([[{ x: 1, y: 1 }]]);
-    var fromOverride = g.$title.text();
-
+    out.heading = g.$title.text();
+    out.yTitleKept = g.$yTitle.text();
     g.destroy();
-    return { fromPreset, fromYConfig, fromOverride };
+    return out;
   });
-  expect(titles.fromPreset).toBe('Temperature [°C]');
-  expect(titles.fromYConfig).toBe('Cabin Temperature [°C]');
-  expect(titles.fromOverride).toBe('Explicit Override [°C]');
+  expect(r.fromPreset).toBe('Temperature [°C]');
+  expect(r.title).toBe('');                       // no title unless you set one
+  expect(r.fromYConfig).toBe('Cabin Temperature [°C]');
+  expect(r.heading).toBe('Heading');              // an explicit title carries no unit
+  expect(r.yTitleKept).toBe('Cabin Temperature [°C]');
+});
+
+test('x.label is drawn as the x axis title; space is reserved for each title and margin stays as given', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    function mk(cfg) { var w = document.createElement('div'); document.body.appendChild(w);
+      return d3.easygraph.line(Object.assign({ container: w, height: 200, lines: true, margin: { top: 20, right: 20, bottom: 30, left: 50 } }, cfg)); }
+    var none = mk({});
+    var both = mk({ x: { label: 'Time' }, y: { label: 'Level', unit: 'm' } });
+    both.update([[{ x: 1, y: 1 }, { x: 2, y: 2 }]]);
+    return {
+      noneMargin: [none._margin.bottom, none._margin.left, none.plotHeight],
+      bothMargin: [both._margin.bottom, both._margin.left, both.plotHeight],
+      userMargin: both.margin,
+      xText: both.$xTitle.text(), yText: both.$yTitle.text(),
+      xPlaced: [both.$xTitle.attr('x'), both.$xTitle.attr('y')],
+      rotated: both.$yTitle.attr('transform')
+    };
+  });
+  expect(r.noneMargin).toEqual([30, 50, 150]);
+  expect(r.bothMargin).toEqual([50, 70, 130]);   // 20px more on the bottom and left
+  expect(r.userMargin).toEqual({ top: 20, right: 20, bottom: 30, left: 50 });
+  expect(r.xText).toBe('Time');
+  expect(r.yText).toBe('Level [m]');
+  expect(r.rotated).toBe('rotate(-90)');
+});
+
+test('horizontal bars: x is the horizontal (value) axis, y the vertical (category) one, for titles and ranges alike', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var w = document.createElement('div'); document.body.appendChild(w);
+    var g = d3.easygraph.bars({ container: w, height: 200, orientation: 'horizontal',
+                                x: { label: 'Count' }, y: { label: 'Day' } });
+    g.update([[{ x: 'Mon', y: 3 }, { x: 'Tue', y: 7 }]], { x: [0, 10] });
+    return { bottom: g.$xTitle.text(), left: g.$yTitle.text(), xDomain: g.x.$scale.domain(), yDomain: g.y.$scale.domain() };
+  });
+  expect(r.bottom).toBe('Count');
+  expect(r.left).toBe('Day');
+  expect(r.xDomain).toEqual([0, 10]);            // ranges.x pins the horizontal value axis
+  expect(r.yDomain).toEqual(['Mon', 'Tue']);
 });
 
 test('the chart svg carries an accessible name for assistive tech', async ({ page }) => {
@@ -836,32 +876,18 @@ test('a pinned color domain survives a resize reflow and a scatter rescale()', a
   expect(r.afterResize).toEqual([0, 1000]);
 });
 
-test('graph.title reads the effective text and assigning overrides it; top-level label/unit throw', async ({ page }) => {
+test('top-level label and unit throw with a pointer to title and x/y.label', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
-    var g = d3.easygraph.line({ container: '#graph', height: 200, y: { preset: 'temperatureF' } });
-    var out = { fromPreset: g.title };
-    g.title = 'Outdoor';
-    out.overridden = g.title;
-    g.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
-    out.rendered = g.$title.text();
-    g.title = undefined;
-    out.backToPreset = g.title;
-    var g2 = d3.easygraph.line({ container: '#graph', height: 200, title: 'Given' });
-    out.fromConfig = g2.title;
     function msg(cfg) { try { d3.easygraph.line(Object.assign({ container: '#graph', height: 200 }, cfg)); return ''; } catch (e) { return e.message; } }
-    out.oldLabel = msg({ label: 'x' });
-    out.oldUnit = msg({ unit: 'x' });
-    g.destroy(); g2.destroy();
+    var g = d3.easygraph.line({ container: '#graph', height: 200, title: 'Given' });
+    var out = { title: g.title, oldLabel: msg({ label: 'x' }), oldUnit: msg({ unit: 'x' }) };
+    g.destroy();
     return out;
   });
-  expect(r.fromPreset).toBe('Temperature');
-  expect(r.overridden).toBe('Outdoor');
-  expect(r.rendered).toBe('Outdoor [°F]');
-  expect(r.backToPreset).toBe('Temperature');
-  expect(r.fromConfig).toBe('Given');
+  expect(r.title).toBe('Given');
   expect(r.oldLabel).toContain("'title'");
-  expect(r.oldUnit).toContain('y.unit');
+  expect(r.oldUnit).toContain('x.unit');
 });
 
 test('assigning a build-time key throws; live keys still assign', async ({ page }) => {
@@ -935,8 +961,6 @@ test('config typos and wrong-family keys warn with a suggestion; custom fields s
     mk('line', { lines: true, colorPallete: 'x', curv: 'linear' });
     mk('bars', { zoom: { min: 1, max: 5 } });
     mk('line', { lines: true, sensors: [0, 1], channels: [3], preset: 'temperatureF', stationName: 'x' });
-    mk('line', { lines: true, x: { label: 'East' } });
-    mk('line', { lines: true, title: 'T', y: { label: 'Y' } });
     // the same typo twice warns once
     mk('line', { lines: true, colorPallete: 'x' });
     console.warn = orig;
@@ -945,8 +969,6 @@ test('config typos and wrong-family keys warn with a suggestion; custom fields s
   expect(r.some((m) => m.includes("'colorPallete'") && m.includes("'colorPalette'"))).toBe(true);
   expect(r.some((m) => m.includes("'curv'") && m.includes("'curve'"))).toBe(true);
   expect(r.some((m) => m.includes("'zoom'") && m.includes('line'))).toBe(true);
-  expect(r.some((m) => m.includes('x.label'))).toBe(true);
-  expect(r.some((m) => m.includes('y.label'))).toBe(true);
   expect(r.filter((m) => m.includes('colorPallete')).length).toBe(1);
   expect(r.some((m) => /sensors|channels|preset|stationName/.test(m))).toBe(false);
 });

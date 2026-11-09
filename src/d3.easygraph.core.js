@@ -265,12 +265,6 @@ d3.easygraph._warnConfig = function(config, chartType) {
     });
     if (best) _warnOnce(ctor + ": unknown option '" + key + "' - did you mean '" + best + "'?");
   });
-  // The library draws a chart title and no axis titles: x.label is never shown, and y.label is
-  // only the default for `title`.
-  if (config.x && config.x.label !== undefined)
-    _warnOnce(ctor + ": x.label is not drawn (there are no axis titles) - put the text in `title`");
-  if (config.title !== undefined && config.y && config.y.label !== undefined)
-    _warnOnce(ctor + ": y.label is only the default for `title`, which is set, so it is not drawn");
 };
 
 d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
@@ -295,8 +289,8 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
 
   ['label', 'unit'].forEach(function(old) {
     if (config[old] !== undefined)
-      throw new Error("d3.easygraph: '" + old + "' at the top level is gone - the chart title is 'title' " +
-                      "(defaults to y.label) and the unit is y.unit");
+      throw new Error("d3.easygraph: '" + old + "' at the top level is gone - the chart title is 'title'; " +
+                      "axis names are x.label / y.label and the unit is x.unit / y.unit");
   });
 
   var containerEl = _resolveContainer(graph.container);
@@ -330,10 +324,10 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     var w = containerEl.getBoundingClientRect().width;
     // ignore transient/degenerate layout passes (e.g. mid-reflow during a live
     // resize) that would otherwise drive graph.plotWidth negative
-    if (w <= graph.margin.left + graph.margin.right) return false;
+    if (w <= graph._margin.left + graph._margin.right) return false;
     var changed = graph.plotWidth === undefined || Math.abs(w - graph.width) >= 1;
     graph.width = w;
-    graph.plotWidth = graph.width - graph.margin.left - graph.margin.right;
+    graph.plotWidth = graph.width - graph._margin.left - graph._margin.right;
     return changed;
   }
 
@@ -414,21 +408,33 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     }
   });
 
-  // graph.title is an accessor: reading gives the effective chart title text - the value you
-  // set, else the y config's label (a preset supplies one) - and assigning sets the explicit
-  // override (assign undefined to fall back to the preset again). The y config stays a live
-  // fallback rather than a one-time seed, so a later graph.y.label = ... still shows. The unit
-  // shown after the title is always graph.y.unit.
-  (function() {
-    var override = graph.title;
-    Object.defineProperty(graph, 'title', {
-      enumerable: true, configurable: true,
-      get: function() { return (override !== undefined) ? override : graph.y.label; },
-      set: function(v) { override = v; }
-    });
-  })();
+  // The text of an axis title: the axis's label plus its unit, "Temperature [°F]". A preset
+  // supplies both for a known quantity; with neither there is no title at all. Re-read on every
+  // update(), so assigning graph.y.label (or .unit) later changes the text.
+  function _axisTitleText(prop) {
+    var label = prop.label, unit = prop.unit;
+    if (label && unit) return label + ' [' + unit + ']';
+    return label || (unit ? '[' + unit + ']' : '');
+  }
 
-  graph.plotHeight = graph.height - graph.margin.top - graph.margin.bottom;
+  // Room for an axis title is added to the margin you gave, not taken out of it: 20px more on
+  // the left for a y title, on the bottom for an x title. Decided at construction (a label
+  // assigned later is still drawn, in the same spot, but no space was set aside for it).
+  // graph.margin stays exactly what you passed; graph._margin is what the layout uses.
+  var _TITLE_PAD = 20;
+  graph._margin = {
+    top:    graph.margin.top,
+    right:  graph.margin.right,
+    bottom: graph.margin.bottom + (_axisTitleText(graph.x) ? _TITLE_PAD : 0),
+    left:   graph.margin.left   + (_axisTitleText(graph.y) ? _TITLE_PAD : 0)
+  };
+  var _vMargin2 = graph._margin.top + graph._margin.bottom;
+  if (!(graph.height > _vMargin2)) {
+    throw new Error('d3.easygraph: height (' + graph.height + ') must be greater than the vertical ' +
+                    'margins (' + _vMargin2 + ', including room for an axis title), or there is no room to plot in');
+  }
+
+  graph.plotHeight = graph.height - graph._margin.top - graph._margin.bottom;
   _measureWidth();
 
   graph._module = moduleFactory(graph);
@@ -470,7 +476,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   graph.$a11yTitle = graph.$svgRoot.append("title");
   graph.$svg = graph.$svgRoot
     .append("g")
-      .attr("transform", "translate(" + graph.margin.left + "," + graph.margin.top + ")");
+      .attr("transform", "translate(" + graph._margin.left + "," + graph._margin.top + ")");
 
   graph.$svg
     .append("g")
@@ -490,6 +496,21 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
       .attr("class", "easygraph-title")
       .attr("x", graph.plotWidth / 2)
       .attr("y", -6);
+
+  // Axis titles follow the screen axes: x is the bottom one, y the left one, in every chart
+  // (a horizontal bar chart's values are on x).
+  graph.$xTitle = graph.$svg.append("text")
+    .attr("class", "easygraph-axis-title easygraph-axis-title-x")
+    .attr("text-anchor", "middle");
+  graph.$yTitle = graph.$svg.append("text")
+    .attr("class", "easygraph-axis-title easygraph-axis-title-y")
+    .attr("text-anchor", "middle")
+    .attr("transform", "rotate(-90)");
+  graph._placeAxisTitles = function() {
+    graph.$xTitle.attr("x", graph.plotWidth / 2).attr("y", graph.plotHeight + graph._margin.bottom - 6);
+    graph.$yTitle.attr("x", -graph.plotHeight / 2).attr("y", -(graph._margin.left - 14));
+  };
+  graph._placeAxisTitles();
 
   graph.$clipRect = graph.$svg
     .append("clipPath")
@@ -532,6 +553,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     graph.$svgRoot.attr("width", graph.width);
     graph.$clipRect.attr("width", graph.plotWidth);
     graph.$title.attr("x", graph.plotWidth / 2);
+    graph._placeAxisTitles();
 
     if (graph._module.resize) graph._module.resize();
 
@@ -587,13 +609,17 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     // data-driven color domain.
     graph._lastRanges = ranges;
 
-    var label = graph.title, unit = graph.y.unit;
-    var titleText = (unit) ? label + " [" + unit + "]" : label;
+    var titleText = (graph.title == null) ? '' : String(graph.title);
+    var xTitleText = _axisTitleText(graph.x), yTitleText = _axisTitleText(graph.y);
     graph.$title.text(titleText);
-    // Mirrored onto the SVG's own accessible name. Falls back to the family name so a chart
-    // with no label at all still announces as something rather than as its axis tick numbers.
-    graph.$a11yTitle.text(titleText || graph._chartType + " chart");
-    graph.$svgRoot.attr("aria-label", titleText || graph._chartType + " chart");
+    graph.$xTitle.text(xTitleText);
+    graph.$yTitle.text(yTitleText);
+    // Mirrored onto the SVG's own accessible name: the title, else the y then x axis title,
+    // else the family name, so a chart with no text at all still announces as something rather
+    // than as its axis tick numbers.
+    var accessibleName = titleText || yTitleText || xTitleText || graph._chartType + " chart";
+    graph.$a11yTitle.text(accessibleName);
+    graph.$svgRoot.attr("aria-label", accessibleName);
 
     var domains = graph._module.domain(data, ranges.x, ranges.y) || { x: [0, 1], y: [0, 1] };
     graph.x.$scale.domain(domains.x);

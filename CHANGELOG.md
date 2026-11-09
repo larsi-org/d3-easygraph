@@ -64,11 +64,22 @@ All notable changes to this project are documented here. Format loosely follows
   `easygraph-axis easygraph-axis-x` / `-y`. Custom CSS or selectors using the old names need updating.
 - **Config typos are warned about.** A key that is a near-miss of a real option (`colorPallete`) or
   belongs to another family (`zoom` on bars) logs a console warning with a suggestion; custom fields
-  you hang on a config stay silent. Setting `x.label`, or `y.label` alongside `title`, warns that it
-  isn't drawn (there are no axis titles).
+  you hang on a config stay silent.
 - **`x.scale`, `y.scale` and `color.scale` throw when assigned after construction**, like the other
   build-time keys.
 - **`graph.colorPalettes` is removed**; use `d3.easygraph.colorPalettes`.
+- **Axis titles.** `x.label` and `y.label` are now drawn as axis titles (x under the horizontal axis,
+  y rotated beside the vertical one), with the unit in brackets: `Temperature [°F]`. A preset
+  supplies both, so a preset chart's text moves from the top heading to the y axis. `title` is the
+  chart heading only: it is blank unless you set it, no longer defaults to `y.label`, and no longer
+  has the unit appended. The library adds 20px to the left and bottom margins for a title that
+  exists at construction; `graph.margin` is unchanged. The `aria-label` is the `title`, else the y,
+  then x axis title. New classes `easygraph-axis-title` (with `-x` / `-y`).
+- **`ranges` and `x`/`y` are the screen axes in a horizontal bar chart.** `x` is the horizontal
+  axis (the values) and `y` the vertical one (the categories) for the config, `ranges` and the axis
+  titles alike; the data stays `{ x: category, y: value }`. Previously `ranges` alone was swapped
+  back to the data fields in horizontal mode, so `{ y: [0, 1] }` pinned the values while
+  `x: { tickLabels: false }` hid them.
 
 ## [0.8.0] - 2026-11-08
 

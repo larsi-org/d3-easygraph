@@ -105,7 +105,7 @@ is built in - plot pre-projected pixel coordinates (e.g. lat/lng run through you
 ### Shared config
 
 These are shared by all four families: `container`, `title`, `x`/`y` (`scale`, `unit`, `label`,
-`tickLabels`, `preset`, `convert`, `trim`), `height`, `margin`, `colorPalette`, `colorClasses`,
+`tickLabels`, `preset`, `convert`, `trim`; `label`/`unit` title the axis), `height`, `margin`, `colorPalette`, `colorClasses`,
 `duration`,
 `x.timeFormat: 'multi'` (multi-scale time tick labels - minute/hour/day/month formats picked per tick
 from the tick's own precision, rather than one fixed format for the whole axis; useful on any
@@ -153,13 +153,15 @@ Every chart has a `graph.destroy()` that disconnects its resize observer, tears 
 releases its reference to the last data you passed. Calling `update()` afterwards throws rather
 than quietly rendering into a detached SVG.
 
-`title` is optional. A `y`/`color` `preset` supplies a label automatically (e.g. `temperatureF` →
-"Temperature"), and the title is that label plus the unit, `Temperature [°F]`; with no preset and no
-`title` of your own, the title just renders blank - there's no generic placeholder to opt out of.
-**The chart has a title and no axis titles.** `label` on `x`/`y`/`color` is the quantity's name: it
-only ever feeds the default title, so `x.label` is never drawn, and `y.label` is not drawn once you
-set `title`. The constructor warns on the console when you set one of those. Put axis names in the
-`title` ("Pressure (hPa) by station").
+**Titles.** `title` is the chart's heading, drawn above the plot; it is blank unless you set it. The
+axes are titled separately: `x.label` goes under the horizontal axis and `y.label`, rotated, beside
+the vertical one, each followed by its unit in brackets (`Temperature [°F]`). A `preset` supplies the
+label and unit for its axis, so `y: { preset: 'temperatureF' }` titles the y axis by itself, and
+`label`/`unit` set directly override the preset. Room for an axis title is added to the margin you
+give (20px on the left for a y title, on the bottom for an x title), so existing margins keep
+working; `graph.margin` still reads exactly what you passed. The space is reserved at construction:
+change a label's text whenever you like, but an axis that had no label when the chart was built has
+no room set aside if you add one later.
 
 ## Unit conversion (no chart required)
 
@@ -393,18 +395,17 @@ graph.update([
 ```
 
 `graph.update(data, ranges)` re-renders with new data (`ranges: { x, y }` optionally pin the axis
-domains instead of auto-fitting to the data) and returns the graph, so calls chain. `ranges.x`
-and `ranges.y` name your **data's** `x` and `y` fields, not the screen axes - which is the same
-thing for every family except horizontal bars, where `d.x` is the category (drawn up the
-vertical axis) and `d.y` is the value (drawn across). So a horizontal bar chart pins its value
-axis with `ranges.y`, matching the field the values live in. This is deliberate: `orientation`
-is only how the chart is drawn, so the same data, `x`/`y` config and `ranges` work unchanged when
-you flip it.
+domains instead of auto-fitting to the data) and returns the graph, so calls chain. **`x` and `y`
+are the screen axes everywhere**: `x` is the horizontal axis and `y` the vertical one, in the
+`x`/`y` config, in `ranges`, and in the axis titles. A bar chart's *data* keeps `x` = category and
+`y` = value in either orientation, so in a horizontal bar chart the values are drawn on the `x`
+axis: that is where you pin them and title them.
 
 ```js
-// horizontal bars: x = category (up the side), y = value (across the bottom)
-var g = d3.easygraph.bars({ container: '#chart', orientation: 'horizontal', title: 'Count' });
-g.update([[{ x: 'Mon', y: 3 }, { x: 'Tue', y: 7 }]], { y: [0, 10] });  // pins the value axis
+// horizontal bars: data is still { x: category, y: value }; the values run across, on the x axis
+var g = d3.easygraph.bars({ container: '#chart', orientation: 'horizontal',
+                            x: { label: 'Count' }, y: { label: 'Day' } });
+g.update([[{ x: 'Mon', y: 3 }, { x: 'Tue', y: 7 }]], { x: [0, 10] });  // pins the value axis
 ```
 
 `heatmap` and `scatter` also take **`ranges.color`**, pinning the color scale's domain for that
@@ -420,7 +421,7 @@ Your config object is never modified - it's cloned on the way in (as are its `x`
 off the returned graph, not off the object you passed in.
 
 Each chart's `<svg>` carries `class="easygraph"`, which every rule in the stylesheet is scoped
-under, plus `role="img"` and an `aria-label` mirroring the chart title.
+under, plus `role="img"` and an `aria-label` that is the `title`, else the y then x axis title.
 
 **Class names.** Every class the library adds starts with `easygraph-` and names the mark
 (singular for one element, plural for the `<g>` holding them), so a page's own CSS and selectors
@@ -428,7 +429,7 @@ can't collide with them, and they're stable API for styling and for tests:
 
 | Chart | Classes |
 | --- | --- |
-| all | `easygraph` (the svg), `easygraph-title`, `easygraph-axis` with `easygraph-axis-x` / `easygraph-axis-y` |
+| all | `easygraph` (the svg), `easygraph-title`, `easygraph-axis` with `easygraph-axis-x` / `easygraph-axis-y`, `easygraph-axis-title` with `easygraph-axis-title-x` / `easygraph-axis-title-y` |
 | line | `easygraph-line`, `easygraph-minmax`, `easygraph-sigma`, `easygraph-stack` (one `<path>` per series), `easygraph-pane` (the zoom/pointer rect), `easygraph-crosshair-line`, `easygraph-crosshair-tip` (the tooltip, a child of `<body>`) |
 | bars | `easygraph-bar`, `easygraph-bar-group` |
 | heatmap | `easygraph-heatmap-row`, `easygraph-heatmap-cell` |
@@ -544,7 +545,7 @@ The `curve` config takes one of `'linear'`, `'monotone'`, `'step-after'`, `'step
 | `x`, `y`, and (heatmap/scatter) `color` | the resolved per-property configs; `$scale` and `$axis` on each are the intended escape hatch into D3. `graph.$svg` (the margin-translated group the axes live in) and `graph.$group` (the clipped plot area) are stable too, for drawing your own marks. Every other `$`- or `_`-prefixed name is private and may change |
 | `width`, `height` | the full `<svg>` box. `height` is exactly what you configured and is never replaced; `width` follows the container |
 | `plotWidth`, `plotHeight` | the plot area, inside the margins |
-| `title` | the effective chart title: what you set, else `y.label` (a preset supplies one). Assign to override; assign `undefined` to fall back |
+| `title` | the chart heading (blank unless set); assign and call `update()` to change it |
 | `paletteColors` | the resolved color array |
 | `onZoom`, `onCrosshair` | optional callbacks; `syncZoom`/`syncCrosshair` compose with yours rather than replacing it |
 
@@ -622,7 +623,7 @@ npm test
 ```
 
 [Playwright](https://playwright.dev) specs in `test/` (one per source module: core, line, bars,
-heatmap, scatter, presets, colors; 152 tests) run against the built `dist/` via static
+heatmap, scatter, presets, colors; 154 tests) run against the built `dist/` via static
 `test/fixtures/*.html` pages loaded over `file://`. They cover rendering, live resize, `destroy()`
 teardown, legends, the standalone unit and palette functions, and the regressions that needed real
 interaction to find: the zoom baseline staying in sync with the container's width after a resize,
