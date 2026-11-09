@@ -33,7 +33,9 @@ chart (assign it, then call `update()`):
   (typically the mean ±1 standard deviation): a faint band for the extreme range and a darker one
   for the typical spread. Either key works alone, a missing key is off, and `{}` or omitted draws
   none. It is re-read on every `update()`, so one assignment toggles both:
-  `graph.bands = hourly ? {} : { minmax: true, sigma: true }`.
+  `graph.bands = hourly ? {} : { minmax: true, sigma: true }`. The chart only draws the numbers you
+  give it; it never computes a band. `d3.easygraph.bandStats(values)` is an optional helper that
+  does (see the Public API table), and you're free to supply percentiles or anything else instead.
   If you convert a
   point's `y` (e.g. °C to °F), convert `min`, `max`, `sigmaMin` and `sigmaMax` too.
 - **`stackedArea`** - a classic stacked area chart: plain `{ x, y }` points like `lines`, each
@@ -486,6 +488,7 @@ properties to a graph is fine and supported; the library only ever writes the na
 | `colorScale(name, domain, options)` | a ready `color(value)` scale |
 | `hueWheelPalette(count)` | `count` evenly spaced hues as `[r, g, b]` triples |
 | `legendItems(colors, labels)` | zip colors and labels into legend rows, with no chart involved |
+| `bandStats(values, k)`, `bandStatsFromSums(totals, k)` | optional: `{ count, mean, min, max, sigmaMin, sigmaMax }` for a band, from an array or from running `{ sum, sumSq, count, min, max }` totals (mean ± `k` population standard deviations, default 1, clamped into `[min, max]`) |
 
 **On a graph** - methods:
 

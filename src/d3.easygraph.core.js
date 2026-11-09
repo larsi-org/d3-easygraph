@@ -45,6 +45,46 @@ d3.easygraph._clippedExtent = function(values, trim) {
   return [d3.quantileSorted(sorted, trim[0]), d3.quantileSorted(sorted, trim[1])];
 };
 
+// Optional helpers for the numbers a line chart's bands are drawn from. The chart never calls
+// these: it draws whatever `min`/`max` and `sigmaMin`/`sigmaMax` you put on each point, so a
+// caller is free to use percentiles, confidence intervals or anything else instead.
+//
+// bandStatsFromSums({ sum, sumSq, count, min, max }, k) is for a caller that streams through
+// raw readings and keeps only running totals. Returns { count, mean, min, max, sigmaMin,
+// sigmaMax }: mean +- k population standard deviations (k defaults to 1), clamped into
+// [min, max] - a skewed sample can otherwise push mean +- sigma past the true extreme on the
+// far side, which would look broken for a band meant to nest inside min/max. An empty input
+// (no count) returns count 0 and nulls.
+d3.easygraph.bandStatsFromSums = function(totals, k) {
+  if (!totals || !(totals.count > 0)) {
+    return { count: 0, mean: null, min: null, max: null, sigmaMin: null, sigmaMax: null };
+  }
+  k = (k == null) ? 1 : k;
+  var mean  = totals.sum / totals.count;
+  // max(0, ...) guards float error on a near-zero variance (sumSq/n - mean^2 can go slightly negative)
+  var sigma = Math.sqrt(Math.max(0, totals.sumSq / totals.count - mean * mean));
+  return {
+    count: totals.count, mean: mean, min: totals.min, max: totals.max,
+    sigmaMin: Math.max(totals.min, mean - k * sigma),
+    sigmaMax: Math.min(totals.max, mean + k * sigma)
+  };
+};
+
+// bandStats(values, k): the same, from an array of numbers. null, undefined and non-finite
+// entries are skipped. Use this when you already hold every value (a day's 24 hourly readings).
+d3.easygraph.bandStats = function(values, k) {
+  var totals = { sum: 0, sumSq: 0, count: 0, min: Infinity, max: -Infinity };
+  (values || []).forEach(function(raw) {
+    if (raw == null) return;
+    var v = +raw;
+    if (!isFinite(v)) return;
+    totals.sum += v; totals.sumSq += v * v; totals.count++;
+    if (v < totals.min) totals.min = v;
+    if (v > totals.max) totals.max = v;
+  });
+  return d3.easygraph.bandStatsFromSums(totals, k);
+};
+
 // Stacks layered series, accumulating y0 offsets bottom-up - shared by bars.js's stacked
 // mode and line.js's stackedArea, the same accumulation either way regardless of what shape
 // gets drawn from the result. Assumes series are index-aligned (each series' j-th point

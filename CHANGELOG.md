@@ -40,6 +40,10 @@ All notable changes to this project are documented here. Format loosely follows
   `zoom`, `crosshair`, `colorPalette`, `colorClasses`) instead of silently doing nothing. Everything
   else is still re-read on every `update()`.
 - `graph.$svg` and `graph.$group` are documented as stable alongside `$scale` and `$axis`.
+- New optional helpers `d3.easygraph.bandStats(values, k)` and `bandStatsFromSums(totals, k)`:
+  `{ count, mean, min, max, sigmaMin, sigmaMax }` for a line chart's bands (mean +- k population
+  standard deviations, clamped into `[min, max]`). The chart itself still only draws the
+  `min`/`max`/`sigmaMin`/`sigmaMax` you give it.
 
 ## [0.8.0] - 2026-11-08
 

@@ -215,3 +215,33 @@ test('presets and colorPalettes are extensible - the documented way to add your 
   expect(r.title).toBe('Soil Moisture [%]');            // a custom preset drives the chart title
   expect(r.strokeUsesCustomPalette).toBe(true);
 });
+
+test('bandStats and bandStatsFromSums give mean +- k sigma clamped into [min, max]; empty input gives nulls', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var e = d3.easygraph;
+    var vals = [2, 4, 4, 4, 5, 5, 7, 9]; // mean 5, population sigma 2
+    var sums = vals.reduce(function(t, v) { t.sum += v; t.sumSq += v * v; t.count++; return t; },
+                           { sum: 0, sumSq: 0, count: 0, min: 2, max: 9 });
+    return {
+      arr: e.bandStats(vals),
+      fromSums: e.bandStatsFromSums(sums),
+      k2: e.bandStats(vals, 2),
+      skips: e.bandStats([1, null, NaN, undefined, 3, Infinity]),
+      skewed: e.bandStats([0, 0, 0, 0, 0, 0, 0, 0, 0, 10]), // mean 1, sigma 3: mean - sigma is below the min
+      same: e.bandStats([5, 5, 5]),
+      empty: e.bandStats([]),
+      none: e.bandStatsFromSums(null)
+    };
+  });
+  expect(r.arr).toEqual({ count: 8, mean: 5, min: 2, max: 9, sigmaMin: 3, sigmaMax: 7 });
+  expect(r.fromSums).toEqual(r.arr);
+  expect(r.k2.sigmaMin).toBe(2);   // 5 - 4 = 1, clamped up to the min of 2
+  expect(r.k2.sigmaMax).toBe(9);   // 5 + 4 = 9
+  expect(r.skips.count).toBe(2);
+  expect(r.skips.mean).toBe(2);
+  expect(r.skewed.sigmaMin).toBe(0);  // clamped, not -2
+  expect(r.same).toEqual({ count: 3, mean: 5, min: 5, max: 5, sigmaMin: 5, sigmaMax: 5 });
+  expect(r.empty).toEqual({ count: 0, mean: null, min: null, max: null, sigmaMin: null, sigmaMax: null });
+  expect(r.none.count).toBe(0);
+});
