@@ -115,8 +115,8 @@ d3.easygraph.line = function(config) {
           graph.$pane = graph.$svg
             .append("rect")
               .attr("class", "pane")
-              .attr("width", graph.width)
-              .attr("height", graph.height)
+              .attr("width", graph.plotWidth)
+              .attr("height", graph.plotHeight)
               // Without this, iOS's native pinch-to-zoom/pan can still hijack a touch gesture
               // on this pane and zoom the whole page instead of the chart, even though d3.zoom()
               // already calls preventDefault() internally - that alone isn't reliable against
@@ -138,7 +138,7 @@ d3.easygraph.line = function(config) {
             .attr("class", "crosshair-line")
             .attr("clip-path", "url(#" + graph._clipId + ")")
             .attr("y1", 0)
-            .attr("y2", graph.height)
+            .attr("y2", graph.plotHeight)
             .style("display", "none");
 
           graph.$crosshairTip = d3.select("body")
@@ -163,7 +163,7 @@ d3.easygraph.line = function(config) {
               var d = (d1 && Math.abs(x0 - d1.x) < Math.abs(x0 - d0.x)) ? d1 : d0;
               if (!d) return;
               var near = Math.abs(graph.x.$scale(d.x) - mouseX) <= graph.crosshairThreshold;
-              var unit = (graph.units && graph.units[i] != null) ? graph.units[i] : (graph.resolvedUnit() || '');
+              var unit = (graph.units && graph.units[i] != null) ? graph.units[i] : (graph.unit || '');
               // the series' own name, when `names` supplies one - otherwise the row is just the
               // swatch and the value, exactly as before
               var name = (graph.names && graph.names[i] != null) ? graph.names[i] + ' ' : '';
@@ -190,7 +190,7 @@ d3.easygraph.line = function(config) {
 
           graph.$svg.on("mousemove.crosshair", function(event) {
             var mouseX = d3.pointer(event, graph.$svg.node())[0];
-            if (mouseX >= 0 && mouseX <= graph.width) {
+            if (mouseX >= 0 && mouseX <= graph.plotWidth) {
               graph._moveCrosshair(mouseX);
               if (graph.onCrosshair) graph.onCrosshair(mouseX);
             } else {
@@ -375,8 +375,8 @@ d3.easygraph.line = function(config) {
       legendItems: function() { return d3.easygraph._seriesLegendItems(graph); },
 
       resize: function() {
-        if (graph.$pane) graph.$pane.attr("width", graph.width);
-        if (graph.$xScaleRef) graph.$xScaleRef.range([0, graph.width]);
+        if (graph.$pane) graph.$pane.attr("width", graph.plotWidth);
+        if (graph.$xScaleRef) graph.$xScaleRef.range([0, graph.plotWidth]);
       },
 
       destroy: function() {

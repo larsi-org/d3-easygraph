@@ -182,9 +182,10 @@ test('resize updates graph.width and the svg width attribute', async ({ page }) 
   await page.waitForFunction((w) => window.graph.width < w, initialWidth);
 
   const svgWidth = await page.evaluate(() => Number(window.graph.$svgRoot.attr('width')));
-  const graphWidth = await page.evaluate(() => window.graph.width);
-  expect(graphWidth).toBeGreaterThan(0);
-  expect(svgWidth).toBe(graphWidth + 70); // margin.left(50) + margin.right(20)
+  const [width, plotWidth] = await page.evaluate(() => [window.graph.width, window.graph.plotWidth]);
+  expect(plotWidth).toBeGreaterThan(0);
+  expect(svgWidth).toBe(width);
+  expect(plotWidth).toBe(width - 70); // margin.left(50) + margin.right(20)
 });
 
 test('zoom then resize keeps $xScaleRef range in sync (regression)', async ({ page }) => {
@@ -201,7 +202,7 @@ test('zoom then resize keeps $xScaleRef range in sync (regression)', async ({ pa
 
   const [xScaleRefMax, graphWidth] = await page.evaluate(() => [
     window.graph.$xScaleRef.range()[1],
-    window.graph.width
+    window.graph.plotWidth
   ]);
   expect(xScaleRefMax).toBe(graphWidth);
 });

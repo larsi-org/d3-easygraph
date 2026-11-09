@@ -70,7 +70,7 @@ d3.easygraph.bars = function(config) {
         .attr("x",      function(d) { return graph.x.$scale(d.x); })
         .attr("width",  graph.x.$scale.bandwidth())
         .attr("y",      function(d) { return graph.y.$scale(d.y0 + d.y); })
-        .attr("height", function(d) { return graph.height - graph.y.$scale(d.y); });
+        .attr("height", function(d) { return graph.plotHeight - graph.y.$scale(d.y); });
     }
 
     function barsGroupedV(data) {
@@ -99,7 +99,7 @@ d3.easygraph.bars = function(config) {
         .attr("x",      function(d) { return graph.x.$scale(d.x); })
         .attr("width",  x1.bandwidth())
         .attr("y",      function(d) { return graph.y.$scale(d.y); })
-        .attr("height", function(d) { return graph.height - graph.y.$scale(d.y); });
+        .attr("height", function(d) { return graph.plotHeight - graph.y.$scale(d.y); });
     }
 
     function barsStackedH(data) {
@@ -166,13 +166,13 @@ d3.easygraph.bars = function(config) {
         }
         _checkMode();
         if (graph.orientation === 'vertical') {
-          graph.x.$scale = d3.scaleBand().rangeRound([0, graph.width]).padding(.2);
+          graph.x.$scale = d3.scaleBand().rangeRound([0, graph.plotWidth]).padding(.2);
           graph.y.$scale = (graph.y.scale === 'time') ? d3.scaleTime() : d3.scaleLinear();
-          graph.y.$scale.range([graph.height, 0]);
+          graph.y.$scale.range([graph.plotHeight, 0]);
         } else {
-          graph.y.$scale = d3.scaleBand().rangeRound([0, graph.height]).padding(.2);
+          graph.y.$scale = d3.scaleBand().rangeRound([0, graph.plotHeight]).padding(.2);
           graph.x.$scale = (graph.x.scale === 'time') ? d3.scaleTime() : d3.scaleLinear();
-          graph.x.$scale.range([0, graph.width]);
+          graph.x.$scale.range([0, graph.plotWidth]);
         }
       },
 

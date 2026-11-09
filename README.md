@@ -486,7 +486,6 @@ properties to a graph is fine and supported; the library only ever writes the na
 | `getPaletteColor(i)` | the i-th palette color, wrapping past the end |
 | `legendItems()` | the `{ index, color, label }` rows a legend is drawn from - see below |
 | `rescale(k)` | scatter only - divide on-screen marker sizes by `k` (see the table above) |
-| `resolvedLabel()`, `resolvedUnit()` | the effective title text: your `label`/`unit` if set, else the `y` config's |
 | `numberFormat(v)`, `timeFormatShort(date)` | the formatters the axes use, exposed so a tooltip or legend can match them |
 
 The `curve` config takes one of `'linear'`, `'monotone'`, `'step-after'`, `'step-before'`,
@@ -499,8 +498,9 @@ The `curve` config takes one of `'linear'`, `'monotone'`, `'step-after'`, `'step
 | --- | --- |
 | every config key you passed | `container`, `height`, `margin`, `duration`, `colorPalette`, `colorClasses`, `timeFormatMulti`, and the family's own flags - readable, and the family flags (`lines`, `ribbons`, `stackedArea`, `mode`, `voronoi`, `arrows`, `labels`, `units`, …) are re-read on every `update()`, so assigning one and re-rendering is the supported way to toggle a chart live |
 | `x`, `y`, and (heatmap/scatter) `color` | the resolved per-property configs; `$scale` and `$axis` on each are the intended escape hatch into D3 |
-| `width`, `height` | the **plot area**, inside the margins |
-| `outerWidth`, `outerHeight` | the full `<svg>` box - `height` going in is the outer height, and is replaced by the plot-area height during construction |
+| `width`, `height` | the full `<svg>` box. `height` is exactly what you configured and is never replaced; `width` follows the container |
+| `plotWidth`, `plotHeight` | the plot area, inside the margins |
+| `label`, `unit` | the effective title text: what you set, else the `y` preset's. Assign to override; assign `undefined` to fall back to the preset |
 | `paletteColors` | the resolved color array |
 | `onZoom`, `onCrosshair` | optional callbacks; `syncZoom`/`syncCrosshair` compose with yours rather than replacing it |
 

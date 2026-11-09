@@ -53,8 +53,8 @@ test('rescale(k) still shrinks a per-point radius override by 1/k', async ({ pag
 test('points are positioned via the x/y scale, not raw data coordinates', async ({ page }) => {
   await page.goto(FIXTURE);
   const positions = await page.evaluate(() => {
-    var graphWidth = window.graph.width;
-    var graphHeight = window.graph.height;
+    var graphWidth = window.graph.plotWidth;
+    var graphHeight = window.graph.plotHeight;
     var cxs = [...document.querySelectorAll('circle.scatter-point')].map((c) => Number(c.getAttribute('cx')));
     var cys = [...document.querySelectorAll('circle.scatter-point')].map((c) => Number(c.getAttribute('cy')));
     return { graphWidth, graphHeight, cxs, cys };

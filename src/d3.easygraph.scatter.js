@@ -129,7 +129,7 @@ d3.easygraph.scatter = function(config) {
           function(d) { return graph.x.$scale(d.x); },
           function(d) { return graph.y.$scale(d.y); }
         );
-        var voronoi = delaunay.voronoi([0, 0, graph.width, graph.height]);
+        var voronoi = delaunay.voronoi([0, 0, graph.plotWidth, graph.plotHeight]);
 
         cells
           .attr("d", function(d, i) { return voronoi.renderCell(i); })

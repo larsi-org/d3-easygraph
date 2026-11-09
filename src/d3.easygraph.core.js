@@ -207,11 +207,11 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   function _measureWidth() {
     var w = containerEl.getBoundingClientRect().width;
     // ignore transient/degenerate layout passes (e.g. mid-reflow during a live
-    // resize) that would otherwise drive graph.width negative
+    // resize) that would otherwise drive graph.plotWidth negative
     if (w <= graph.margin.left + graph.margin.right) return false;
-    var changed = graph.width === undefined || Math.abs(w - graph.outerWidth) >= 1;
-    graph.outerWidth = w;
-    graph.width = graph.outerWidth - graph.margin.left - graph.margin.right;
+    var changed = graph.plotWidth === undefined || Math.abs(w - graph.width) >= 1;
+    graph.width = w;
+    graph.plotWidth = graph.width - graph.margin.left - graph.margin.right;
     return changed;
   }
 
@@ -297,20 +297,21 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     }
   });
 
-  // Resolved lazily rather than copied onto graph.label/graph.unit at construction: the copy
-  // meant a caller who set graph.y.label afterwards saw nothing change (the title only ever
-  // read the construction-time snapshot), and left two competing sources of truth for the same
-  // string. graph.label/graph.unit still win when set - they're the explicit override - but
-  // the y config is now the live fallback rather than a one-time seed.
-  graph.resolvedLabel = function() {
-    return (graph.label !== undefined) ? graph.label : graph.y.label;
-  };
-  graph.resolvedUnit = function() {
-    return (graph.unit !== undefined) ? graph.unit : graph.y.unit;
-  };
+  // graph.label / graph.unit are accessors: reading gives the effective chart title text -
+  // the value you set, else the y config's (a preset supplies one) - and assigning sets the
+  // explicit override (assign undefined to fall back to the preset again). One name to read and
+  // write, and the y config stays a live fallback rather than a one-time seed, so a later
+  // graph.y.label = ... still shows.
+  [['label', graph.label], ['unit', graph.unit]].forEach(function(p) {
+    var key = p[0], override = p[1];
+    Object.defineProperty(graph, key, {
+      enumerable: true, configurable: true,
+      get: function() { return (override !== undefined) ? override : graph.y[key]; },
+      set: function(v) { override = v; }
+    });
+  });
 
-  graph.outerHeight = graph.height;
-  graph.height = graph.outerHeight - graph.margin.top - graph.margin.bottom;
+  graph.plotHeight = graph.height - graph.margin.top - graph.margin.bottom;
   _measureWidth();
 
   graph._module = moduleFactory(graph);
@@ -319,12 +320,12 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     graph._module.prepareScales();
   } else {
     graph.x.$scale = (graph.x.scale === 'time') ? d3.scaleTime() : d3.scaleLinear();
-    graph.x.$scale.range([0, graph.width]);
+    graph.x.$scale.range([0, graph.plotWidth]);
     graph.y.$scale = (graph.y.scale === 'time') ? d3.scaleTime() : d3.scaleLinear();
-    graph.y.$scale.range([graph.height, 0]);
+    graph.y.$scale.range([graph.plotHeight, 0]);
   }
 
-  graph.x.$axis = d3.axisBottom(graph.x.$scale).tickSize(-graph.height).tickPadding(12);
+  graph.x.$axis = d3.axisBottom(graph.x.$scale).tickSize(-graph.plotHeight).tickPadding(12);
   if (graph.x.scale === 'linear' && !graph.x.$scale.bandwidth) graph.x.$axis.tickFormat(graph.numberFormat);
   if (graph.x.scale === 'time'   && graph.timeFormatMulti)     graph.x.$axis.tickFormat(graph.timeFormatShort);
   // tickLabels: false blanks the tick *text* and keeps the tick marks and gridlines, which is
@@ -332,7 +333,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // written out (noTick: false) and over-promised, since the ticks themselves stay.
   if (graph.x.tickLabels === false)                            graph.x.$axis.tickFormat(function() { return ''; });
 
-  graph.y.$axis = d3.axisLeft(graph.y.$scale).tickSize(-graph.width).tickPadding(6);
+  graph.y.$axis = d3.axisLeft(graph.y.$scale).tickSize(-graph.plotWidth).tickPadding(6);
   if (graph.y.scale === 'linear' && !graph.y.$scale.bandwidth) graph.y.$axis.tickFormat(graph.numberFormat);
   if (graph.y.tickLabels === false)                            graph.y.$axis.tickFormat(function() { return ''; });
 
@@ -345,8 +346,8 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     .append("svg")
       .attr("class", "easygraph")
       .attr("role", "img")
-      .attr("width", graph.outerWidth)
-      .attr("height", graph.outerHeight);
+      .attr("width", graph.width)
+      .attr("height", graph.height);
   graph.$a11yTitle = graph.$svgRoot.append("title");
   graph.$svg = graph.$svgRoot
     .append("g")
@@ -355,7 +356,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   graph.$svg
     .append("g")
       .attr("class", "x axis")
-      .attr("transform", "translate(0," + graph.height + ")")
+      .attr("transform", "translate(0," + graph.plotHeight + ")")
       .call(graph.x.$axis);
 
   // A class, not id="title": an id is unique per *document*, so N charts on one page produced
@@ -368,7 +369,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
       .call(graph.y.$axis)
     .append("text")
       .attr("class", "easygraph-title")
-      .attr("x", graph.width / 2)
+      .attr("x", graph.plotWidth / 2)
       .attr("y", -6);
 
   graph.$clipRect = graph.$svg
@@ -376,7 +377,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
       .attr("id", graph._clipId)
     .append("rect")
       .attr("x", 0).attr("y", 0)
-      .attr("width", graph.width).attr("height", graph.height);
+      .attr("width", graph.plotWidth).attr("height", graph.plotHeight);
 
   graph.$group = graph.$svg.append("g");
 
@@ -403,15 +404,15 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     if (!_measureWidth()) return false;
 
     if (graph.x.$scale.bandwidth) {
-      graph.x.$scale.rangeRound([0, graph.width]);
+      graph.x.$scale.rangeRound([0, graph.plotWidth]);
     } else {
-      graph.x.$scale.range([0, graph.width]);
+      graph.x.$scale.range([0, graph.plotWidth]);
     }
-    graph.y.$axis.tickSize(-graph.width);
+    graph.y.$axis.tickSize(-graph.plotWidth);
 
-    graph.$svgRoot.attr("width", graph.outerWidth);
-    graph.$clipRect.attr("width", graph.width);
-    graph.$title.attr("x", graph.width / 2);
+    graph.$svgRoot.attr("width", graph.width);
+    graph.$clipRect.attr("width", graph.plotWidth);
+    graph.$title.attr("x", graph.plotWidth / 2);
 
     if (graph._module.resize) graph._module.resize();
 
@@ -467,7 +468,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     // data-driven color domain.
     graph._lastRanges = ranges;
 
-    var label = graph.resolvedLabel(), unit = graph.resolvedUnit();
+    var label = graph.label, unit = graph.unit;
     var titleText = (unit) ? label + " [" + unit + "]" : label;
     graph.$title.text(titleText);
     // Mirrored onto the SVG's own accessible name. Falls back to the family name so a chart

@@ -181,8 +181,8 @@ test('the caller\'s config object is never mutated, and two charts can share one
       configKeyCount: Object.keys(cfg).length,   // stays 3, not ~45
       chartsAreDistinct: g1 !== g2,
       // chart 1's plot height must survive chart 2's construction: 320 - 20 - 30 = 270
-      g1PlotHeight: g1.height,
-      g2PlotHeight: g2.height
+      g1PlotHeight: g1.plotHeight,
+      g2PlotHeight: g2.plotHeight
     };
 
     g1.destroy();
@@ -428,25 +428,25 @@ test('syncZoom/syncCrosshair compose with a caller-set callback instead of repla
   expect(result.syncedDomain).toBeDefined();
 });
 
-test('outerWidth/outerHeight are the full svg box; width/height are the plot area', async ({ page }) => {
+test('width/height are the full svg box; plotWidth/plotHeight are the plot area inside the margins', async ({ page }) => {
   await page.goto(FIXTURE);
   const dims = await page.evaluate(() => {
     var g = d3.easygraph.line({ container: '#graph', height: 320, margin: { top: 20, right: 20, bottom: 30, left: 50 } });
     var svg = document.querySelector('#graph svg');
     var d = {
-      outerHeight: g.outerHeight, height: g.height,
-      outerWidth: g.outerWidth, width: g.width,
+      height: g.height, plotHeight: g.plotHeight,
+      width: g.width, plotWidth: g.plotWidth,
       svgHeightAttr: Number(svg.getAttribute('height')),
       svgWidthAttr: Number(svg.getAttribute('width'))
     };
     g.destroy();
     return d;
   });
-  expect(dims.outerHeight).toBe(320);
-  expect(dims.height).toBe(270);              // 320 - 20 - 30
-  expect(dims.svgHeightAttr).toBe(dims.outerHeight);
-  expect(dims.width).toBe(dims.outerWidth - 70); // margin.left + margin.right
-  expect(dims.svgWidthAttr).toBe(dims.outerWidth);
+  expect(dims.height).toBe(320);                 // the configured height, never replaced
+  expect(dims.plotHeight).toBe(270);             // 320 - 20 - 30
+  expect(dims.svgHeightAttr).toBe(dims.height);
+  expect(dims.plotWidth).toBe(dims.width - 70);  // margin.left + margin.right
+  expect(dims.svgWidthAttr).toBe(dims.width);
 });
 
 test('height must leave room to plot in once margins are subtracted', async ({ page }) => {
@@ -455,7 +455,7 @@ test('height must leave room to plot in once margins are subtracted', async ({ p
     function msg(h) {
       try {
         var g = d3.easygraph.line({ container: '#graph', height: h, margin: { top: 20, right: 20, bottom: 30, left: 50 } });
-        var inner = g.height; g.destroy();
+        var inner = g.plotHeight; g.destroy();
         return 'built, plot height ' + inner;
       } catch (e) { return e.message; }
     }
@@ -834,4 +834,27 @@ test('a pinned color domain survives a resize reflow and a scatter rescale()', a
   expect(r.afterUpdate).toEqual([0, 1000]);
   expect(r.afterRescale).toEqual([0, 1000]);
   expect(r.afterResize).toEqual([0, 1000]);
+});
+
+test('graph.label and graph.unit read the effective text and assigning overrides it', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var g = d3.easygraph.line({ container: '#graph', height: 200, y: { preset: 'temperatureF' } });
+    var out = { fromPreset: [g.label, g.unit] };
+    g.label = 'Outdoor';
+    out.overridden = [g.label, g.unit];
+    g.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
+    out.title = g.$title.text();
+    g.label = undefined;
+    out.backToPreset = g.label;
+    var g2 = d3.easygraph.line({ container: '#graph', height: 200, label: 'Given', unit: 'u' });
+    out.fromConfig = [g2.label, g2.unit];
+    g.destroy(); g2.destroy();
+    return out;
+  });
+  expect(r.fromPreset).toEqual(['Temperature', '°F']);
+  expect(r.overridden).toEqual(['Outdoor', '°F']);
+  expect(r.title).toBe('Outdoor [°F]');
+  expect(r.backToPreset).toBe('Temperature');
+  expect(r.fromConfig).toEqual(['Given', 'u']);
 });

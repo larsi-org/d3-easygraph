@@ -5,6 +5,14 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Changed
+- **`width`/`height` now mean the full `<svg>` box**, and the plot area inside the margins is
+  `plotWidth`/`plotHeight`. Previously `height` went in as the outer height and was silently
+  replaced by the plot height during construction (with `outerWidth`/`outerHeight` holding the box);
+  `outerWidth`/`outerHeight` are gone.
+- **`graph.label` and `graph.unit` are accessors** that read the effective title text (your value,
+  else the `y` preset's) and set the override. `resolvedLabel()`/`resolvedUnit()` are gone.
+
 ## [0.8.0] - 2026-11-08
 
 ### Fixed

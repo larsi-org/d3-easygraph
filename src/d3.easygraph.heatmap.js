@@ -32,8 +32,8 @@ d3.easygraph.heatmap = function(config) {
 
       var heatmapCols  = data[0].length,
           heatmapRows  = data.length,
-          heatmapCellW = graph.width  / heatmapCols,
-          heatmapCellH = graph.height / heatmapRows;
+          heatmapCellW = graph.plotWidth  / heatmapCols,
+          heatmapCellH = graph.plotHeight / heatmapRows;
 
       var extent  = d3.easygraph._colorDomain(graph, d3.merge(data)),
           dataMin = extent[0],
