@@ -19,7 +19,7 @@ Each chart family has its own constructor, taking only the config that family un
 | Line / ribbon / stacked area | `d3.easygraph.line(config)` | `lines`, `ribbons`, `sigmaBand`, `stackedArea`, `zoom`, `crosshair`, `crosshairThreshold`, `curve`, `names`, `units` |
 | Bars | `d3.easygraph.bars(config)` | `orientation` (`'vertical'`\|`'horizontal'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData`, `names` |
 | Heatmap | `d3.easygraph.heatmap(config)` | `color` |
-| Scatter / bubble | `d3.easygraph.scatter(config)` | `color`, `radius`, `pointStrokeWidth`, `voronoi`, `voronoiOpacity`, `arrows`, `arrowColor`, `arrowStrokeWidth`, `arrowMinLength`, `arrowMaxLength`, `arrowHeadLength`, `arrowHeadAngle`, `labels`, `labelSize`, `labelOffset`, `labelMinZoom` |
+| Scatter / bubble | `d3.easygraph.scatter(config)` | `color`, `radius`, `pointStrokeWidth`, `voronoi`, `voronoiOpacity`, `arrows` (`true` or `{ color, strokeWidth, minLength, maxLength, headLength, headAngle }`), `labels` (`true` or `{ size, offset, minZoom }`) |
 
 ### Line
 
@@ -39,7 +39,7 @@ chart (assign it, then call `update()`):
   `clip`, as in bars' stacked mode. Series are stacked by array index, so (like bars' stacked mode)
   they must be sampled at the same x positions to align.
 
-`zoom: [min, max]` enables scroll-to-zoom and drag-to-pan; `crosshair: true` adds a hover
+`zoom: { min, max }` (scale extent, defaults 1 and 10) enables scroll-to-zoom and drag-to-pan; `crosshair: true` adds a hover
 crosshair with a tooltip. `d3.easygraph.syncZoom(graphs)` and `syncCrosshair(graphs)` link several
 line charts together. `units: ["°F", "%"]` gives the tooltip a different unit string per series
 (index-matched to the series passed to `update()`), for a chart mixing quantities where the single
@@ -82,8 +82,8 @@ is built in - plot pre-projected pixel coordinates (e.g. lat/lng run through you
   increasing counter-clockwise; SVG's y grows downward, so an unrotated glyph points right on screen
   and sweeps clockwise as `angle` increases), not compass bearing. Convert bearing data (0 = north,
   clockwise) with `angle = (bearingDegrees - 90) * Math.PI / 180`.
-- **`labels: true`** draws each point's `label` (a string); a point without one renders without a
-  label. Labels stay hidden below `labelMinZoom` (default 1, i.e. always on), for a caller with too
+- **`labels: true`** (or an options object) draws each point's `label` (a string); a point without one renders without a
+  label. Labels stay hidden below `labels.minZoom` (default 1, i.e. always on), for a caller with too
   many points to label all of them at once.
 - **`color`** takes `clip` (below) or a fixed `domain: [min, max]`, so a value maps to the same
   color snapshot to snapshot instead of shifting with the current data's spread (e.g. altitude).
@@ -102,7 +102,7 @@ is built in - plot pre-projected pixel coordinates (e.g. lat/lng run through you
 These are shared by all four families: `container`, `label`, `x`/`y` (`scale`, `unit`, `label`,
 `tickLabels`, `preset`, `convert`, `clip`), `height`, `margin`, `colorPalette`, `colorClasses`,
 `duration`,
-`timeFormatMulti` (multi-scale time tick labels - minute/hour/day/month formats picked per tick
+`x.timeFormat: 'multi'` (multi-scale time tick labels - minute/hour/day/month formats picked per tick
 from the tick's own precision, rather than one fixed format for the whole axis; useful on any
 time axis spanning enough range for one format to read badly at both ends).
 `colorClasses` (e.g. `4`) picks that specific class count from a `Sequential.*`/`Diverging.*`
@@ -496,7 +496,7 @@ The `curve` config takes one of `'linear'`, `'monotone'`, `'step-after'`, `'step
 
 | | |
 | --- | --- |
-| every config key you passed | `container`, `height`, `margin`, `duration`, `colorPalette`, `colorClasses`, `timeFormatMulti`, and the family's own flags - readable, and the family flags (`lines`, `ribbons`, `stackedArea`, `mode`, `voronoi`, `arrows`, `labels`, `units`, …) are re-read on every `update()`, so assigning one and re-rendering is the supported way to toggle a chart live |
+| every config key you passed | `container`, `height`, `margin`, `duration`, `colorPalette`, `colorClasses`, and the family's own flags - readable, and the family flags (`lines`, `ribbons`, `stackedArea`, `mode`, `voronoi`, `arrows`, `labels`, `units`, …) are re-read on every `update()`, so assigning one and re-rendering is the supported way to toggle a chart live |
 | `x`, `y`, and (heatmap/scatter) `color` | the resolved per-property configs; `$scale` and `$axis` on each are the intended escape hatch into D3 |
 | `width`, `height` | the full `<svg>` box. `height` is exactly what you configured and is never replaced; `width` follows the container |
 | `plotWidth`, `plotHeight` | the plot area, inside the margins |
@@ -525,7 +525,7 @@ code; these pages are the working examples:
   map overlays: [Weather](https://larsi.org/weather/)'s "Pressure & Wind" tab (`voronoi: true`,
   `color.clip`, `arrows: true` overlaying wind speed/direction on top of pressure) and
   [Air Traffic](https://larsi.org/air-traffic/) (`color.domain` + `color.quantize`/`colorClasses`
-  for four discrete altitude bands instead of a continuous gradient, `labels`/`labelMinZoom` for
+  for four discrete altitude bands instead of a continuous gradient, `labels: { minZoom }` for
   callsigns once zoomed in). Both are drawn over a D3 US map through a shared pan/zoom helper (not
   part of this repo) that drives `graph.rescale(k)` to keep points and arrows a constant size
   through the zoom

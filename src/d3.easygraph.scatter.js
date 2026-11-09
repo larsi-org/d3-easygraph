@@ -19,7 +19,7 @@
 // instead of/alongside its circle, for data where a second, vector-shaped quantity (e.g. wind:
 // speed + direction) needs to overlay a scalar one (e.g. pressure, still driving `value`'s
 // color) at the same position. Only points carrying both `angle` (radians) and `magnitude`
-// (raw units, mapped to pixel length via arrowMinLength/arrowMaxLength) get a glyph - a point
+// (raw units, mapped to pixel length via arrows.minLength/maxLength) get a glyph - a point
 // missing either just renders its circle with no arrow, same as any other optional field
 // elsewhere in this library. `angle` is plain trigonometric convention (0 = +x/right,
 // increasing counter-clockwise... but SVG y grows downward, so an unrotated glyph in *screen*
@@ -29,15 +29,15 @@
 // labels: true draws each point's `label` (a string) offset above-right of its circle - same
 // optional-field pattern as arrows: a point missing `label` just renders without one. Meant for
 // a caller with too many points to label all of them usefully at once (e.g. a full US-wide
-// map) - labelMinZoom (default 1, i.e. always on) hides every label below that zoom factor
+// map) - labels.minZoom (default 1, i.e. always on) hides every label below that zoom factor
 // entirely, rather than rendering an unreadable wall of overlapping text at the zoomed-out
-// default view; a caller passes a higher labelMinZoom and only calls graph.rescale(k) as the
+// default view; a caller passes a higher labels.minZoom and only calls graph.rescale(k) as the
 // user actually zooms in for labels to appear past that point.
 //
 // graph.rescale(k): for a caller layering an external SVG-transform zoom on top (e.g. a
 // zoomable map background) - shrinks every on-screen size (point radius and stroke-width,
 // arrow length/head/stroke-width, label font size and offset) by 1/k so they stay constant
-// instead of growing with the zoom transform, and re-evaluates labelMinZoom against the new k.
+// instead of growing with the zoom transform, and re-evaluates labels.minZoom against the new k.
 // Stroke-width matters as much as radius/length here: left unscaled (e.g. a plain CSS rule), a
 // high enough k inflates it past the already-shrunk radius/length, and a point or arrow
 // collapses into a solid blob - exactly the same failure mode fixed sizes would have. Re-renders
@@ -71,11 +71,19 @@ d3.easygraph.scatter = function(config) {
     _chartType: 'scatter',
     _dataShape: 'points',
     radius: 4, pointStrokeWidth: 0.5, voronoi: false, voronoiOpacity: 0.6,
-    arrows: false, arrowColor: '#000', arrowStrokeWidth: 1.5,
-    arrowMinLength: 6, arrowMaxLength: 24, arrowHeadLength: 6, arrowHeadAngle: Math.PI / 7,
-    labels: false, labelSize: 10, labelOffset: 8, labelMinZoom: 1
+    arrows: false,
+    labels: false
   }, function(graph) {
-    function arrowPath(lengthScale, headLength) {
+    // arrows / labels are false, true, or an options object; the object's keys fall back to
+    // these. Resolved on every render so assigning graph.arrows / graph.labels live still works.
+    var ARROW_DEFAULTS = { color: '#000', strokeWidth: 1.5, minLength: 6, maxLength: 24,
+                           headLength: 6, headAngle: Math.PI / 7 };
+    var LABEL_DEFAULTS = { size: 10, offset: 8, minZoom: 1 };
+    function withDefaults(value, defaults) {
+      return Object.assign({}, defaults, (value && typeof value === 'object') ? value : null);
+    }
+
+    function arrowPath(lengthScale, headLength, headAngle) {
       return function(d) {
         var cx = graph.x.$scale(d.x), cy = graph.y.$scale(d.y);
         var len  = lengthScale(d.magnitude);
@@ -83,10 +91,10 @@ d3.easygraph.scatter = function(config) {
         // barbs splay backward from the tip, straddling the reverse direction by
         // +-arrowHeadAngle - the classic two-stroke chevron arrowhead
         var back = d.angle + Math.PI;
-        var b1X = tipX + headLength * Math.cos(back - graph.arrowHeadAngle);
-        var b1Y = tipY + headLength * Math.sin(back - graph.arrowHeadAngle);
-        var b2X = tipX + headLength * Math.cos(back + graph.arrowHeadAngle);
-        var b2Y = tipY + headLength * Math.sin(back + graph.arrowHeadAngle);
+        var b1X = tipX + headLength * Math.cos(back - headAngle);
+        var b1Y = tipY + headLength * Math.sin(back - headAngle);
+        var b2X = tipX + headLength * Math.cos(back + headAngle);
+        var b2Y = tipY + headLength * Math.sin(back + headAngle);
         return "M" + cx + "," + cy + "L" + tipX + "," + tipY +
                "M" + b1X + "," + b1Y + "L" + tipX + "," + tipY + "L" + b2X + "," + b2Y;
       };
@@ -174,13 +182,15 @@ d3.easygraph.scatter = function(config) {
       // toggled on/off after points already exist - same z-order-stability reasoning as
       // cells vs. points above, just the opposite end (arrows are the topmost layer, cells
       // the bottommost).
+      var A = withDefaults(graph.arrows, ARROW_DEFAULTS);
+      var L = withDefaults(graph.labels, LABEL_DEFAULTS);
       var vectorData = (graph.arrows && data.length)
         ? data.filter(function(d) { return d.angle != null && d.magnitude != null; })
         : [];
       var magnitudes = vectorData.map(function(d) { return d.magnitude; });
       var lengthScale = d3.scaleLinear()
         .domain(magnitudes.length ? d3.extent(magnitudes) : [0, 1])
-        .range([graph.arrowMinLength / k, graph.arrowMaxLength / k])
+        .range([A.minLength / k, A.maxLength / k])
         .clamp(true);
 
       var arrows = graph.$arrowsGroup.selectAll(".scatter-arrow").data(vectorData);
@@ -188,18 +198,18 @@ d3.easygraph.scatter = function(config) {
       arrows.exit().remove();
       arrows = arrowsEnter.merge(arrows);
       arrows
-        .attr("d", arrowPath(lengthScale, graph.arrowHeadLength / k))
-        .style("stroke", graph.arrowColor)
-        .style("stroke-width", (graph.arrowStrokeWidth / k) + "px");
+        .attr("d", arrowPath(lengthScale, A.headLength / k, A.headAngle))
+        .style("stroke", A.color)
+        .style("stroke-width", (A.strokeWidth / k) + "px");
 
       // Labels live in their own group, appended after arrows in init() (not on first
       // render()), so they draw on top of everything else regardless of what else gets
       // toggled on/off after points already exist - same z-order-stability reasoning as
       // cells/points/arrows above.
-      var labelData = (graph.labels && k >= graph.labelMinZoom && data.length)
+      var labelData = (graph.labels && k >= L.minZoom && data.length)
         ? data.filter(function(d) { return d.label != null; })
         : [];
-      var offset = graph.labelOffset / k;
+      var offset = L.offset / k;
 
       var labels = graph.$labelsGroup.selectAll(".scatter-label").data(labelData);
       var labelsEnter = labels.enter().append("text").attr("class", "scatter-label");
@@ -208,7 +218,7 @@ d3.easygraph.scatter = function(config) {
       labels
         .attr("x", function(d) { return graph.x.$scale(d.x) + offset; })
         .attr("y", function(d) { return graph.y.$scale(d.y) - offset; })
-        .style("font-size", (graph.labelSize / k) + "px")
+        .style("font-size", (L.size / k) + "px")
         .text(function(d) { return d.label; });
     }
 

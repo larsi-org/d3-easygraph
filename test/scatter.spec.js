@@ -368,12 +368,12 @@ test('rescale(k) shrinks label font size by 1/k', async ({ page }) => {
     window.graph.rescale(2);
     return document.querySelector('text.scatter-label').style.fontSize;
   });
-  // fixture sets labelSize: 10
+  // fixture sets labels.size: 10
   expect(before).toBe('10px');
   expect(after).toBe('5px');
 });
 
-test('labelMinZoom hides labels below the threshold and shows them once it\'s reached', async ({ page }) => {
+test('labels.minZoom hides labels below the threshold and shows them once it\'s reached', async ({ page }) => {
   await page.goto(LABELS_MINZOOM_FIXTURE);
   const atDefaultZoom = await page.locator('text.scatter-label').count();
   const belowThreshold = await page.evaluate(() => {
@@ -384,7 +384,7 @@ test('labelMinZoom hides labels below the threshold and shows them once it\'s re
     window.graph.rescale(3);
     return document.querySelectorAll('text.scatter-label').length;
   });
-  // fixture sets labelMinZoom: 3; default zoom (k=1, never having called rescale) is below it
+  // fixture sets labels.minZoom: 3; default zoom (k=1, never having called rescale) is below it
   expect(atDefaultZoom).toBe(0);
   expect(belowThreshold).toBe(0);
   expect(atThreshold).toBe(2);
@@ -409,7 +409,19 @@ test('rescale(k) shrinks arrow stroke-width by 1/k too, not just shaft length', 
     window.graph.rescale(2);
     return document.querySelector('path.scatter-arrow').style.strokeWidth;
   });
-  // default arrowStrokeWidth is 1.5
+  // default arrows.strokeWidth is 1.5
   expect(before).toBe('1.5px');
   expect(after).toBe('0.75px');
+});
+
+test('arrows and labels accept an options object; unset keys keep their defaults', async ({ page }) => {
+  await page.goto(ARROWS_FIXTURE);
+  const stroke = await page.evaluate(() => {
+    window.graph.arrows = { color: '#f00', strokeWidth: 3 };
+    window.graph.update(window.testData, { x: [0, 10], y: [0, 10] });
+    var el = document.querySelector('path.scatter-arrow');
+    return [el.style.stroke, el.style.strokeWidth];
+  });
+  expect(stroke[1]).toBe('3px');
+  expect(stroke[0]).toMatch(/rgb\(255, 0, 0\)|#f00/);
 });

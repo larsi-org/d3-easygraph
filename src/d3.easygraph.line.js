@@ -105,8 +105,11 @@ d3.easygraph.line = function(config) {
           graph.$group.selectAll("path.data-lines").attr("d", graph.$line);
         };
 
+        if (Array.isArray(graph.zoom))
+          throw new Error("d3.easygraph.line: zoom is { min, max } now, not [min, max]");
         if (graph.zoom) {
-          graph.$zoom = d3.zoom().scaleExtent(graph.zoom).on("zoom", function(event) {
+          var z = (typeof graph.zoom === 'object') ? graph.zoom : {};
+          graph.$zoom = d3.zoom().scaleExtent([z.min != null ? z.min : 1, z.max != null ? z.max : 10]).on("zoom", function(event) {
             graph.x.$scale.domain(event.transform.rescaleX(graph.$xScaleRef).domain());
             graph._redraw();
             if (graph.onZoom) graph.onZoom(event.transform);

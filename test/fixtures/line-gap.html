@@ -26,7 +26,7 @@ window.graph = d3.easygraph.line({
   margin:     { top: 20, right: 20, bottom: 30, left: 50 },
   lines:      true,
   ribbons:    true,
-  zoom:       [1, 50],
+  zoom:       { min: 1, max: 50 },
   crosshair:  true
 });
 

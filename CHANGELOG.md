@@ -13,6 +13,14 @@ All notable changes to this project are documented here. Format loosely follows
 - **`graph.label` and `graph.unit` are accessors** that read the effective title text (your value,
   else the `y` preset's) and set the override. `resolvedLabel()`/`resolvedUnit()` are gone.
 
+- **`timeFormatMulti: true` is now `x.timeFormat: 'multi'`**, next to the other axis options. Any
+  other value throws.
+- **`zoom: [min, max]` is now `zoom: { min, max }`** (defaults 1 and 10); the array form throws
+  with a pointer to the new one.
+- **Scatter's `arrow*` and `label*` keys are grouped.** `arrows` and `labels` take `true` or an
+  options object: `arrows: { color, strokeWidth, minLength, maxLength, headLength, headAngle }`,
+  `labels: { size, offset, minZoom }`. `arrowColor`, `labelMinZoom` and the rest are gone.
+
 ## [0.8.0] - 2026-11-08
 
 ### Fixed

@@ -402,8 +402,8 @@ test('syncZoom/syncCrosshair compose with a caller-set callback instead of repla
     w1.style.width = w2.style.width = '400px';
     document.body.appendChild(w1); document.body.appendChild(w2);
 
-    var a = d3.easygraph.line({ container: w1, height: 200, zoom: [1, 10], crosshair: true, lines: true });
-    var b = d3.easygraph.line({ container: w2, height: 200, zoom: [1, 10], crosshair: true, lines: true });
+    var a = d3.easygraph.line({ container: w1, height: 200, zoom: { min: 1, max: 10 }, crosshair: true, lines: true });
+    var b = d3.easygraph.line({ container: w2, height: 200, zoom: { min: 1, max: 10 }, crosshair: true, lines: true });
     a.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
     b.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
 
@@ -857,4 +857,24 @@ test('graph.label and graph.unit read the effective text and assigning overrides
   expect(r.title).toBe('Outdoor [°F]');
   expect(r.backToPreset).toBe('Temperature');
   expect(r.fromConfig).toEqual(['Given', 'u']);
+});
+
+test('zoom as an array is rejected with a pointer to the { min, max } form', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const msg = await page.evaluate(() => {
+    var w = document.createElement('div'); document.body.appendChild(w);
+    try { d3.easygraph.line({ container: w, height: 200, zoom: [1, 10], lines: true }); return ''; }
+    catch (e) { return e.message; }
+  });
+  expect(msg).toContain('{ min, max }');
+});
+
+test('x.timeFormat only accepts \'multi\'', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const msg = await page.evaluate(() => {
+    var w = document.createElement('div'); document.body.appendChild(w);
+    try { d3.easygraph.line({ container: w, height: 200, x: { scale: 'time', timeFormat: 'bogus' }, lines: true }); return ''; }
+    catch (e) { return e.message; }
+  });
+  expect(msg).toContain("timeFormat");
 });

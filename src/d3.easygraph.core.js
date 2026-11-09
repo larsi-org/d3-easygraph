@@ -277,8 +277,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     colorClasses:    null, // request a specific class count (e.g. 4) from a Sequential/Diverging
                             // palette instead of the largest available - ignored for Qualitative
                             // and the hardcoded extras, which aren't classed data
-    duration:        500,
-    timeFormatMulti: false
+    duration:        500
   });
 
   graph.paletteColors = d3.easygraph.resolvePalette(graph.colorPalette, graph.colorClasses);
@@ -327,7 +326,9 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
 
   graph.x.$axis = d3.axisBottom(graph.x.$scale).tickSize(-graph.plotHeight).tickPadding(12);
   if (graph.x.scale === 'linear' && !graph.x.$scale.bandwidth) graph.x.$axis.tickFormat(graph.numberFormat);
-  if (graph.x.scale === 'time'   && graph.timeFormatMulti)     graph.x.$axis.tickFormat(graph.timeFormatShort);
+  if (graph.x.timeFormat !== undefined && graph.x.timeFormat !== 'multi')
+    throw new Error("d3.easygraph: x.timeFormat must be 'multi' (or omitted), got " + JSON.stringify(graph.x.timeFormat));
+  if (graph.x.scale === 'time'   && graph.x.timeFormat === 'multi') graph.x.$axis.tickFormat(graph.timeFormatShort);
   // tickLabels: false blanks the tick *text* and keeps the tick marks and gridlines, which is
   // exactly what this does - the old name for it, noTick, both read as a double negative when
   // written out (noTick: false) and over-promised, since the ticks themselves stay.
