@@ -425,3 +425,15 @@ test('arrows and labels accept an options object; unset keys keep their defaults
   expect(stroke[1]).toBe('3px');
   expect(stroke[0]).toMatch(/rgb\(255, 0, 0\)|#f00/);
 });
+
+test('voronoi accepts { opacity }; plain true keeps the 0.6 default', async ({ page }) => {
+  await page.goto(VORONOI_FIXTURE);
+  const dflt = await page.evaluate(() => document.querySelector('path.scatter-cell').style.fillOpacity);
+  expect(dflt).toBe('0.6');
+  const custom = await page.evaluate(() => {
+    window.graph.voronoi = { opacity: 0.2 };
+    window.graph.update(window.testData, { x: [0, 10], y: [0, 10] });
+    return document.querySelector('path.scatter-cell').style.fillOpacity;
+  });
+  expect(custom).toBe('0.2');
+});

@@ -12,7 +12,7 @@
 // voronoi: true adds a colored region behind each point (that point's own color, filling the
 // area closer to it than to any other point) via d3.Delaunay/.voronoi() - already part of
 // the full d3@7 bundle, no new dependency. Still pure computational geometry on the given x/y
-// points, so this stays geography-agnostic too. Cells render semi-transparent (voronoiOpacity,
+// points, so this stays geography-agnostic too. Cells render semi-transparent (voronoi.opacity,
 // default 0.6) so anything layered underneath (e.g. a base map) stays visible through the fill.
 //
 // arrows: true draws a directional glyph (shaft + two-line chevron head) on top of a point
@@ -70,7 +70,7 @@ d3.easygraph.scatter = function(config) {
   return d3.easygraph._build(config, {
     _chartType: 'scatter',
     _dataShape: 'points',
-    radius: 4, pointStrokeWidth: 0.5, voronoi: false, voronoiOpacity: 0.6,
+    radius: 4, pointStrokeWidth: 0.5, voronoi: false,
     arrows: false,
     labels: false
   }, function(graph) {
@@ -137,12 +137,13 @@ d3.easygraph.scatter = function(config) {
           function(d) { return graph.x.$scale(d.x); },
           function(d) { return graph.y.$scale(d.y); }
         );
+        var voronoiOpacity = (graph.voronoi.opacity != null) ? graph.voronoi.opacity : 0.6;
         var voronoi = delaunay.voronoi([0, 0, graph.plotWidth, graph.plotHeight]);
 
         cells
           .attr("d", function(d, i) { return voronoi.renderCell(i); })
           .style("fill", function(d) { return graph.color.$scale(d.value); })
-          .style("fill-opacity", graph.voronoiOpacity);
+          .style("fill-opacity", voronoiOpacity);
       }
 
       // cx/cy/fill transition on graph.duration (a point moving/recoloring on a real data

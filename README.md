@@ -16,10 +16,10 @@ Each chart family has its own constructor, taking only the config that family un
 
 | Family | Constructor | Config |
 | --- | --- | --- |
-| Line / ribbon / stacked area | `d3.easygraph.line(config)` | `lines`, `ribbons`, `sigmaBand`, `stackedArea`, `zoom`, `crosshair`, `crosshairThreshold`, `curve`, `names`, `units` |
+| Line / ribbon / stacked area | `d3.easygraph.line(config)` | `lines`, `ribbons`, `sigmaBand`, `stackedArea`, `zoom`, `crosshair` (`true` or `{ threshold }`, pixels, default 10), `curve`, `names`, `units` |
 | Bars | `d3.easygraph.bars(config)` | `orientation` (`'vertical'`\|`'horizontal'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData`, `names` |
 | Heatmap | `d3.easygraph.heatmap(config)` | `color` |
-| Scatter / bubble | `d3.easygraph.scatter(config)` | `color`, `radius`, `pointStrokeWidth`, `voronoi`, `voronoiOpacity`, `arrows` (`true` or `{ color, strokeWidth, minLength, maxLength, headLength, headAngle }`), `labels` (`true` or `{ size, offset, minZoom }`) |
+| Scatter / bubble | `d3.easygraph.scatter(config)` | `color`, `radius`, `pointStrokeWidth`, `voronoi` (`true` or `{ opacity }`), `arrows` (`true` or `{ color, strokeWidth, minLength, maxLength, headLength, headAngle }`), `labels` (`true` or `{ size, offset, minZoom }`) |
 
 ### Line
 
@@ -39,7 +39,7 @@ chart (assign it, then call `update()`):
   `clip`, as in bars' stacked mode. Series are stacked by array index, so (like bars' stacked mode)
   they must be sampled at the same x positions to align.
 
-`zoom: { min, max }` (scale extent, defaults 1 and 10) enables scroll-to-zoom and drag-to-pan; `crosshair: true` adds a hover
+`zoom: { min, max }` (scale extent, defaults 1 and 10) enables scroll-to-zoom and drag-to-pan; `crosshair: true` (or `{ threshold }`, how close in pixels the cursor must be to show a point) adds a hover
 crosshair with a tooltip. `d3.easygraph.syncZoom(graphs)` and `syncCrosshair(graphs)` link several
 line charts together. `units: ["°F", "%"]` gives the tooltip a different unit string per series
 (index-matched to the series passed to `update()`), for a chart mixing quantities where the single
@@ -74,7 +74,7 @@ is built in - plot pre-projected pixel coordinates (e.g. lat/lng run through you
   (point size driven by a third data dimension, independent of `value`'s color).
 - **`voronoi: true`** fills the region closer to each point than to any other with that point's own
   color (via `d3.Delaunay`/`.voronoi()`, part of the full `d3@7` bundle). Semi-transparent by
-  default (`voronoiOpacity`, `0.6`) so a layer underneath stays visible.
+  default (`voronoi: { opacity }`, `0.6`) so a layer underneath stays visible.
 - **`arrows: true`** draws a directional glyph (shaft plus a two-line chevron head) on any point
   that also carries `angle` (radians) and `magnitude` - a vector-shaped quantity (e.g. wind speed
   and direction) layered on a scalar one (`value`'s color) at the same position. A point missing
@@ -386,7 +386,15 @@ domains instead of auto-fitting to the data) and returns the graph, so calls cha
 and `ranges.y` name your **data's** `x` and `y` fields, not the screen axes - which is the same
 thing for every family except horizontal bars, where `d.x` is the category (drawn up the
 vertical axis) and `d.y` is the value (drawn across). So a horizontal bar chart pins its value
-axis with `ranges.y`, matching the field the values live in.
+axis with `ranges.y`, matching the field the values live in. This is deliberate: `orientation`
+is only how the chart is drawn, so the same data, `x`/`y` config and `ranges` work unchanged when
+you flip it.
+
+```js
+// horizontal bars: x = category (up the side), y = value (across the bottom)
+var g = d3.easygraph.bars({ container: '#chart', orientation: 'horizontal', y: { label: 'Count' } });
+g.update([[{ x: 'Mon', y: 3 }, { x: 'Tue', y: 7 }]], { y: [0, 10] });  // pins the value axis
+```
 
 `heatmap` and `scatter` also take **`ranges.color`**, pinning the color scale's domain for that
 render. Three levels of precedence, most specific first: `ranges.color` (this render) beats
@@ -487,6 +495,15 @@ properties to a graph is fine and supported; the library only ever writes the na
 | `legendItems()` | the `{ index, color, label }` rows a legend is drawn from - see below |
 | `rescale(k)` | scatter only - divide on-screen marker sizes by `k` (see the table above) |
 | `numberFormat(v)`, `timeFormatShort(date)` | the formatters the axes use, exposed so a tooltip or legend can match them |
+
+**Which keys can change after construction.** Assign to the graph, then call `update()` again.
+
+| Re-read on every `update()` (toggle live) | Fixed when the chart is built |
+|---|---|
+| `lines`, `ribbons`, `sigmaBand`, `stackedArea` (line), `mode` (bars), `voronoi`, `arrows`, `labels` (scatter), `duration`, `names`, `units`, `label`, `unit`, `radius`, `pointStrokeWidth` | `container`, `height`, `margin`, `orientation`, `curve`, `zoom`, `crosshair`, `colorPalette`, `colorClasses`, `x.scale`, `y.scale`, and the `x`/`y`/`color` presets |
+
+The right-hand column is what a chart is built around; to change one, `destroy()` it and build a
+new chart. This split, plus the names in this README, is the API that 1.0.0 freezes.
 
 The `curve` config takes one of `'linear'`, `'monotone'`, `'step-after'`, `'step-before'`,
 `'basis'`, `'cardinal'` - or any d3 curve factory directly (`d3.curveNatural`,

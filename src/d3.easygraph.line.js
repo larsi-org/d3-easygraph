@@ -41,7 +41,6 @@ d3.easygraph.line = function(config) {
     stackedArea:        false,
     zoom:               false,
     crosshair:          false,
-    crosshairThreshold: 10,
     curve:              'linear',
     names:              null, // optional per-series names, index-matched to the series arrays
                               // passed to update() - what legendItems() labels each entry with,
@@ -165,7 +164,8 @@ d3.easygraph.line = function(config) {
               var d0 = series[Math.max(idx - 1, 0)], d1 = series[idx];
               var d = (d1 && Math.abs(x0 - d1.x) < Math.abs(x0 - d0.x)) ? d1 : d0;
               if (!d) return;
-              var near = Math.abs(graph.x.$scale(d.x) - mouseX) <= graph.crosshairThreshold;
+              var crosshairThreshold = (graph.crosshair && graph.crosshair.threshold != null) ? graph.crosshair.threshold : 10;
+              var near = Math.abs(graph.x.$scale(d.x) - mouseX) <= crosshairThreshold;
               var unit = (graph.units && graph.units[i] != null) ? graph.units[i] : (graph.unit || '');
               // the series' own name, when `names` supplies one - otherwise the row is just the
               // swatch and the value, exactly as before

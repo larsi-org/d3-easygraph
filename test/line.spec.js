@@ -332,3 +332,14 @@ test('null, undefined and an absent key all mark a gap; NaN and Infinity do not 
   expect(r.infinity.subpaths).toBe(1);
   expect(r.infinity.yDomain).toEqual([1, 'Infinity']);
 });
+
+test('crosshair accepts { threshold } as well as true', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const ok = await page.evaluate(() => {
+    var w = document.createElement('div'); document.body.appendChild(w);
+    var g = d3.easygraph.line({ container: w, height: 200, crosshair: { threshold: 4 }, lines: true });
+    g.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
+    return !!g.$crosshairTip;
+  });
+  expect(ok).toBe(true);
+});

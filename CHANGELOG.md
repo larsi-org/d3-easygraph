@@ -20,6 +20,9 @@ All notable changes to this project are documented here. Format loosely follows
 - **Scatter's `arrow*` and `label*` keys are grouped.** `arrows` and `labels` take `true` or an
   options object: `arrows: { color, strokeWidth, minLength, maxLength, headLength, headAngle }`,
   `labels: { size, offset, minZoom }`. `arrowColor`, `labelMinZoom` and the rest are gone.
+- **`crosshairThreshold` is now `crosshair: { threshold }`** and **`voronoiOpacity` is now
+  `voronoi: { opacity }`**, the same "`true` or an options object" shape as scatter's `arrows` and
+  `labels`. `crosshair: true` and `voronoi: true` still work.
 
 ## [0.8.0] - 2026-11-08
 
