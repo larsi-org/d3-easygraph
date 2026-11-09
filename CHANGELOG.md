@@ -5,6 +5,8 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-08
+
 ### Fixed
 - `scatter`'s point circles now join on `label` (falling back to index when a point has none,
   preserving the old behavior exactly for callers that never set it) instead of always joining
