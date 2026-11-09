@@ -208,6 +208,71 @@ var _nextClipId = 0;
 
 // shared constructor body - each family (line/bars/heatmap) calls this with its own
 // defaults and a moduleFactory(graph) returning { prepareScales?, init?, domain, render, resize? }
+// Config keys each constructor understands. Used only to warn: a key outside this list is still
+// accepted and left on the graph (a caller may hang its own fields on a config), but one that is
+// a near-miss of a real key (colorPallete) or belongs to another family (zoom on bars) is
+// almost always a mistake that would otherwise do nothing and say nothing.
+var _SHARED_KEYS = ['container', 'height', 'margin', 'x', 'y', 'title', 'duration',
+                    'colorPalette', 'colorClasses'];
+var _FAMILY_KEYS = {
+  line:    ['lines', 'bands', 'stackedArea', 'zoom', 'crosshair', 'curve', 'series', 'onZoom', 'onCrosshair'],
+  bar:     ['orientation', 'mode', 'colorPerData', 'series'],
+  heatmap: ['color'],
+  scatter: ['color', 'radius', 'pointStrokeWidth', 'voronoi', 'arrows', 'labels']
+};
+var _FAMILY_CTOR = { line: 'line', bar: 'bars', heatmap: 'heatmap', scatter: 'scatter' };
+var _warned = {};
+
+function _editDistance(a, b) {
+  var prev = [], i, j;
+  for (j = 0; j <= b.length; j++) prev[j] = j;
+  for (i = 1; i <= a.length; i++) {
+    var cur = [i];
+    for (j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+function _warnOnce(message) {
+  if (_warned[message]) return;
+  _warned[message] = true;
+  if (typeof console !== 'undefined' && console.warn) console.warn(message);
+}
+
+d3.easygraph._warnConfig = function(config, chartType) {
+  var ctor = 'd3.easygraph.' + _FAMILY_CTOR[chartType];
+  var own = _SHARED_KEYS.concat(_FAMILY_KEYS[chartType]);
+  var everything = _SHARED_KEYS.slice();
+  Object.keys(_FAMILY_KEYS).forEach(function(f) {
+    _FAMILY_KEYS[f].forEach(function(k) { if (everything.indexOf(k) < 0) everything.push(k); });
+  });
+  Object.keys(config).forEach(function(key) {
+    if (own.indexOf(key) >= 0 || key.charAt(0) === '_' || key.charAt(0) === '$') return;
+    var families = Object.keys(_FAMILY_KEYS).filter(function(f) { return _FAMILY_KEYS[f].indexOf(key) >= 0; });
+    if (families.length) {
+      _warnOnce(ctor + ": '" + key + "' is a " + families.map(function(f) { return _FAMILY_CTOR[f]; }).join('/') +
+                " option and is ignored here");
+      return;
+    }
+    if (key.length < 4) return;
+    var best = null, bestDistance = 3;
+    everything.forEach(function(known) {
+      var d = _editDistance(key.toLowerCase(), known.toLowerCase());
+      if (d < bestDistance) { best = known; bestDistance = d; }
+    });
+    if (best) _warnOnce(ctor + ": unknown option '" + key + "' - did you mean '" + best + "'?");
+  });
+  // The library draws a chart title and no axis titles: x.label is never shown, and y.label is
+  // only the default for `title`.
+  if (config.x && config.x.label !== undefined)
+    _warnOnce(ctor + ": x.label is not drawn (there are no axis titles) - put the text in `title`");
+  if (config.title !== undefined && config.y && config.y.label !== undefined)
+    _warnOnce(ctor + ": y.label is only the default for `title`, which is set, so it is not drawn");
+};
+
 d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // Shallow-cloned, never used by reference. _build() writes ~45 properties onto this object
   // (scales, axes, SVG selections, internal state) and overwrites `height` with the plot-area
@@ -217,6 +282,8 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // height/DOM/observer references were overwritten and it became unreachable and
   // un-destroyable (its SVG orphaned, its ResizeObserver never disconnected). The nested
   // x/y/color/margin objects get their own clones further down for the same reason.
+  d3.easygraph._warnConfig(config, familyDefaults._chartType);
+
   var graph = Object.assign({}, config);
 
   ['names', 'units'].forEach(function(old) {
@@ -270,10 +337,6 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     return changed;
   }
 
-  // kept on the instance too, not just d3.easygraph, for a caller that reads it off a live
-  // chart (graphics/colorbrewer/index.php on the main site) - the real, load-time-computed
-  // copy lives in d3.easygraph.colors.js.
-  graph.colorPalettes = d3.easygraph.colorPalettes;
 
   // multi-format tick labels for one-year time axes
   var _timeFormats = [
@@ -302,8 +365,8 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // axes on resize and bars/heatmap/scatter silently kept their ticks frozen at pre-resize
   // positions, ending up outside the plot area entirely on a shrink.
   graph._drawAxes = function() {
-    graph.$svg.select("g.x.axis").call(graph.x.$axis);
-    graph.$svg.select("g.y.axis").call(graph.y.$axis);
+    graph.$svg.select("g.easygraph-axis-x").call(graph.x.$axis);
+    graph.$svg.select("g.easygraph-axis-y").call(graph.y.$axis);
   };
 
   graph._clipId = "d3-easygraph-clip-" + (_nextClipId++);
@@ -411,7 +474,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
 
   graph.$svg
     .append("g")
-      .attr("class", "x axis")
+      .attr("class", "easygraph-axis easygraph-axis-x")
       .attr("transform", "translate(0," + graph.plotHeight + ")")
       .call(graph.x.$axis);
 
@@ -421,7 +484,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // title's 16px). Nothing needs to look this up by id - graph.$title holds the selection.
   graph.$title = graph.$svg
     .append("g")
-      .attr("class", "y axis")
+      .attr("class", "easygraph-axis easygraph-axis-y")
       .call(graph.y.$axis)
     .append("text")
       .attr("class", "easygraph-title")
@@ -538,8 +601,8 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
 
     graph._module.render(data);
 
-    graph.$svg.select("g.x.axis").transition().duration(graph.duration).call(graph.x.$axis);
-    graph.$svg.select("g.y.axis").transition().duration(graph.duration).call(graph.y.$axis);
+    graph.$svg.select("g.easygraph-axis-x").transition().duration(graph.duration).call(graph.x.$axis);
+    graph.$svg.select("g.easygraph-axis-y").transition().duration(graph.duration).call(graph.y.$axis);
 
     return graph; // chainable, matching d3's own convention
   };
@@ -556,6 +619,21 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
       get: function() { return fixed; },
       set: function() {
         throw new Error("d3.easygraph: '" + key + "' is fixed when the chart is built - " +
+                        "destroy() it and build a new chart to change it");
+      }
+    });
+  });
+
+  // The axis/color `scale` is part of what the chart is built around too, one level down.
+  ['x', 'y', 'color'].forEach(function(axis) {
+    var prop = graph[axis];
+    if (!prop || typeof prop !== 'object') return;
+    var fixedScale = prop.scale;
+    Object.defineProperty(prop, 'scale', {
+      enumerable: true, configurable: true,
+      get: function() { return fixedScale; },
+      set: function() {
+        throw new Error("d3.easygraph: " + axis + ".scale is fixed when the chart is built - " +
                         "destroy() it and build a new chart to change it");
       }
     });

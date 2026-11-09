@@ -13,7 +13,7 @@ const LABELS_MINZOOM_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/scatte
 test('renders one point per data item', async ({ page }) => {
   await page.goto(FIXTURE);
   // 3 points in the fixture data
-  await expect(page.locator('circle.scatter-point')).toHaveCount(3);
+  await expect(page.locator('circle.easygraph-point')).toHaveCount(3);
 });
 
 test('a point\'s own radius overrides the graph-level radius (bubble chart)', async ({ page }) => {
@@ -26,7 +26,7 @@ test('a point\'s own radius overrides the graph-level radius (bubble chart)', as
       { x: 0, y: 0, value: 0, radius: 10 },
       { x: 1, y: 1, value: 1 } // no radius - falls back to the graph-level default (4)
     ], { x: [0, 1], y: [0, 1] });
-    var rs = [...wrap.querySelectorAll('circle.scatter-point')].map((c) => Number(c.getAttribute('r')));
+    var rs = [...wrap.querySelectorAll('circle.easygraph-point')].map((c) => Number(c.getAttribute('r')));
     g.destroy();
     wrap.remove();
     return rs;
@@ -42,7 +42,7 @@ test('rescale(k) still shrinks a per-point radius override by 1/k', async ({ pag
     var g = d3.easygraph.scatter({ container: wrap, height: 200 });
     g.update([{ x: 0, y: 0, value: 0, radius: 10 }], { x: [0, 1], y: [0, 1] });
     g.rescale(2);
-    var r = Number(wrap.querySelector('circle.scatter-point').getAttribute('r'));
+    var r = Number(wrap.querySelector('circle.easygraph-point').getAttribute('r'));
     g.destroy();
     wrap.remove();
     return r;
@@ -55,8 +55,8 @@ test('points are positioned via the x/y scale, not raw data coordinates', async 
   const positions = await page.evaluate(() => {
     var graphWidth = window.graph.plotWidth;
     var graphHeight = window.graph.plotHeight;
-    var cxs = [...document.querySelectorAll('circle.scatter-point')].map((c) => Number(c.getAttribute('cx')));
-    var cys = [...document.querySelectorAll('circle.scatter-point')].map((c) => Number(c.getAttribute('cy')));
+    var cxs = [...document.querySelectorAll('circle.easygraph-point')].map((c) => Number(c.getAttribute('cx')));
+    var cys = [...document.querySelectorAll('circle.easygraph-point')].map((c) => Number(c.getAttribute('cy')));
     return { graphWidth, graphHeight, cxs, cys };
   });
   // domain [0,10] over range [0, graphWidth] - x=0/5/10 map to 0/half/full width
@@ -73,7 +73,7 @@ test('points are positioned via the x/y scale, not raw data coordinates', async 
 test('color scale spans the data\'s min/max value, not a single fixed color', async ({ page }) => {
   await page.goto(FIXTURE);
   const fills = await page.evaluate(() =>
-    [...document.querySelectorAll('circle.scatter-point')].map((c) => getComputedStyle(c).fill)
+    [...document.querySelectorAll('circle.easygraph-point')].map((c) => getComputedStyle(c).fill)
   );
   expect(new Set(fills).size).toBeGreaterThan(1);
 });
@@ -82,17 +82,17 @@ test('resize updates point positions proportionally', async ({ page }) => {
   await page.goto(FIXTURE);
 
   const cxBefore = await page.evaluate(() =>
-    Number(document.querySelectorAll('circle.scatter-point')[2].getAttribute('cx'))
+    Number(document.querySelectorAll('circle.easygraph-point')[2].getAttribute('cx'))
   );
 
   await page.evaluate(() => { document.querySelector('#wrap').style.width = '300px'; });
   await page.waitForFunction((cx0) => {
-    var cx = Number(document.querySelectorAll('circle.scatter-point')[2].getAttribute('cx'));
+    var cx = Number(document.querySelectorAll('circle.easygraph-point')[2].getAttribute('cx'));
     return cx > 0 && cx < cx0;
   }, cxBefore);
 
   const cxAfter = await page.evaluate(() =>
-    Number(document.querySelectorAll('circle.scatter-point')[2].getAttribute('cx'))
+    Number(document.querySelectorAll('circle.easygraph-point')[2].getAttribute('cx'))
   );
   expect(cxAfter).toBeLessThan(cxBefore);
   expect(cxAfter).toBeGreaterThan(0);
@@ -102,7 +102,7 @@ test('point cx/fill transition over graph.duration on a data update, not an inst
   await page.goto(FIXTURE);
   const { immediateCx, settledCx, finalCx } = await page.evaluate(() => {
     return new Promise((resolve) => {
-      var point = document.querySelector('circle.scatter-point');
+      var point = document.querySelector('circle.easygraph-point');
       // first point moves from x=0 (far left) to x=10 (far right) - a big enough jump that
       // an immediate vs. settled cx reliably differ
       var moved = [
@@ -131,25 +131,25 @@ test('rescale(k) re-renders synchronously, not through the same transition point
     window.graph.rescale(2);
     // fixture uses the default radius (4) - if rescale() were transitioned like cx/cy/fill,
     // this synchronous read (no wait at all) would still show the old radius (4)
-    return { rBeforeAnyWait: document.querySelector('circle.scatter-point').getAttribute('r') };
+    return { rBeforeAnyWait: document.querySelector('circle.easygraph-point').getAttribute('r') };
   });
   expect(Number(rBeforeAnyWait)).toBe(2);
 });
 
 test('voronoi defaults to off - no cells rendered unless explicitly enabled', async ({ page }) => {
   await page.goto(FIXTURE);
-  await expect(page.locator('path.scatter-cell')).toHaveCount(0);
+  await expect(page.locator('path.easygraph-voronoi-cell')).toHaveCount(0);
 });
 
 test('voronoi: true renders one cell per point, behind the points in z-order', async ({ page }) => {
   await page.goto(VORONOI_FIXTURE);
   // 4 points in the fixture data
-  await expect(page.locator('path.scatter-cell')).toHaveCount(4);
-  await expect(page.locator('circle.scatter-point')).toHaveCount(4);
+  await expect(page.locator('path.easygraph-voronoi-cell')).toHaveCount(4);
+  await expect(page.locator('circle.easygraph-point')).toHaveCount(4);
 
   const cellsBeforePoints = await page.evaluate(() => {
-    var cellsGroup = document.querySelector('g.scatter-cells');
-    var pointsGroup = document.querySelector('g.scatter-points');
+    var cellsGroup = document.querySelector('g.easygraph-voronoi-cells');
+    var pointsGroup = document.querySelector('g.easygraph-points');
     // DOM position comparison: cellsGroup should come before pointsGroup as a sibling
     return !!(cellsGroup && pointsGroup &&
       (cellsGroup.compareDocumentPosition(pointsGroup) & Node.DOCUMENT_POSITION_FOLLOWING));
@@ -160,8 +160,8 @@ test('voronoi: true renders one cell per point, behind the points in z-order', a
 test('each cell is colored the same as its own point', async ({ page }) => {
   await page.goto(VORONOI_FIXTURE);
   const colors = await page.evaluate(() => {
-    var cellFills = [...document.querySelectorAll('path.scatter-cell')].map((c) => getComputedStyle(c).fill);
-    var pointFills = [...document.querySelectorAll('circle.scatter-point')].map((c) => getComputedStyle(c).fill);
+    var cellFills = [...document.querySelectorAll('path.easygraph-voronoi-cell')].map((c) => getComputedStyle(c).fill);
+    var pointFills = [...document.querySelectorAll('circle.easygraph-point')].map((c) => getComputedStyle(c).fill);
     return { cellFills, pointFills };
   });
   expect(colors.cellFills).toEqual(colors.pointFills);
@@ -170,7 +170,7 @@ test('each cell is colored the same as its own point', async ({ page }) => {
 test('cells render semi-transparent so an underlying layer stays visible', async ({ page }) => {
   await page.goto(VORONOI_FIXTURE);
   const opacity = await page.evaluate(() =>
-    getComputedStyle(document.querySelector('path.scatter-cell')).fillOpacity
+    getComputedStyle(document.querySelector('path.easygraph-voronoi-cell')).fillOpacity
   );
   expect(Number(opacity)).toBeCloseTo(0.6, 1);
   expect(Number(opacity)).toBeLessThan(1);
@@ -230,7 +230,7 @@ test('color.domain fixes the scale to an explicit range, ignoring both the data 
 test('color.quantize: true buckets points into paletteColors.length discrete color bands, not a continuous gradient', async ({ page }) => {
   await page.goto(QUANTIZE_FIXTURE);
   const fills = await page.evaluate(() =>
-    [...document.querySelectorAll('circle.scatter-point')].map((c) => getComputedStyle(c).fill)
+    [...document.querySelectorAll('circle.easygraph-point')].map((c) => getComputedStyle(c).fill)
   );
   // 5 points across 4 bands (colorClasses: 4) - exactly 4 distinct colors, not 5
   expect(new Set(fills).size).toBe(4);
@@ -247,21 +247,21 @@ test('colorClasses picks a specific class count from a Sequential palette instea
 
 test('arrows defaults to off - no arrow glyphs rendered', async ({ page }) => {
   await page.goto(FIXTURE);
-  await expect(page.locator('path.scatter-arrow')).toHaveCount(0);
+  await expect(page.locator('path.easygraph-arrow')).toHaveCount(0);
 });
 
 test('arrows: true renders one glyph per point that has both angle and magnitude, skipping the rest', async ({ page }) => {
   await page.goto(ARROWS_FIXTURE);
   // 3 points in the fixture, only 2 carry angle/magnitude
-  await expect(page.locator('circle.scatter-point')).toHaveCount(3);
-  await expect(page.locator('path.scatter-arrow')).toHaveCount(2);
+  await expect(page.locator('circle.easygraph-point')).toHaveCount(3);
+  await expect(page.locator('path.easygraph-arrow')).toHaveCount(2);
 });
 
 test('arrows render after (on top of, in z-order) points', async ({ page }) => {
   await page.goto(ARROWS_FIXTURE);
   const arrowsAfterPoints = await page.evaluate(() => {
-    var pointsGroup = document.querySelector('g.scatter-points');
-    var arrowsGroup = document.querySelector('g.scatter-arrows');
+    var pointsGroup = document.querySelector('g.easygraph-points');
+    var arrowsGroup = document.querySelector('g.easygraph-arrows');
     return !!(pointsGroup && arrowsGroup &&
       (pointsGroup.compareDocumentPosition(arrowsGroup) & Node.DOCUMENT_POSITION_FOLLOWING));
   });
@@ -271,7 +271,7 @@ test('arrows render after (on top of, in z-order) points', async ({ page }) => {
 test('an angle=0 arrow points along +x (screen right) from its own point', async ({ page }) => {
   await page.goto(ARROWS_FIXTURE);
   const shape = await page.evaluate(() => {
-    var d = document.querySelectorAll('path.scatter-arrow')[0].getAttribute('d');
+    var d = document.querySelectorAll('path.easygraph-arrow')[0].getAttribute('d');
     // "M{cx},{cy}L{tipX},{tipY}M..." - pull the shaft's start/end points back out
     var m = d.match(/^M([\d.\-]+),([\d.\-]+)L([\d.\-]+),([\d.\-]+)/);
     return { cx: +m[1], cy: +m[2], tipX: +m[3], tipY: +m[4] };
@@ -283,7 +283,7 @@ test('an angle=0 arrow points along +x (screen right) from its own point', async
 test('an angle=PI/2 arrow points along +y (screen down) from its own point', async ({ page }) => {
   await page.goto(ARROWS_FIXTURE);
   const shape = await page.evaluate(() => {
-    var d = document.querySelectorAll('path.scatter-arrow')[1].getAttribute('d');
+    var d = document.querySelectorAll('path.easygraph-arrow')[1].getAttribute('d');
     var m = d.match(/^M([\d.\-]+),([\d.\-]+)L([\d.\-]+),([\d.\-]+)/);
     return { cx: +m[1], cy: +m[2], tipX: +m[3], tipY: +m[4] };
   });
@@ -294,7 +294,7 @@ test('an angle=PI/2 arrow points along +y (screen down) from its own point', asy
 test('magnitude scales arrow shaft length - a bigger magnitude draws a longer shaft', async ({ page }) => {
   await page.goto(ARROWS_FIXTURE);
   const lengths = await page.evaluate(() => {
-    return [...document.querySelectorAll('path.scatter-arrow')].map((el) => {
+    return [...document.querySelectorAll('path.easygraph-arrow')].map((el) => {
       var d = el.getAttribute('d');
       var m = d.match(/^M([\d.\-]+),([\d.\-]+)L([\d.\-]+),([\d.\-]+)/);
       var cx = +m[1], cy = +m[2], tipX = +m[3], tipY = +m[4];
@@ -307,10 +307,10 @@ test('magnitude scales arrow shaft length - a bigger magnitude draws a longer sh
 
 test('rescale(k) shrinks point radius by 1/k, for a caller layering its own zoom transform', async ({ page }) => {
   await page.goto(FIXTURE);
-  const before = await page.evaluate(() => +document.querySelector('circle.scatter-point').getAttribute('r'));
+  const before = await page.evaluate(() => +document.querySelector('circle.easygraph-point').getAttribute('r'));
   const after = await page.evaluate(() => {
     window.graph.rescale(2);
-    return +document.querySelector('circle.scatter-point').getAttribute('r');
+    return +document.querySelector('circle.easygraph-point').getAttribute('r');
   });
   // fixture uses the default radius (4) - rescale(2) should halve it
   expect(before).toBe(4);
@@ -322,7 +322,7 @@ test('rescale(1) (or never calling it) leaves radius at its normal, unscaled siz
   const r = await page.evaluate(() => {
     window.graph.rescale(2);
     window.graph.rescale(1);
-    return +document.querySelector('circle.scatter-point').getAttribute('r');
+    return +document.querySelector('circle.easygraph-point').getAttribute('r');
   });
   expect(r).toBe(4);
 });
@@ -330,14 +330,14 @@ test('rescale(1) (or never calling it) leaves radius at its normal, unscaled siz
 test('rescale(k) shrinks arrow shaft length by 1/k too', async ({ page }) => {
   await page.goto(ARROWS_FIXTURE);
   function shaftLength() {
-    var d = document.querySelector('path.scatter-arrow').getAttribute('d');
+    var d = document.querySelector('path.easygraph-arrow').getAttribute('d');
     var m = d.match(/^M([\d.\-]+),([\d.\-]+)L([\d.\-]+),([\d.\-]+)/);
     return Math.hypot(+m[3] - +m[1], +m[4] - +m[2]);
   }
   const before = await page.evaluate(shaftLength);
   const after = await page.evaluate(() => {
     window.graph.rescale(2);
-    return document.querySelector('path.scatter-arrow').getAttribute('d');
+    return document.querySelector('path.easygraph-arrow').getAttribute('d');
   }).then((d) => {
     var m = d.match(/^M([\d.\-]+),([\d.\-]+)L([\d.\-]+),([\d.\-]+)/);
     return Math.hypot(+m[3] - +m[1], +m[4] - +m[2]);
@@ -347,13 +347,13 @@ test('rescale(k) shrinks arrow shaft length by 1/k too', async ({ page }) => {
 
 test('labels defaults to off - no label text rendered', async ({ page }) => {
   await page.goto(FIXTURE);
-  await expect(page.locator('text.scatter-label')).toHaveCount(0);
+  await expect(page.locator('text.easygraph-label')).toHaveCount(0);
 });
 
 test('labels: true renders one text per point that has a label, skipping the rest', async ({ page }) => {
   await page.goto(LABELS_FIXTURE);
   const texts = await page.evaluate(() =>
-    [...document.querySelectorAll('text.scatter-label')].map((el) => el.textContent)
+    [...document.querySelectorAll('text.easygraph-label')].map((el) => el.textContent)
   );
   // fixture has 3 points - 2 with a label ("AAA", "BBB"), 1 without
   expect(texts.sort()).toEqual(['AAA', 'BBB']);
@@ -362,11 +362,11 @@ test('labels: true renders one text per point that has a label, skipping the res
 test('rescale(k) shrinks label font size by 1/k', async ({ page }) => {
   await page.goto(LABELS_FIXTURE);
   const before = await page.evaluate(() =>
-    document.querySelector('text.scatter-label').style.fontSize
+    document.querySelector('text.easygraph-label').style.fontSize
   );
   const after = await page.evaluate(() => {
     window.graph.rescale(2);
-    return document.querySelector('text.scatter-label').style.fontSize;
+    return document.querySelector('text.easygraph-label').style.fontSize;
   });
   // fixture sets labels.size: 10
   expect(before).toBe('10px');
@@ -375,14 +375,14 @@ test('rescale(k) shrinks label font size by 1/k', async ({ page }) => {
 
 test('labels.minZoom hides labels below the threshold and shows them once it\'s reached', async ({ page }) => {
   await page.goto(LABELS_MINZOOM_FIXTURE);
-  const atDefaultZoom = await page.locator('text.scatter-label').count();
+  const atDefaultZoom = await page.locator('text.easygraph-label').count();
   const belowThreshold = await page.evaluate(() => {
     window.graph.rescale(2.9);
-    return document.querySelectorAll('text.scatter-label').length;
+    return document.querySelectorAll('text.easygraph-label').length;
   });
   const atThreshold = await page.evaluate(() => {
     window.graph.rescale(3);
-    return document.querySelectorAll('text.scatter-label').length;
+    return document.querySelectorAll('text.easygraph-label').length;
   });
   // fixture sets labels.minZoom: 3; default zoom (k=1, never having called rescale) is below it
   expect(atDefaultZoom).toBe(0);
@@ -392,10 +392,10 @@ test('labels.minZoom hides labels below the threshold and shows them once it\'s 
 
 test('rescale(k) shrinks point stroke-width by 1/k too, not just radius', async ({ page }) => {
   await page.goto(FIXTURE);
-  const before = await page.evaluate(() => document.querySelector('circle.scatter-point').style.strokeWidth);
+  const before = await page.evaluate(() => document.querySelector('circle.easygraph-point').style.strokeWidth);
   const after = await page.evaluate(() => {
     window.graph.rescale(2);
-    return document.querySelector('circle.scatter-point').style.strokeWidth;
+    return document.querySelector('circle.easygraph-point').style.strokeWidth;
   });
   // default pointStrokeWidth is 0.5
   expect(before).toBe('0.5px');
@@ -404,10 +404,10 @@ test('rescale(k) shrinks point stroke-width by 1/k too, not just radius', async 
 
 test('rescale(k) shrinks arrow stroke-width by 1/k too, not just shaft length', async ({ page }) => {
   await page.goto(ARROWS_FIXTURE);
-  const before = await page.evaluate(() => document.querySelector('path.scatter-arrow').style.strokeWidth);
+  const before = await page.evaluate(() => document.querySelector('path.easygraph-arrow').style.strokeWidth);
   const after = await page.evaluate(() => {
     window.graph.rescale(2);
-    return document.querySelector('path.scatter-arrow').style.strokeWidth;
+    return document.querySelector('path.easygraph-arrow').style.strokeWidth;
   });
   // default arrows.strokeWidth is 1.5
   expect(before).toBe('1.5px');
@@ -419,7 +419,7 @@ test('arrows and labels accept an options object; unset keys keep their defaults
   const stroke = await page.evaluate(() => {
     window.graph.arrows = { color: '#f00', strokeWidth: 3 };
     window.graph.update(window.testData, { x: [0, 10], y: [0, 10] });
-    var el = document.querySelector('path.scatter-arrow');
+    var el = document.querySelector('path.easygraph-arrow');
     return [el.style.stroke, el.style.strokeWidth];
   });
   expect(stroke[1]).toBe('3px');
@@ -428,12 +428,12 @@ test('arrows and labels accept an options object; unset keys keep their defaults
 
 test('voronoi accepts { opacity }; plain true keeps the 0.6 default', async ({ page }) => {
   await page.goto(VORONOI_FIXTURE);
-  const dflt = await page.evaluate(() => document.querySelector('path.scatter-cell').style.fillOpacity);
+  const dflt = await page.evaluate(() => document.querySelector('path.easygraph-voronoi-cell').style.fillOpacity);
   expect(dflt).toBe('0.6');
   const custom = await page.evaluate(() => {
     window.graph.voronoi = { opacity: 0.2 };
     window.graph.update(window.testData, { x: [0, 10], y: [0, 10] });
-    return document.querySelector('path.scatter-cell').style.fillOpacity;
+    return document.querySelector('path.easygraph-voronoi-cell').style.fillOpacity;
   });
   expect(custom).toBe('0.2');
 });
@@ -452,12 +452,12 @@ test('points join by id first, then label, then position - a dropped point keeps
         });
       }
       g.update(pts(['a', 'b', 'c']));
-      var before = w.querySelectorAll('circle.scatter-point')[2];
+      var before = w.querySelectorAll('circle.easygraph-point')[2];
       // drop 'a': with a stable key, the circle for 'c' must be reused; by position it would not
       var next = [{ x: 1, y: 1, value: 1 }, { x: 2, y: 2, value: 2 }];
       if (keyField) { next[0][keyField] = 'b'; next[1][keyField] = 'c'; }
       g.update(next);
-      var after = [...w.querySelectorAll('circle.scatter-point')];
+      var after = [...w.querySelectorAll('circle.easygraph-point')];
       return after.indexOf(before) >= 0;
     }
     return { id: run('id'), label: run('label'), none: run(null) };

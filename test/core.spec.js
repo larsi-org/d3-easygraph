@@ -492,7 +492,7 @@ test('curve accepts a shortcut name or a d3 curve factory directly', async ({ pa
       var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
       var g = d3.easygraph.line({ container: w, height: 200, lines: true, curve: curve, duration: 0 });
       g.update([[{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 2, y: 0 }]]);
-      var d = w.querySelector('path.data-lines').getAttribute('d');
+      var d = w.querySelector('path.easygraph-line').getAttribute('d');
       g.destroy(); w.remove();
       return d;
     }
@@ -516,7 +516,7 @@ test('tickLabels: false blanks the tick text but keeps the tick marks', async ({
     var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
     var g = d3.easygraph.line({ container: w, height: 200, x: { scale: 'linear', tickLabels: false } });
     g.update([[{ x: 0, y: 0 }, { x: 10, y: 10 }]]);
-    var xAxis = w.querySelector('g.x.axis');
+    var xAxis = w.querySelector('g.easygraph-axis-x');
     var r = {
       tickCount: xAxis.querySelectorAll('.tick').length,
       labelText: [...xAxis.querySelectorAll('.tick text')].map(function (t) { return t.textContent; }).join('')
@@ -536,7 +536,7 @@ test('bars: colorPerData reads each datum\'s own `color` field', async ({ page }
       var g = d3.easygraph.bars({ container: w, height: 200, colorPerData: true });
       g.update([[{ x: 'a', y: 1, color: '#ff0000' }, { x: 'b', y: 2, color: '#00ff00' }]]);
       setTimeout(function () {
-        var f = [...w.querySelectorAll('rect.data-bars')].map(function (r) { return r.style.fill; });
+        var f = [...w.querySelectorAll('rect.easygraph-bar')].map(function (r) { return r.style.fill; });
         g.destroy(); w.remove(); resolve(f);
       }, 700);
     });
@@ -577,7 +577,7 @@ test('every family re-renders its axes on resize, not just line (regression)', a
       await wait(600);
       w.style.width = '300px';
       await wait(900); // ResizeObserver -> _layout -> _reflow
-      var ticks = [...w.querySelectorAll('g.x.axis .tick')];
+      var ticks = [...w.querySelectorAll('g.easygraph-axis-x .tick')];
       var last = ticks[ticks.length - 1].getAttribute('transform');
       var x = Number(/translate\(\s*([\d.]+)/.exec(last)[1]);
       var plotWidth = g.width;
@@ -751,7 +751,7 @@ test('a line chart with data but no mark type enabled warns instead of silently 
     var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
     var g = d3.easygraph.line({ container: w, height: 200 }); // no lines/bands/stackedArea
     g.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
-    var withData = w.querySelectorAll('path.data-lines, path.data-minmax, path.data-stack').length;
+    var withData = w.querySelectorAll('path.easygraph-line, path.easygraph-minmax, path.easygraph-stack').length;
     g.update([]); // an empty render must stay quiet - nothing was asked for
     g.destroy(); w.remove();
     return withData;
@@ -924,4 +924,50 @@ test('names and units are gone: they throw with a pointer to series; series must
   expect(r.names).toContain('series');
   expect(r.units).toContain('series');
   expect(r.notArray).toContain('array');
+});
+
+test('config typos and wrong-family keys warn with a suggestion; custom fields stay silent', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var warnings = []; var orig = console.warn; console.warn = function(m) { warnings.push(String(m)); };
+    function mk(ctor, cfg) { var w = document.createElement('div'); document.body.appendChild(w);
+      return d3.easygraph[ctor](Object.assign({ container: w, height: 200 }, cfg)); }
+    mk('line', { lines: true, colorPallete: 'x', curv: 'linear' });
+    mk('bars', { zoom: { min: 1, max: 5 } });
+    mk('line', { lines: true, sensors: [0, 1], channels: [3], preset: 'temperatureF', stationName: 'x' });
+    mk('line', { lines: true, x: { label: 'East' } });
+    mk('line', { lines: true, title: 'T', y: { label: 'Y' } });
+    // the same typo twice warns once
+    mk('line', { lines: true, colorPallete: 'x' });
+    console.warn = orig;
+    return warnings;
+  });
+  expect(r.some((m) => m.includes("'colorPallete'") && m.includes("'colorPalette'"))).toBe(true);
+  expect(r.some((m) => m.includes("'curv'") && m.includes("'curve'"))).toBe(true);
+  expect(r.some((m) => m.includes("'zoom'") && m.includes('line'))).toBe(true);
+  expect(r.some((m) => m.includes('x.label'))).toBe(true);
+  expect(r.some((m) => m.includes('y.label'))).toBe(true);
+  expect(r.filter((m) => m.includes('colorPallete')).length).toBe(1);
+  expect(r.some((m) => /sensors|channels|preset|stationName/.test(m))).toBe(false);
+});
+
+test('x.scale, y.scale and color.scale throw when assigned after construction; graph.colorPalettes is gone', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var w = document.createElement('div'); document.body.appendChild(w);
+    var g = d3.easygraph.line({ container: w, height: 200, lines: true, x: { scale: 'time' } });
+    function msg(fn) { try { fn(); return ''; } catch (e) { return e.message; } }
+    var w2 = document.createElement('div'); document.body.appendChild(w2);
+    var h = d3.easygraph.heatmap({ container: w2, height: 200 });
+    return {
+      x: msg(function() { g.x.scale = 'linear'; }),
+      color: msg(function() { h.color.scale = 'time'; }),
+      readable: g.x.scale,
+      palettes: typeof g.colorPalettes
+    };
+  });
+  expect(r.x).toContain('x.scale is fixed');
+  expect(r.color).toContain('color.scale is fixed');
+  expect(r.readable).toBe('time');
+  expect(r.palettes).toBe('undefined');
 });

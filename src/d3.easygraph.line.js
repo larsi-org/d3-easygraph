@@ -116,10 +116,10 @@ d3.easygraph.line = function(config) {
         // optional module hooks rather than promises every family has to keep.
         graph._redraw = function() {
           graph._drawAxes();
-          graph.$group.selectAll("path.data-minmax").attr("d", graph.$ribbon);
-          graph.$group.selectAll("path.data-sigma").attr("d", graph.$sigma);
-          graph.$group.selectAll("path.data-stack").attr("d", graph.$stack);
-          graph.$group.selectAll("path.data-lines").attr("d", graph.$line);
+          graph.$group.selectAll("path.easygraph-minmax").attr("d", graph.$ribbon);
+          graph.$group.selectAll("path.easygraph-sigma").attr("d", graph.$sigma);
+          graph.$group.selectAll("path.easygraph-stack").attr("d", graph.$stack);
+          graph.$group.selectAll("path.easygraph-line").attr("d", graph.$line);
         };
 
         if (Array.isArray(graph.zoom))
@@ -134,7 +134,7 @@ d3.easygraph.line = function(config) {
 
           graph.$pane = graph.$svg
             .append("rect")
-              .attr("class", "pane")
+              .attr("class", "easygraph-pane")
               .attr("width", graph.plotWidth)
               .attr("height", graph.plotHeight)
               // Without this, iOS's native pinch-to-zoom/pan can still hijack a touch gesture
@@ -155,7 +155,7 @@ d3.easygraph.line = function(config) {
 
           graph.$crosshairLine = graph.$svg
             .append("line")
-            .attr("class", "crosshair-line")
+            .attr("class", "easygraph-crosshair-line")
             .attr("clip-path", "url(#" + graph._clipId + ")")
             .attr("y1", 0)
             .attr("y2", graph.plotHeight)
@@ -286,7 +286,7 @@ d3.easygraph.line = function(config) {
         if (graph.zoom) {
           // baseline for zoom rescaling; reset transform so new domain is "home"
           graph.$xScaleRef = graph.x.$scale.copy();
-          graph.$svg.select("rect.pane").call(graph.$zoom.transform, d3.zoomIdentity);
+          graph.$svg.select("rect.easygraph-pane").call(graph.$zoom.transform, d3.zoomIdentity);
         }
 
         if (graph.crosshair) graph._crosshairData = data;
@@ -314,9 +314,9 @@ d3.easygraph.line = function(config) {
         graph._prevSeriesLengths = data.map(function(series) { return series.length; });
 
         if (B.minmax) {
-          var dataRibbons = graph.$group.selectAll(".data-minmax").data(data);
+          var dataRibbons = graph.$group.selectAll(".easygraph-minmax").data(data);
           var ribbonsEntered = dataRibbons.enter().append("path")
-            .attr("class",      "data-minmax")
+            .attr("class",      "easygraph-minmax")
             .attr("clip-path",  "url(#" + graph._clipId + ")")
             .attr("d",          graph.$ribbon0)
             .style("fill",      function(d, i) { return graph.paletteColor(i); })
@@ -328,7 +328,7 @@ d3.easygraph.line = function(config) {
             .style("fill",    function(d, i) { return graph.paletteColor(i); })
             .style("opacity", 0.4);
         } else {
-          graph.$group.selectAll(".data-minmax").remove();
+          graph.$group.selectAll(".easygraph-minmax").remove();
         }
 
         // Appended right after the minmax band (before stack/lines) so a sigma band always draws on
@@ -340,9 +340,9 @@ d3.easygraph.line = function(config) {
         // = 0.7. Setting this to the visually-intended 0.7 directly would compound with the
         // ribbon underneath into ~0.82, reading darker than intended.
         if (B.sigma) {
-          var dataSigma = graph.$group.selectAll(".data-sigma").data(data);
+          var dataSigma = graph.$group.selectAll(".easygraph-sigma").data(data);
           var sigmaEntered = dataSigma.enter().append("path")
-            .attr("class",      "data-sigma")
+            .attr("class",      "easygraph-sigma")
             .attr("clip-path",  "url(#" + graph._clipId + ")")
             .attr("d",          graph.$sigma0)
             .style("fill",      function(d, i) { return graph.paletteColor(i); })
@@ -354,14 +354,14 @@ d3.easygraph.line = function(config) {
             .style("fill",    function(d, i) { return graph.paletteColor(i); })
             .style("opacity", 0.5);
         } else {
-          graph.$group.selectAll(".data-sigma").remove();
+          graph.$group.selectAll(".easygraph-sigma").remove();
         }
 
         if (graph.stackedArea) {
           var stackedData = d3.easygraph._computeStacked(data);
-          var dataStack = graph.$group.selectAll(".data-stack").data(stackedData);
+          var dataStack = graph.$group.selectAll(".easygraph-stack").data(stackedData);
           var stackEntered = dataStack.enter().append("path")
-            .attr("class",      "data-stack")
+            .attr("class",      "easygraph-stack")
             .attr("clip-path",  "url(#" + graph._clipId + ")")
             .attr("d",          graph.$stack0)
             .style("fill",      function(d, i) { return graph.paletteColor(i); })
@@ -373,13 +373,13 @@ d3.easygraph.line = function(config) {
             .style("fill",    function(d, i) { return graph.paletteColor(i); })
             .style("opacity", 1);
         } else {
-          graph.$group.selectAll(".data-stack").remove();
+          graph.$group.selectAll(".easygraph-stack").remove();
         }
 
         if (graph.lines) {
-          var dataLines = graph.$group.selectAll(".data-lines").data(data);
+          var dataLines = graph.$group.selectAll(".easygraph-line").data(data);
           var linesEntered = dataLines.enter().append("path")
-            .attr("class",     "data-lines")
+            .attr("class",     "easygraph-line")
             .attr("clip-path", "url(#" + graph._clipId + ")")
             .attr("d",         graph.$line0)
             .style("stroke",   function(d, i) { return graph.paletteColor(i); })
@@ -391,7 +391,7 @@ d3.easygraph.line = function(config) {
             .style("stroke",  function(d, i) { return graph.paletteColor(i); })
             .style("opacity", 1);
         } else {
-          graph.$group.selectAll(".data-lines").remove();
+          graph.$group.selectAll(".easygraph-line").remove();
         }
       },
 

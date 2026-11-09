@@ -32,8 +32,8 @@ d3.easygraph.bars = function(config) {
 
     // enter/exit/merge bar group <g> elements
     function _bindGroups(data) {
-      var sel = graph.$group.selectAll("g.bar-groups").data(data);
-      var enter = sel.enter().append("g").attr("class", "bar-groups");
+      var sel = graph.$group.selectAll("g.easygraph-bar-group").data(data);
+      var enter = sel.enter().append("g").attr("class", "easygraph-bar-group");
       sel.exit().remove();
       return enter.merge(sel);
     }
@@ -55,9 +55,9 @@ d3.easygraph.bars = function(config) {
         .attr("transform", null)
         .style("fill", function(d, i) { return graph.paletteColor(i); });
 
-      var dataBars = groups.selectAll(".data-bars").data(function(d) { return d; }, function(d) { return d.x; });
+      var dataBars = groups.selectAll(".easygraph-bar").data(function(d) { return d; }, function(d) { return d.x; });
       var entered = dataBars.enter().append("rect")
-        .attr("class", "data-bars")
+        .attr("class", "easygraph-bar")
         .attr("x",      function(d) { return graph.x.$scale(d.x); })
         .attr("width",  graph.x.$scale.bandwidth())
         .attr("y",      function(d) { return graph.y.$scale(0); })
@@ -84,9 +84,9 @@ d3.easygraph.bars = function(config) {
         .attr("transform", function(d, i) { return "translate(" + x1(i) + ",0)"; })
         .style("fill",     function(d, i) { return graph.paletteColor(i); });
 
-      var dataBars = groups.selectAll(".data-bars").data(function(d) { return d; }, function(d) { return d.x; });
+      var dataBars = groups.selectAll(".easygraph-bar").data(function(d) { return d; }, function(d) { return d.x; });
       var entered = dataBars.enter().append("rect")
-        .attr("class", "data-bars")
+        .attr("class", "easygraph-bar")
         .attr("x",      function(d) { return graph.x.$scale(d.x); })
         .attr("width",  x1.bandwidth())
         .attr("y",      function(d) { return graph.y.$scale(0); })
@@ -108,9 +108,9 @@ d3.easygraph.bars = function(config) {
         .attr("transform", null)
         .style("fill", function(d, i) { return graph.paletteColor(i); });
 
-      var dataBars = groups.selectAll(".data-bars").data(function(d) { return d; }, function(d) { return d.x; });
+      var dataBars = groups.selectAll(".easygraph-bar").data(function(d) { return d; }, function(d) { return d.x; });
       var entered = dataBars.enter().append("rect")
-        .attr("class",  "data-bars")
+        .attr("class",  "easygraph-bar")
         .attr("x",      function(d) { return graph.x.$scale(0); })
         .attr("width",  0)
         .attr("y",      function(d) { return graph.y.$scale(d.x); })
@@ -137,9 +137,9 @@ d3.easygraph.bars = function(config) {
         .attr("transform", function(d, i) { return "translate(0," + y1(i) + ")"; })
         .style("fill",     function(d, i) { return graph.paletteColor(i); });
 
-      var dataBars = groups.selectAll(".data-bars").data(function(d) { return d; }, function(d) { return d.x; });
+      var dataBars = groups.selectAll(".easygraph-bar").data(function(d) { return d; }, function(d) { return d.x; });
       var entered = dataBars.enter().append("rect")
-        .attr("class",  "data-bars")
+        .attr("class",  "easygraph-bar")
         .attr("x",      function(d) { return graph.x.$scale(0); })
         .attr("width",  0)
         .attr("y",      function(d) { return graph.y.$scale(d.x); })

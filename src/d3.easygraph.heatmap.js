@@ -26,7 +26,7 @@ d3.easygraph.heatmap = function(config) {
       // Empty data (a page whose first fetch hasn't resolved yet) used to reach data[0].length
       // and throw; there's simply nothing to draw, so clear any previous grid and stop.
       if (!data.length || !data[0].length) {
-        graph.$group.selectAll(".heatmap-row").remove();
+        graph.$group.selectAll(".easygraph-heatmap-row").remove();
         return;
       }
 
@@ -43,19 +43,19 @@ d3.easygraph.heatmap = function(config) {
 
       graph.color.$scale.domain(d3.range(n).map(function(i) { return dataMin + i * dataDlt / (n - 1); }));
 
-      var heatmapRow = graph.$group.selectAll(".heatmap-row").data(data);
-      var heatmapRowEnter = heatmapRow.enter().append("g").attr("class", "heatmap-row");
+      var heatmapRow = graph.$group.selectAll(".easygraph-heatmap-row").data(data);
+      var heatmapRowEnter = heatmapRow.enter().append("g").attr("class", "easygraph-heatmap-row");
       heatmapRow.exit().remove();
       heatmapRow = heatmapRowEnter.merge(heatmapRow);
       heatmapRow.attr("transform", function(d, i) {
         return "translate(0," + ((heatmapRows - 1 - i) * heatmapCellH) + ")";
       });
 
-      var heatmapCells = heatmapRow.selectAll(".heatmap-cells").data(function(d) { return d; });
+      var heatmapCells = heatmapRow.selectAll(".easygraph-heatmap-cell").data(function(d) { return d; });
       // fill set immediately at enter - a freshly entered cell should show its real color
       // right away, not fade in from nothing; the transition below only matters for a cell
       // that already existed and is changing color on a data update.
-      var heatmapCellsEnter = heatmapCells.enter().append("rect").attr("class", "heatmap-cells")
+      var heatmapCellsEnter = heatmapCells.enter().append("rect").attr("class", "easygraph-heatmap-cell")
         .style('fill', function(d) { return graph.color.$scale(d); });
       heatmapCells.exit().remove();
       heatmapCells = heatmapCellsEnter.merge(heatmapCells);

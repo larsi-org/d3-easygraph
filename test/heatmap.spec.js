@@ -18,25 +18,25 @@ test('defaults colorPalette to Diverging.RdBu.reversed, not the shared Qualitati
 test('renders a cell grid matching the data dimensions', async ({ page }) => {
   await page.goto(FIXTURE);
   // 4 rows x 6 cols in the fixture data
-  await expect(page.locator('g.heatmap-row')).toHaveCount(4);
-  await expect(page.locator('rect.heatmap-cells')).toHaveCount(24);
+  await expect(page.locator('g.easygraph-heatmap-row')).toHaveCount(4);
+  await expect(page.locator('rect.easygraph-heatmap-cell')).toHaveCount(24);
 });
 
 test('resize updates cell width proportionally', async ({ page }) => {
   await page.goto(FIXTURE);
 
   const widthBefore = await page.evaluate(() =>
-    Number(document.querySelector('rect.heatmap-cells').getAttribute('width'))
+    Number(document.querySelector('rect.easygraph-heatmap-cell').getAttribute('width'))
   );
 
   await page.evaluate(() => { document.querySelector('#wrap').style.width = '300px'; });
   await page.waitForFunction((w0) => {
-    const w = Number(document.querySelector('rect.heatmap-cells').getAttribute('width'));
+    const w = Number(document.querySelector('rect.easygraph-heatmap-cell').getAttribute('width'));
     return w > 0 && w < w0;
   }, widthBefore);
 
   const widthAfter = await page.evaluate(() =>
-    Number(document.querySelector('rect.heatmap-cells').getAttribute('width'))
+    Number(document.querySelector('rect.easygraph-heatmap-cell').getAttribute('width'))
   );
   expect(widthAfter).toBeLessThan(widthBefore);
   expect(widthAfter).toBeGreaterThan(0);
@@ -46,7 +46,7 @@ test('cell fill transitions over graph.duration on a data update, not an instant
   await page.goto(FIXTURE);
   const { immediateFill, settledFill, finalFill } = await page.evaluate(() => {
     return new Promise((resolve) => {
-      var cell = document.querySelector('rect.heatmap-cells');
+      var cell = document.querySelector('rect.easygraph-heatmap-cell');
       // first cell's value flips from 1 (near the domain's low end) to 9 (its high end) -
       // a big enough jump that an immediate vs. settled color reliably differ
       var flipped = window.testData.map(function(row) { return row.map(function(v) { return 10 - v; }); });
@@ -87,7 +87,7 @@ test('update([]) with no data clears the grid instead of throwing', async ({ pag
   const result = await page.evaluate(() => {
     try {
       window.graph.update([]);
-      return { threw: false, cells: document.querySelectorAll('rect.heatmap-cells').length };
+      return { threw: false, cells: document.querySelectorAll('rect.easygraph-heatmap-cell').length };
     } catch (e) {
       return { threw: true, error: e.message };
     }

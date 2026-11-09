@@ -139,9 +139,10 @@ A `line` chart with data but none of `lines`/`bands`/`stackedArea` enabled draws
 nothing else, and warns on the console saying so. That's a warning rather than an error because
 the flags are meant to be toggled on a live chart, so being briefly in that state is legitimate.
 
-Config keys a family doesn't understand are ignored without complaint - `zoom` on a bar chart, a
-misspelled `colorPallete`. That's the deliberate cost of letting you hang your own properties on a
-config (see **Public API**), which the library can't tell apart from a typo.
+Config keys a family doesn't understand are ignored, because you can hang your own properties on a
+config (see **Public API**). The constructor does warn on the console, with a suggestion, when a
+key is a near-miss of a real option (`colorPallete`) or belongs to another family (`zoom` on a
+bar chart); a key that looks like neither stays silent.
 
 `container` accepts a CSS selector string, a DOM element, or a d3 selection. `container` must
 resolve to an element, and `height` must be a positive number *greater than
@@ -153,8 +154,12 @@ releases its reference to the last data you passed. Calling `update()` afterward
 than quietly rendering into a detached SVG.
 
 `title` is optional. A `y`/`color` `preset` supplies a label automatically (e.g. `temperatureF` →
-"Temperature"); with no preset and no `title` of your own, the chart's title just renders blank -
-there's no generic placeholder to opt out of.
+"Temperature"), and the title is that label plus the unit, `Temperature [°F]`; with no preset and no
+`title` of your own, the title just renders blank - there's no generic placeholder to opt out of.
+**The chart has a title and no axis titles.** `label` on `x`/`y`/`color` is the quantity's name: it
+only ever feeds the default title, so `x.label` is never drawn, and `y.label` is not drawn once you
+set `title`. The constructor warns on the console when you set one of those. Put axis names in the
+`title` ("Pressure (hPa) by station").
 
 ## Unit conversion (no chart required)
 
@@ -398,7 +403,7 @@ you flip it.
 
 ```js
 // horizontal bars: x = category (up the side), y = value (across the bottom)
-var g = d3.easygraph.bars({ container: '#chart', orientation: 'horizontal', y: { label: 'Count' } });
+var g = d3.easygraph.bars({ container: '#chart', orientation: 'horizontal', title: 'Count' });
 g.update([[{ x: 'Mon', y: 3 }, { x: 'Tue', y: 7 }]], { y: [0, 10] });  // pins the value axis
 ```
 
@@ -416,6 +421,21 @@ off the returned graph, not off the object you passed in.
 
 Each chart's `<svg>` carries `class="easygraph"`, which every rule in the stylesheet is scoped
 under, plus `role="img"` and an `aria-label` mirroring the chart title.
+
+**Class names.** Every class the library adds starts with `easygraph-` and names the mark
+(singular for one element, plural for the `<g>` holding them), so a page's own CSS and selectors
+can't collide with them, and they're stable API for styling and for tests:
+
+| Chart | Classes |
+| --- | --- |
+| all | `easygraph` (the svg), `easygraph-title`, `easygraph-axis` with `easygraph-axis-x` / `easygraph-axis-y` |
+| line | `easygraph-line`, `easygraph-minmax`, `easygraph-sigma`, `easygraph-stack` (one `<path>` per series), `easygraph-pane` (the zoom/pointer rect), `easygraph-crosshair-line`, `easygraph-crosshair-tip` (the tooltip, a child of `<body>`) |
+| bars | `easygraph-bar`, `easygraph-bar-group` |
+| heatmap | `easygraph-heatmap-row`, `easygraph-heatmap-cell` |
+| scatter | `easygraph-point`, `easygraph-arrow`, `easygraph-label`, `easygraph-voronoi-cell`, and their `<g>` groups `easygraph-points`, `easygraph-arrows`, `easygraph-labels`, `easygraph-voronoi-cells` |
+
+Anything else in the DOM (for example the clip path, or the `.tick` classes d3 puts on axis ticks) is
+an implementation detail.
 
 `update()` checks the shape of `data` and throws a message naming the family and the fix if it's
 wrong (for example a flat array where a chart wants one series per row, or the reverse). An empty
@@ -507,7 +527,7 @@ properties to a graph is fine and supported; the library only ever writes the na
 
 | Re-read on every `update()` (toggle live) | Fixed when the chart is built |
 |---|---|
-| `lines`, `bands`, `stackedArea` (line), `mode` (bars), `voronoi`, `arrows`, `labels` (scatter), `duration`, `series`, `title`, `radius`, `pointStrokeWidth` | `container`, `height`, `margin`, `orientation`, `curve`, `zoom`, `crosshair`, `colorPalette`, `colorClasses`, `x.scale`, `y.scale`, and the `x`/`y`/`color` presets |
+| `lines`, `bands`, `stackedArea` (line), `mode` (bars), `voronoi`, `arrows`, `labels` (scatter), `duration`, `series`, `title`, `radius`, `pointStrokeWidth` | `container`, `height`, `margin`, `orientation`, `curve`, `zoom`, `crosshair`, `colorPalette`, `colorClasses`, `x.scale`, `y.scale`, `color.scale`, and the `x`/`y`/`color` presets |
 
 The right-hand column is what a chart is built around; to change one, `destroy()` it and build a
 new chart. This split, plus the names in this README, is the API that 1.0.0 freezes.
@@ -602,7 +622,7 @@ npm test
 ```
 
 [Playwright](https://playwright.dev) specs in `test/` (one per source module: core, line, bars,
-heatmap, scatter, presets, colors; 150 tests) run against the built `dist/` via static
+heatmap, scatter, presets, colors; 152 tests) run against the built `dist/` via static
 `test/fixtures/*.html` pages loaded over `file://`. They cover rendering, live resize, `destroy()`
 teardown, legends, the standalone unit and palette functions, and the regressions that needed real
 interaction to find: the zoom baseline staying in sync with the container's width after a resize,

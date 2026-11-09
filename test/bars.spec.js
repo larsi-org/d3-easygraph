@@ -5,8 +5,8 @@ const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/bars.html');
 
 test('renders grouped bars with the right element counts', async ({ page }) => {
   await page.goto(FIXTURE);
-  await expect(page.locator('g.bar-groups')).toHaveCount(2);
-  await expect(page.locator('rect.data-bars')).toHaveCount(6);
+  await expect(page.locator('g.easygraph-bar-group')).toHaveCount(2);
+  await expect(page.locator('rect.easygraph-bar')).toHaveCount(6);
 });
 
 test('live graph.mode toggle to stacked re-renders in place, no reconstruction', async ({ page }) => {
@@ -17,17 +17,17 @@ test('live graph.mode toggle to stacked re-renders in place, no reconstruction',
     window.graph.update(window.testData);
   });
 
-  // still one <g.bar-groups> per series, one <rect.data-bars> per datum
-  await expect(page.locator('g.bar-groups')).toHaveCount(2);
-  await expect(page.locator('rect.data-bars')).toHaveCount(6);
+  // still one <g.easygraph-bar-group> per series, one <rect.easygraph-bar> per datum
+  await expect(page.locator('g.easygraph-bar-group')).toHaveCount(2);
+  await expect(page.locator('rect.easygraph-bar')).toHaveCount(6);
 
   // stacked: the second series' bars sit on top of the first, so their y
   // should be strictly less than (higher up than) the first series' bars
   // for the same category
   const [firstSeriesY, secondSeriesY] = await page.evaluate(() => {
-    const groups = document.querySelectorAll('g.bar-groups');
-    const firstBar  = groups[0].querySelector('rect.data-bars');
-    const secondBar = groups[1].querySelector('rect.data-bars');
+    const groups = document.querySelectorAll('g.easygraph-bar-group');
+    const firstBar  = groups[0].querySelector('rect.easygraph-bar');
+    const secondBar = groups[1].querySelector('rect.easygraph-bar');
     return [ Number(firstBar.getAttribute('y')), Number(secondBar.getAttribute('y')) ];
   });
   expect(secondSeriesY).toBeLessThan(firstSeriesY);
@@ -47,7 +47,7 @@ test('resize never produces a negative bar width (regression)', async ({ page })
   expect(widthAfter).toBe(widthBefore);
 
   const rectAttrs = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('rect.data-bars')).map((r) => ({
+    Array.from(document.querySelectorAll('rect.easygraph-bar')).map((r) => ({
       x: Number(r.getAttribute('x')),
       width: Number(r.getAttribute('width'))
     }))
@@ -64,7 +64,7 @@ test('update([]) with no data yields a real [0,1] value domain, not [0, undefine
     window.graph.update([]);
     return {
       y: window.graph.y.$scale.domain(),
-      bars: document.querySelectorAll('rect.data-bars').length
+      bars: document.querySelectorAll('rect.easygraph-bar').length
     };
   });
   // the value axis is the one that used to come back as [0, null] (d3.max over nothing)
@@ -93,7 +93,7 @@ test('mode rejects an unrecognized value, at construction and on a live toggle',
     catch (e) { onToggle = e.message; }
 
     g.mode = 'stacked'; g.update(data);          // a correct toggle still works
-    var validToggleBars = w.querySelectorAll('rect.data-bars').length;
+    var validToggleBars = w.querySelectorAll('rect.easygraph-bar').length;
     g.destroy(); w.remove();
     return { atConstruction, onToggle, validToggleBars };
   });
@@ -112,7 +112,7 @@ test('horizontal bars render: grouped bars start at the value axis zero and run 
     // d3 transitions run on the next frame even at duration 0, so the geometry below is the
     // enter state until they have flushed
     await new Promise(function (r) { setTimeout(r, 250); });
-    var rects = [...w.querySelectorAll('rect.data-bars')].map(function (r) {
+    var rects = [...w.querySelectorAll('rect.easygraph-bar')].map(function (r) {
       return { x: +r.getAttribute('x'), width: +r.getAttribute('width'), y: +r.getAttribute('y') };
     });
     var zeroX = g.x.$scale(0), fullX = g.x.$scale(20);
@@ -138,7 +138,7 @@ test('horizontal bars render: stacked series pick up where the previous one ends
     // two series over one category: 10 then 20 stacked on top of it
     g.update([[{ x: 'a', y: 10 }], [{ x: 'a', y: 20 }]]);
     await new Promise(function (r) { setTimeout(r, 250); });
-    var rects = [...w.querySelectorAll('rect.data-bars')].map(function (r) {
+    var rects = [...w.querySelectorAll('rect.easygraph-bar')].map(function (r) {
       return { x: +r.getAttribute('x'), width: +r.getAttribute('width'), y: +r.getAttribute('y') };
     });
     var scale = { at0: g.x.$scale(0), at10: g.x.$scale(10), at30: g.x.$scale(30) };

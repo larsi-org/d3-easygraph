@@ -7,8 +7,8 @@ const GAP_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/line-gap.html');
 
 test('renders lines and a minmax band with the right element counts', async ({ page }) => {
   await page.goto(FIXTURE);
-  await expect(page.locator('path.data-lines')).toHaveCount(1);
-  await expect(page.locator('path.data-minmax')).toHaveCount(1);
+  await expect(page.locator('path.easygraph-line')).toHaveCount(1);
+  await expect(page.locator('path.easygraph-minmax')).toHaveCount(1);
 });
 
 test('the sigma band renders a path nested between the minmax band and the line in z-order', async ({ page }) => {
@@ -26,9 +26,9 @@ test('the sigma band renders a path nested between the minmax band and the line 
     wrap.remove();
     return classes;
   });
-  expect(order.indexOf('data-minmax')).toBeGreaterThanOrEqual(0);
-  expect(order.indexOf('data-sigma')).toBeGreaterThan(order.indexOf('data-minmax'));
-  expect(order.indexOf('data-lines')).toBeGreaterThan(order.indexOf('data-sigma'));
+  expect(order.indexOf('easygraph-minmax')).toBeGreaterThanOrEqual(0);
+  expect(order.indexOf('easygraph-sigma')).toBeGreaterThan(order.indexOf('easygraph-minmax'));
+  expect(order.indexOf('easygraph-line')).toBeGreaterThan(order.indexOf('easygraph-sigma'));
 });
 
 test('a point missing sigmaMin/sigmaMax skips the sigma band there without affecting the minmax band/lines', async ({ page }) => {
@@ -41,9 +41,9 @@ test('a point missing sigmaMin/sigmaMax skips the sigma band there without affec
       { x: 0, y: 10, min: 5, max: 15 }, // no sigma this point
       { x: 1, y: 12, min: 6, max: 18, sigmaMin: 9, sigmaMax: 15 }
     ]]);
-    var sigmaD = wrap.querySelector('path.data-sigma').getAttribute('d');
-    var linesCount = wrap.querySelectorAll('path.data-lines').length;
-    var minmaxCount = wrap.querySelectorAll('path.data-minmax').length;
+    var sigmaD = wrap.querySelector('path.easygraph-sigma').getAttribute('d');
+    var linesCount = wrap.querySelectorAll('path.easygraph-line').length;
+    var minmaxCount = wrap.querySelectorAll('path.easygraph-minmax').length;
     g.destroy();
     wrap.remove();
     return { sigmaD: sigmaD, linesCount: linesCount, minmaxCount: minmaxCount };
@@ -85,7 +85,7 @@ test('a series whose point count changes snaps its path instantly instead of mor
         { x: new Date("2026-01-01T18:00:00"), y: 4, min: 2, max: 5 }
       ]];
       window.graph.update(reduced);
-      var path = document.querySelector('path.data-lines');
+      var path = document.querySelector('path.easygraph-line');
       setTimeout(function() {
         resolve({ dSoonAfter: path.getAttribute('d'), finalD: window.graph.$line(reduced[0]) });
       }, 50);
@@ -107,7 +107,7 @@ test('a series whose point count stays the same still transitions smoothly (regr
         { x: new Date("2026-01-01T18:00:00"), y: 24, min: 22, max: 25 }
       ]];
       window.graph.update(moved);
-      var path = document.querySelector('path.data-lines');
+      var path = document.querySelector('path.easygraph-line');
       var immediateD = path.getAttribute('d');
       setTimeout(function() {
         resolve({ immediateD: immediateD, settledD: path.getAttribute('d'), finalD: window.graph.$line(moved[0]) });
@@ -129,7 +129,7 @@ test('stackedArea stacks series cumulatively, each layer riding on top of the pr
       [ { x: 0, y: 5 },  { x: 1, y: 5 } ]
     ]);
     var yDomain = g.y.$scale.domain();
-    var count = wrap.querySelectorAll('path.data-stack').length;
+    var count = wrap.querySelectorAll('path.easygraph-stack').length;
     g.destroy();
     wrap.remove();
     return { yDomain: yDomain, count: count };
@@ -162,10 +162,10 @@ test('toggling stackedArea off and re-rendering removes its paths', async ({ pag
     var g = d3.easygraph.line({ container: wrap, height: 200, stackedArea: true });
     var data = [[ { x: 0, y: 10 }, { x: 1, y: 10 } ]];
     g.update(data);
-    var before = wrap.querySelectorAll('path.data-stack').length;
+    var before = wrap.querySelectorAll('path.easygraph-stack').length;
     g.stackedArea = false;
     g.update(data);
-    var after = wrap.querySelectorAll('path.data-stack').length;
+    var after = wrap.querySelectorAll('path.easygraph-stack').length;
     g.destroy();
     wrap.remove();
     return { before: before, after: after };
@@ -282,8 +282,8 @@ test('a null-y point breaks the line and ribbon into separate subpaths (gap)', a
   await page.goto(GAP_FIXTURE);
 
   const [lineD, ribbonD] = await page.evaluate(() => [
-    document.querySelector('path.data-lines').getAttribute('d'),
-    document.querySelector('path.data-minmax').getAttribute('d')
+    document.querySelector('path.easygraph-line').getAttribute('d'),
+    document.querySelector('path.easygraph-minmax').getAttribute('d')
   ]);
 
   // one gap among 4 real points -> two subpaths -> 2 "move to" commands
@@ -300,7 +300,7 @@ test('null, undefined and an absent key all mark a gap; NaN and Infinity do not 
       document.body.appendChild(w);
       var g = d3.easygraph.line({ container: w, height: 200, lines: true, x: { scale: 'linear' } });
       g.update([series]);
-      var d = w.querySelector('path.data-lines').getAttribute('d') || '';
+      var d = w.querySelector('path.easygraph-line').getAttribute('d') || '';
       var out = {
         subpaths: d.split('M').length - 1,       // a gap splits the path in two
         yDomain: g.y.$scale.domain().map(function (v) { return Number.isFinite(v) ? v : String(v); })
@@ -356,7 +356,7 @@ test('bands is an object: {} draws none, either key works alone, unknown keys, a
     }
     function msg(fn) { try { fn(); return ''; } catch (e) { return e.message; } }
     var both = mk({ bands: { minmax: true, sigma: true } });
-    var counts = function(o) { return [o.w.querySelectorAll('path.data-minmax').length, o.w.querySelectorAll('path.data-sigma').length]; };
+    var counts = function(o) { return [o.w.querySelectorAll('path.easygraph-minmax').length, o.w.querySelectorAll('path.easygraph-sigma').length]; };
     var out = { both: counts(both) };
     both.g.bands = {};            out.none = (both.g.update(data), counts(both));
     both.g.bands = { sigma: true }; out.sigmaOnly = (both.g.update(data), counts(both));

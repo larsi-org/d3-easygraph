@@ -53,6 +53,22 @@ All notable changes to this project are documented here. Format loosely follows
   silently falling back to the blank `default`; a falsy name still returns `default`.
 - **`graph.getPaletteColor(i)` is now `graph.paletteColor(i)`**; no name in the API carries a
   `get` prefix any more.
+- **Every DOM class is now `easygraph-<mark>`**, and the set is documented as stable (README, "Class
+  names"). Renamed: `data-lines` to `easygraph-line`, `data-minmax` to `easygraph-minmax`,
+  `data-sigma` to `easygraph-sigma`, `data-stack` to `easygraph-stack`, `data-bars` to
+  `easygraph-bar`, `bar-groups` to `easygraph-bar-group`, `heatmap-cells` to
+  `easygraph-heatmap-cell`, `heatmap-row` to `easygraph-heatmap-row`, `scatter-point(s)` to
+  `easygraph-point(s)`, `scatter-cell(s)` to `easygraph-voronoi-cell(s)`, `scatter-arrow(s)` to
+  `easygraph-arrow(s)`, `scatter-label(s)` to `easygraph-label(s)`, `pane` to `easygraph-pane`,
+  `crosshair-line` to `easygraph-crosshair-line`, and `x axis` / `y axis` to
+  `easygraph-axis easygraph-axis-x` / `-y`. Custom CSS or selectors using the old names need updating.
+- **Config typos are warned about.** A key that is a near-miss of a real option (`colorPallete`) or
+  belongs to another family (`zoom` on bars) logs a console warning with a suggestion; custom fields
+  you hang on a config stay silent. Setting `x.label`, or `y.label` alongside `title`, warns that it
+  isn't drawn (there are no axis titles).
+- **`x.scale`, `y.scale` and `color.scale` throw when assigned after construction**, like the other
+  build-time keys.
+- **`graph.colorPalettes` is removed**; use `d3.easygraph.colorPalettes`.
 
 ## [0.8.0] - 2026-11-08
 

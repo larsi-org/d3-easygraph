@@ -127,8 +127,8 @@ d3.easygraph.scatter = function(config) {
       // Cells live in their own group, appended before the points' group in init() (not on
       // first render()), so z-order (cells behind points) stays correct regardless of
       // whether voronoi gets toggled on/off after points already exist.
-      var cells = graph.$cellsGroup.selectAll(".scatter-cell").data((graph.voronoi && data.length) ? data : []);
-      var cellsEnter = cells.enter().append("path").attr("class", "scatter-cell");
+      var cells = graph.$cellsGroup.selectAll(".easygraph-voronoi-cell").data((graph.voronoi && data.length) ? data : []);
+      var cellsEnter = cells.enter().append("path").attr("class", "easygraph-voronoi-cell");
       cells.exit().remove();
       cells = cellsEnter.merge(cells);
 
@@ -162,9 +162,9 @@ d3.easygraph.scatter = function(config) {
       // at that index - still mid-transition or about to start one - suddenly represents a
       // different station and visibly flies from the old station's position to the new one.
       // A caller that never sets `id` or `label` keeps the exact index-based identity this always had.
-      var points = graph.$pointsGroup.selectAll(".scatter-point")
+      var points = graph.$pointsGroup.selectAll(".easygraph-point")
         .data(data, function(d, i) { return d.id != null ? d.id : (d.label != null ? d.label : i); });
-      var pointsEnter = points.enter().append("circle").attr("class", "scatter-point")
+      var pointsEnter = points.enter().append("circle").attr("class", "easygraph-point")
         .attr("cx", function(d) { return graph.x.$scale(d.x); })
         .attr("cy", function(d) { return graph.y.$scale(d.y); })
         .style("fill", function(d) { return graph.color.$scale(d.value); });
@@ -194,8 +194,8 @@ d3.easygraph.scatter = function(config) {
         .range([A.minLength / k, A.maxLength / k])
         .clamp(true);
 
-      var arrows = graph.$arrowsGroup.selectAll(".scatter-arrow").data(vectorData);
-      var arrowsEnter = arrows.enter().append("path").attr("class", "scatter-arrow");
+      var arrows = graph.$arrowsGroup.selectAll(".easygraph-arrow").data(vectorData);
+      var arrowsEnter = arrows.enter().append("path").attr("class", "easygraph-arrow");
       arrows.exit().remove();
       arrows = arrowsEnter.merge(arrows);
       arrows
@@ -212,8 +212,8 @@ d3.easygraph.scatter = function(config) {
         : [];
       var offset = L.offset / k;
 
-      var labels = graph.$labelsGroup.selectAll(".scatter-label").data(labelData);
-      var labelsEnter = labels.enter().append("text").attr("class", "scatter-label");
+      var labels = graph.$labelsGroup.selectAll(".easygraph-label").data(labelData);
+      var labelsEnter = labels.enter().append("text").attr("class", "easygraph-label");
       labels.exit().remove();
       labels = labelsEnter.merge(labels);
       labels
@@ -243,10 +243,10 @@ d3.easygraph.scatter = function(config) {
         graph.color.$scale = graph.color.quantize
           ? d3.scaleQuantize().range(graph.paletteColors)
           : d3.scaleLinear().range(graph.paletteColors).clamp(true);
-        graph.$cellsGroup  = graph.$group.append("g").attr("class", "scatter-cells");
-        graph.$pointsGroup = graph.$group.append("g").attr("class", "scatter-points");
-        graph.$arrowsGroup = graph.$group.append("g").attr("class", "scatter-arrows");
-        graph.$labelsGroup = graph.$group.append("g").attr("class", "scatter-labels");
+        graph.$cellsGroup  = graph.$group.append("g").attr("class", "easygraph-voronoi-cells");
+        graph.$pointsGroup = graph.$group.append("g").attr("class", "easygraph-points");
+        graph.$arrowsGroup = graph.$group.append("g").attr("class", "easygraph-arrows");
+        graph.$labelsGroup = graph.$group.append("g").attr("class", "easygraph-labels");
       },
 
       // a caller plotting pre-projected pixel coordinates (e.g. a map overlay) always passes
