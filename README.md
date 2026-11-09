@@ -3,9 +3,10 @@
 [![Build](https://github.com/larsi-org/d3-easygraph/actions/workflows/build.yml/badge.svg)](https://github.com/larsi-org/d3-easygraph/actions/workflows/build.yml)
 
 A small, batteries-included charting library built on [D3](https://d3js.org) v7: lines, min/max
-ribbon bands, zoom, a hover crosshair, stacked/grouped bars (vertical and horizontal), heatmaps,
-and scatter plots - all through one consistent config object, with chart width that tracks its
-container's rendered size (height stays fixed).
+and mean ±1σ ribbon bands, stacked areas, zoom, a hover crosshair, stacked/grouped bars (vertical
+and horizontal), heatmaps, and scatter and bubble plots - all through one consistent config
+object, with chart width that tracks its container's rendered size (height stays fixed). Unit
+presets, color palettes and legend rows are also available with no chart at all.
 
 **Live examples and docs:** [larsi.org/easygraph](https://larsi.org/easygraph)
 
@@ -13,14 +14,92 @@ container's rendered size (height stays fixed).
 
 Each chart family has its own constructor, taking only the config that family understands:
 
-| Family | Constructor | Config | Notes |
-| --- | --- | --- | --- |
-| Line / ribbon | `d3.easygraph.line(config)` | `lines`, `ribbons`, `sigmaBand`, `stackedArea`, `zoom`, `crosshair`, `crosshairThreshold`, `curve`, `names`, `units` | Continuous (time or linear) x axis. Zoom and crosshair can be synced across multiple charts via `d3.easygraph.syncZoom`/`syncCrosshair`. `ribbons` draws a filled min/max band per series (e.g. a daily high/low range around a mean line) from each point's `min`/`max`; `sigmaBand` draws a second, more opaque band nested inside it from `sigmaMin`/`sigmaMax` (typically the mean +-1 standard deviation) - the two are independent flags/fields, so a caller can have one without the other, but the usual case is both together: a faint band for the extreme range and a darker one for the typical spread, the same nested-band look climate/weather dashboards commonly use. Neither is a stacked/cumulative area chart; `stackedArea` is that - plain `{ x, y }` points like `lines`, each series' area stacked cumulatively on top of the ones before it (a classic stacked area chart), y axis always including zero regardless of `clip`, same as bars' stacked mode. Series are stacked by array index, so (like bars' stacked mode) they need to be sampled at the same x positions to align correctly. A point with `y: null` (or, for ribbons/sigmaBand, `min`/`max: null` or `sigmaMin`/`sigmaMax: null`) breaks the line/ribbon/sigma-band/stacked-area into a separate subpath there instead of drawing a straight segment through the gap - handy for a circular quantity like compass bearing, where a caller can insert a `null`-y point at each wraparound so the chart doesn't draw a false diagonal from 359° to 0°. `units: ["°F", "%"]` gives the crosshair tooltip a different unit string per series (index-matched to the series arrays passed to `update()`) - for a multi-series chart mixing quantities, where the single shared `y` preset's `unit` isn't right for all of them; a series past the end of `units`, or with a falsy entry, falls back to the shared `graph.unit`. |
-| Bars | `d3.easygraph.bars(config)` | `orientation` (`'vertical'`\|`'horizontal'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData`, `names` | Category axis uses a `d3.scaleBand()`. `orientation` is fixed for a chart's lifetime; `mode` can be toggled live. `colorPerData: true` colors each bar from its own `color` field instead of the series' palette color. |
-| Heatmap | `d3.easygraph.heatmap(config)` | `color` (unit/preset config for the color scale, or a fixed `domain: [min, max]`) | A grid of colored cells over plain continuous x/y axes. |
-| Scatter | `d3.easygraph.scatter(config)` | `color` (unit/preset config for the color scale, or a fixed `domain: [min, max]`), `radius`, `pointStrokeWidth`, `voronoi`, `voronoiOpacity`, `arrows`, `arrowColor`, `arrowStrokeWidth`, `arrowMinLength`, `arrowMaxLength`, `arrowHeadLength`, `arrowHeadAngle`, `labels`, `labelSize`, `labelOffset`, `labelMinZoom` | Colored circles at arbitrary `{ x, y, value }` points over plain continuous x/y axes. No geography built in - plot pre-projected pixel coordinates (e.g. lat/lng run through your own `d3.geoProjection`) to overlay points on a map you draw yourself. A point's own `radius` overrides the graph-level `radius` config for just that point (a bubble chart: point size driven by a third data dimension, independent of `value`'s color) - a point missing it just uses the graph's own radius. `voronoi: true` fills the region closer to each point than any other with that point's own color (via `d3.Delaunay`/`.voronoi()`, already part of the full `d3@7` bundle) - semi-transparent by default (`voronoiOpacity`, `0.6`) so a layer underneath stays visible. `arrows: true` draws a directional glyph (shaft + two-line chevron head) on top of any point that also carries `angle` (radians) and `magnitude` - a second, vector-shaped quantity (e.g. wind: speed + direction) layered on a scalar one (`value`'s own color) at the same position; a point missing either field just renders its circle with no arrow. `angle` is plain trigonometric convention (0 = +x/right, increasing counter-clockwise - but SVG y grows downward, so an unrotated glyph points right on screen and sweeps clockwise as `angle` increases), not compass bearing - a caller with bearing data (0 = north, clockwise) converts via `angle = (bearingDegrees - 90) * Math.PI / 180`. `labels: true` draws each point's `label` (a string); a point missing it renders without one, and every label stays hidden below `labelMinZoom` (default 1, i.e. always on) for a caller with too many points to label all of them at once. `color`'s domain (like `x`/`y`'s, when data-driven) accepts `clip` - see below - or can be fixed outright via `color.domain: [min, max]`, so a value maps to the same color snapshot to snapshot instead of shifting as the current data's own spread changes (e.g. altitude). `graph.rescale(k)` shrinks point/arrow radius, length, and stroke-width, and label size, by `1/k` and re-renders - for a caller layering its own SVG-transform zoom on top (e.g. a zoomable map background) so markers stay a constant on-screen size instead of growing with the zoom. `color.quantize: true` swaps the usual continuous gradient for `paletteColors.length` discrete, equal-width color bands over the domain - better than a smooth interpolation for data with a few clearly separated ranges (e.g. aircraft altitude: a low/climbing band vs. a distinct cruise band), especially paired with `colorClasses` (below) to control how many bands come out of a colorbrewer palette. |
+| Family | Constructor | Config |
+| --- | --- | --- |
+| Line / ribbon / stacked area | `d3.easygraph.line(config)` | `lines`, `ribbons`, `sigmaBand`, `stackedArea`, `zoom`, `crosshair`, `crosshairThreshold`, `curve`, `names`, `units` |
+| Bars | `d3.easygraph.bars(config)` | `orientation` (`'vertical'`\|`'horizontal'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData`, `names` |
+| Heatmap | `d3.easygraph.heatmap(config)` | `color` |
+| Scatter / bubble | `d3.easygraph.scatter(config)` | `color`, `radius`, `pointStrokeWidth`, `voronoi`, `voronoiOpacity`, `arrows`, `arrowColor`, `arrowStrokeWidth`, `arrowMinLength`, `arrowMaxLength`, `arrowHeadLength`, `arrowHeadAngle`, `labels`, `labelSize`, `labelOffset`, `labelMinZoom` |
 
-Shared config across all four: `container`, `label`, `x`/`y` (`scale`, `unit`, `label`,
+### Line
+
+A continuous (time or linear) x axis. Four drawing modes, each a flag you can toggle on a live
+chart (assign it, then call `update()`):
+
+- **`lines`** - one line per series.
+- **`ribbons`** - a filled min/max band per series (e.g. a daily high/low around a mean line),
+  drawn from each point's `min`/`max`.
+- **`sigmaBand`** - a second, more opaque band nested inside the ribbon, drawn from each point's
+  `sigmaMin`/`sigmaMax` (typically the mean ±1 standard deviation): a faint band for the extreme
+  range and a darker one for the typical spread. `ribbons` and `sigmaBand` are independent, so
+  either can be used without the other, but the usual case is both together. If you convert a
+  point's `y` (e.g. °C to °F), convert `min`, `max`, `sigmaMin` and `sigmaMax` too.
+- **`stackedArea`** - a classic stacked area chart: plain `{ x, y }` points like `lines`, each
+  series stacked cumulatively on the ones before it. The y axis always includes zero, regardless of
+  `clip`, as in bars' stacked mode. Series are stacked by array index, so (like bars' stacked mode)
+  they must be sampled at the same x positions to align.
+
+`zoom: [min, max]` enables scroll-to-zoom and drag-to-pan; `crosshair: true` adds a hover
+crosshair with a tooltip. `d3.easygraph.syncZoom(graphs)` and `syncCrosshair(graphs)` link several
+line charts together. `units: ["°F", "%"]` gives the tooltip a different unit string per series
+(index-matched to the series passed to `update()`), for a chart mixing quantities where the single
+shared `y` preset's unit isn't right for all of them; a series past the end of `units`, or with a
+falsy entry, falls back to the shared `graph.unit`.
+
+A point with `y: null` (or, for ribbons and the sigma band, `min`/`max: null` or
+`sigmaMin`/`sigmaMax: null`) breaks the line, ribbon, sigma band or stacked area into a separate
+subpath there instead of drawing a straight segment through the gap. That is also how to chart a
+circular quantity such as compass bearing: insert a `null`-y point at each wraparound so the chart
+doesn't draw a false diagonal from 359° to 0°.
+
+### Bars
+
+A category axis (`d3.scaleBand()`). `orientation` is fixed for a chart's lifetime; `mode` can be
+toggled live. `colorPerData: true` colors each bar from its own `color` field instead of the
+series' palette color.
+
+### Heatmap
+
+A grid of colored cells over plain continuous x/y axes. `color` is a unit/preset config for the
+color scale, or a fixed `domain: [min, max]`. The default palette is `Diverging.RdBu.reversed`,
+since a qualitative palette makes no sense spread across a continuous gradient.
+
+### Scatter
+
+Colored circles at arbitrary `{ x, y, value }` points over plain continuous x/y axes. No geography
+is built in - plot pre-projected pixel coordinates (e.g. lat/lng run through your own
+`d3.geoProjection`) to overlay points on a map you draw yourself.
+
+- **Bubble chart:** a point's own `radius` overrides the graph-level `radius` for just that point
+  (point size driven by a third data dimension, independent of `value`'s color).
+- **`voronoi: true`** fills the region closer to each point than to any other with that point's own
+  color (via `d3.Delaunay`/`.voronoi()`, part of the full `d3@7` bundle). Semi-transparent by
+  default (`voronoiOpacity`, `0.6`) so a layer underneath stays visible.
+- **`arrows: true`** draws a directional glyph (shaft plus a two-line chevron head) on any point
+  that also carries `angle` (radians) and `magnitude` - a vector-shaped quantity (e.g. wind speed
+  and direction) layered on a scalar one (`value`'s color) at the same position. A point missing
+  either field renders its circle with no arrow. `angle` is plain trigonometric convention (0 = +x,
+  increasing counter-clockwise; SVG's y grows downward, so an unrotated glyph points right on screen
+  and sweeps clockwise as `angle` increases), not compass bearing. Convert bearing data (0 = north,
+  clockwise) with `angle = (bearingDegrees - 90) * Math.PI / 180`.
+- **`labels: true`** draws each point's `label` (a string); a point without one renders without a
+  label. Labels stay hidden below `labelMinZoom` (default 1, i.e. always on), for a caller with too
+  many points to label all of them at once.
+- **`color`** takes `clip` (below) or a fixed `domain: [min, max]`, so a value maps to the same
+  color snapshot to snapshot instead of shifting with the current data's spread (e.g. altitude).
+  `color.quantize: true` swaps the continuous gradient for `paletteColors.length` discrete,
+  equal-width bands over the domain - better for data with a few clearly separated ranges (aircraft
+  altitude: a low/climbing band and a distinct cruise band), especially with `colorClasses` to
+  control how many bands a ColorBrewer palette yields.
+- **`graph.rescale(k)`** shrinks point and arrow radius, length and stroke width, and label size, by
+  `1/k` and re-renders - for a caller layering its own SVG-transform zoom on top (e.g. a zoomable
+  map background) so markers keep a constant on-screen size.
+- **Identity:** points are joined to existing circles by `label` - see *Update-to-update identity*
+  below.
+
+### Shared config
+
+These are shared by all four families: `container`, `label`, `x`/`y` (`scale`, `unit`, `label`,
 `tickLabels`, `preset`, `convert`, `clip`), `height`, `margin`, `colorPalette`, `colorClasses`,
 `duration`,
 `timeFormatMulti` (multi-scale time tick labels - minute/hour/day/month formats picked per tick
@@ -99,6 +178,21 @@ sensor actually observes), not a fixed property of the physical quantity, so cha
 `convert(v)` alone stays unrounded, so a consumer that needs full precision (e.g. interpolating a
 continuous color scale) isn't forced to lose it. `d3.easygraph.round(x, n)` itself is also public -
 a plain explicit-precision helper.
+
+### Compass labels
+
+`d3.easygraph.compassPoint16(direction)`, `compassPoint8(direction)` and `compassPoint4(direction)`
+return the nearest 16-, 8- or 4-point compass label for a bearing in degrees (0 = north,
+clockwise; a slightly negative or over-360 value wraps):
+
+```js
+d3.easygraph.compassPoint16(22.4);   // => "NNE"
+d3.easygraph.compassPoint8(22.4);    // => "NE"
+d3.easygraph.compassPoint4(22.4);    // => "N"
+```
+
+They are plain utilities, not presets: a preset's `convert()` feeds a numeric linear axis, so a
+function returning a label can't be one.
 
 ## Color palettes (no chart required)
 
@@ -188,11 +282,10 @@ d3.easygraph.legendItems(["#666", "#369", "#933"], ["Not Yet", "Visited", "Lived
 d3.easygraph.legendItems("Qualitative.Set1", ["North", "South"]);   // or resolve a palette by name
 ```
 
-**Why no renderer:** the legends this replaced across larsi.org are drawn four different ways -
-inline `<span>`s, a `<table>` with extra data columns, a separately positioned `<svg>`, and
-swatches inside the chart's own margin - and two of them are HTML rather than SVG. Any single
-built-in renderer would have fitted almost none of them. The pairing-up was the only part they
-all shared, so that's the part that's shared.
+**Why no renderer:** real legends are drawn many ways - inline `<span>`s, a `<table>` with extra
+data columns, a separately positioned `<svg>`, swatches inside the chart's own margin - and some are
+HTML rather than SVG, so no single built-in renderer would fit most of them. The pairing-up of
+colors and labels is the part they all share, so that's the part the library provides.
 
 ## Adding your own presets and palettes
 
@@ -311,9 +404,8 @@ Each chart's `<svg>` carries `class="easygraph"`, which every rule in the styles
 under, plus `role="img"` and an `aria-label` mirroring the chart title.
 
 `update()` checks the shape of `data` and throws a message naming the family and the fix if it's
-wrong - passing a flat array where a chart wants one series per row (or the reverse) used to
-either throw from deep inside D3 or, worse, silently render a chart full of `NaN`. An empty array
-is always valid: "no data yet" is a normal state while a first fetch is in flight.
+wrong (for example a flat array where a chart wants one series per row, or the reverse). An empty
+array is always valid: "no data yet" is a normal state while a first fetch is in flight.
 
 ### Update-to-update identity and animation
 
@@ -379,6 +471,7 @@ properties to a graph is fine and supported; the library only ever writes the na
 | `syncZoom(graphs)`, `syncCrosshair(graphs)` | link zoom / crosshair across line charts |
 | `getUnit(name)`, `presets` | unit-preset lookup and the table behind it |
 | `round(x, n)` | round to `n` decimal places |
+| `compassPoint16(deg)`, `compassPoint8(deg)`, `compassPoint4(deg)` | nearest compass label for a bearing |
 | `colorPalettes`, `resolvePalette(name, classes)` | named palette map and lookup |
 | `colorScale(name, domain, options)` | a ready `color(value)` scale |
 | `hueWheelPalette(count)` | `count` evenly spaced hues as `[r, g, b]` triples |
@@ -415,22 +508,29 @@ The `curve` config takes one of `'linear'`, `'monotone'`, `'step-after'`, `'step
 
 Live, real-world examples - part of [larsi.org](https://larsi.org), where this library
 originated and is still used across its weather/sensors/EnergyPlus/graphics sections (not
-included in this repo):
+included in this repo). The [index page](https://larsi.org/easygraph/) documents each family with
+code; these pages are the working examples:
 
-- **Line** - [Hourly Data](https://larsi.org/easygraph/data_hourly.php) (zoom + crosshair, daily
-  min/max band toggle), [Multi Hourly Data](https://larsi.org/easygraph/multi_data_hourly.php)
+- **Line** - [Hourly Data](https://larsi.org/easygraph/data_hourly.php) (zoom + crosshair, an
+  hourly/daily toggle that adds the min/max ribbon and the ±1σ band),
+  [Multi Hourly Data](https://larsi.org/easygraph/multi_data_hourly.php) (several simulations,
+  same toggle), [Stacked Area](https://larsi.org/easygraph/stacked_area.php)
 - **Bars** - [Monthly Data](https://larsi.org/easygraph/data_monthly.php) (live
   grouped/stacked toggle), [Multi Monthly Data](https://larsi.org/easygraph/multi_data_monthly.php),
-  [Horizontal Bars](https://larsi.org/easygraph/h.php),
+  [Horizontal Bars](https://larsi.org/easygraph/horizontal_bars.php),
   [Sensitivity](https://larsi.org/easygraph/data_sensitivity.php) (`colorPerData`)
 - **Heatmap** - [Hourly Data Heat Map](https://larsi.org/easygraph/data_hourly_heatmap.php)
-- **Scatter** - [Weather](https://larsi.org/weather/)'s "Pressure & Wind" tab (`voronoi: true`,
+- **Scatter** - [Scatter & Voronoi](https://larsi.org/easygraph/scatter_voronoi.php),
+  [Bubble Chart](https://larsi.org/easygraph/bubble_chart.php) (per-point `radius`), and two real
+  map overlays: [Weather](https://larsi.org/weather/)'s "Pressure & Wind" tab (`voronoi: true`,
   `color.clip`, `arrows: true` overlaying wind speed/direction on top of pressure) and
   [Air Traffic](https://larsi.org/air-traffic/) (`color.domain` + `color.quantize`/`colorClasses`
   for four discrete altitude bands instead of a continuous gradient, `labels`/`labelMinZoom` for
-  callsigns once zoomed in) - both overlaid on a D3-drawn US map via a shared pan/zoom helper (not
+  callsigns once zoomed in). Both are drawn over a D3 US map through a shared pan/zoom helper (not
   part of this repo) that drives `graph.rescale(k)` to keep points and arrows a constant size
   through the zoom
+- **Palettes** - the [palette picker](https://larsi.org/easygraph/#colors), built from
+  `d3.easygraph.colorPalettes`
 
 ## Architecture
 
@@ -475,11 +575,15 @@ npx playwright install --with-deps chromium   # once per machine
 npm test
 ```
 
-[Playwright](https://playwright.dev) specs in `test/` run against the built `dist/` (via static
-`test/fixtures/*.html` pages, loaded over `file://`), covering rendering, live resize, the
-`destroy()` teardown, and a couple of hard regressions (zoom baseline staying in sync with the
-container's width after a resize; resize never producing a negative bar width). CI runs the same
-suite on every push.
+[Playwright](https://playwright.dev) specs in `test/` (one per source module: core, line, bars,
+heatmap, scatter, units, colors; 138 tests) run against the built `dist/` via static
+`test/fixtures/*.html` pages loaded over `file://`. They cover rendering, live resize, `destroy()`
+teardown, legends, the standalone unit and palette functions, and the regressions that needed real
+interaction to find: the zoom baseline staying in sync with the container's width after a resize,
+resize never producing a negative bar width, one config literal building several charts, a pinned
+color domain surviving a resize, scatter's label-keyed point identity, and line paths not warping
+when a series' point count changes. CI runs the same suite on every push. **Run `npm run build`
+first** - the tests exercise `dist/`, not `src/`.
 
 ## License
 
