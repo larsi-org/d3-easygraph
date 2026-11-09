@@ -520,7 +520,7 @@ The `curve` config takes one of `'linear'`, `'monotone'`, `'step-after'`, `'step
 
 | | |
 | --- | --- |
-| every config key you passed | `container`, `height`, `margin`, `duration`, `colorPalette`, `colorClasses`, and the family's own flags - readable, and the family flags (`lines`, `bands`, `stackedArea`, `mode`, `voronoi`, `arrows`, `labels`, `units`, …) are re-read on every `update()`, so assigning one and re-rendering is the supported way to toggle a chart live |
+| every config key you passed | `container`, `height`, `margin`, `duration`, `colorPalette`, `colorClasses`, and the family's own flags - readable, and the family flags (`lines`, `bands`, `stackedArea`, `mode`, `voronoi`, `arrows`, `labels`, `series`, …) are re-read on every `update()`, so assigning one and re-rendering is the supported way to toggle a chart live |
 | `x`, `y`, and (heatmap/scatter) `color` | the resolved per-property configs; `$scale` and `$axis` on each are the intended escape hatch into D3. `graph.$svg` (the margin-translated group the axes live in) and `graph.$group` (the clipped plot area) are stable too, for drawing your own marks. Every other `$`- or `_`-prefixed name is private and may change |
 | `width`, `height` | the full `<svg>` box. `height` is exactly what you configured and is never replaced; `width` follows the container |
 | `plotWidth`, `plotHeight` | the plot area, inside the margins |
