@@ -5,6 +5,12 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added
+- **Fixed-size mode: `width` together with `height`.** The chart is drawn once at that logical size
+  and scaled uniformly by the browser through a `viewBox` (no relayout on resize), for maps and other
+  drawings with an intrinsic shape. `scatter` marks keep their on-screen size at any scale.
+  `width` alone is not a mode and throws if it is not a positive number.
+
 ### Changed
 - **`width`/`height` now mean the full `<svg>` box**, and the plot area inside the margins is
   `plotWidth`/`plotHeight`. Previously `height` went in as the outer height and was silently

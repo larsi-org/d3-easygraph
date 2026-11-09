@@ -212,7 +212,7 @@ var _nextClipId = 0;
 // accepted and left on the graph (a caller may hang its own fields on a config), but one that is
 // a near-miss of a real key (colorPallete) or belongs to another family (zoom on bars) is
 // almost always a mistake that would otherwise do nothing and say nothing.
-var _SHARED_KEYS = ['container', 'height', 'margin', 'x', 'y', 'title', 'duration',
+var _SHARED_KEYS = ['container', 'width', 'height', 'margin', 'x', 'y', 'title', 'duration',
                     'colorPalette', 'colorClasses'];
 var _FAMILY_KEYS = {
   line:    ['lines', 'bands', 'stackedArea', 'zoom', 'crosshair', 'curve', 'series', 'onZoom', 'onCrosshair'],
@@ -308,6 +308,16 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   if (!(graph.height > 0)) {
     throw new Error('d3.easygraph: height must be a positive number');
   }
+  // Sizing modes. height alone: width follows the container, height is fixed (the default, for
+  // charts). width AND height: a fixed logical size - the chart is drawn once at width x height
+  // and the browser scales the whole svg uniformly through a viewBox, so its shape never changes
+  // (for maps and other drawings with an intrinsic aspect ratio). graph.width is then the logical
+  // width; graph._viewScale is the current on-screen scale (container width / logical width).
+  var _fixedW = graph.width;
+  if (_fixedW !== undefined && !(_fixedW > 0)) {
+    throw new Error('d3.easygraph: width must be a positive number (and is only for a fixed-size chart, together with height)');
+  }
+  graph._viewScale = 1;
   // The width path already refuses a container narrower than its own horizontal margins (see
   // _measureWidth below); without the matching vertical check, a height smaller than
   // margin.top + margin.bottom silently produced a *negative* plot area and a chart that drew
@@ -321,7 +331,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // measures the container's current rendered width; returns false if unchanged
   // (within 1px) so callers can skip redundant layout/redraw work
   function _measureWidth() {
-    var w = containerEl.getBoundingClientRect().width;
+    var w = _fixedW || containerEl.getBoundingClientRect().width;
     // ignore transient/degenerate layout passes (e.g. mid-reflow during a live
     // resize) that would otherwise drive graph.plotWidth negative
     if (w <= graph._margin.left + graph._margin.right) return false;
@@ -471,8 +481,14 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     .append("svg")
       .attr("class", "easygraph")
       .attr("role", "img")
-      .attr("width", graph.width)
-      .attr("height", graph.height);
+      .attr("width", _fixedW ? "100%" : graph.width)
+      .attr("height", _fixedW ? null : graph.height);
+  if (_fixedW) {
+    graph.$svgRoot.attr("viewBox", "0 0 " + graph.width + " " + graph.height)
+      .attr("preserveAspectRatio", "xMidYMid meet")
+      .style("display", "block").style("height", "auto");
+    graph._viewScale = (containerEl.getBoundingClientRect().width / _fixedW) || 1;
+  }
   graph.$a11yTitle = graph.$svgRoot.append("title");
   graph.$svg = graph.$svgRoot
     .append("g")
@@ -541,6 +557,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // re-applies everything that depends on the container's rendered width;
   // returns false (no-op) if the width hasn't actually changed
   graph._layout = function() {
+    if (_fixedW) return false;
     if (!_measureWidth()) return false;
 
     if (graph.x.$scale.bandwidth) {
@@ -561,6 +578,15 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   };
 
   var resizeObserver = new ResizeObserver(function() {
+    if (_fixedW) {
+      // Nothing is laid out again; only the on-screen scale changed. A chart whose marks keep a
+      // constant screen size (scatter) redraws them at the new scale.
+      var s = (containerEl.getBoundingClientRect().width / _fixedW) || 1;
+      if (Math.abs(s - graph._viewScale) < 0.001) return;
+      graph._viewScale = s;
+      if (graph.rescale && graph._lastData) graph._reflow();
+      return;
+    }
     if (graph._layout() && graph._lastData) graph._reflow();
   });
   resizeObserver.observe(containerEl);

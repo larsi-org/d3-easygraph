@@ -5,7 +5,7 @@
 A small, batteries-included charting library built on [D3](https://d3js.org) v7: lines, min/max
 and min/max and mean ±1σ bands, stacked areas, zoom, a hover crosshair, stacked/grouped bars (vertical
 and horizontal), heatmaps, and scatter and bubble plots - all through one consistent config
-object, with chart width that tracks its container's rendered size (height stays fixed). Unit
+object, with chart width that tracks its container's rendered size (height stays fixed, or give `width` and `height` for a fixed-shape drawing such as a map). Unit
 presets, color palettes and legend rows are also available with no chart at all.
 
 **Live examples and docs:** [larsi.org/easygraph](https://larsi.org/easygraph)
@@ -148,6 +148,15 @@ bar chart); a key that looks like neither stays silent.
 resolve to an element, and `height` must be a positive number *greater than
 `margin.top + margin.bottom`* - otherwise there's no room left to plot in. Both are checked at
 construction time, throwing a clear error instead of failing cryptically later.
+
+**Sizing.** There are two modes. With `height` alone (the default, right for charts) the width
+follows the container and the height stays fixed, so a wider window shows more detail. With `width`
+**and** `height` the chart has a fixed logical size: it is drawn once at `width` x `height` and the
+browser scales the whole `<svg>` uniformly through a `viewBox`, so the shape never changes. Use that
+for a map or any drawing with a shape of its own; give the container just a width (the svg is
+`width: 100%; height: auto`). In this mode nothing is laid out again on resize, and `scatter` marks
+(radius, arrows, labels) keep a constant on-screen size, the same way `rescale(k)` keeps them
+through a zoom. `graph.width` is then the logical width.
 
 Every chart has a `graph.destroy()` that disconnects its resize observer, tears down its DOM, and
 releases its reference to the last data you passed. Calling `update()` afterwards throws rather
@@ -543,7 +552,7 @@ The `curve` config takes one of `'linear'`, `'monotone'`, `'step-after'`, `'step
 | --- | --- |
 | every config key you passed | `container`, `height`, `margin`, `duration`, `colorPalette`, `colorClasses`, and the family's own flags - readable, and the family flags (`lines`, `bands`, `stackedArea`, `mode`, `voronoi`, `arrows`, `labels`, `series`, …) are re-read on every `update()`, so assigning one and re-rendering is the supported way to toggle a chart live |
 | `x`, `y`, and (heatmap/scatter) `color` | the resolved per-property configs; `$scale` and `$axis` on each are the intended escape hatch into D3. `graph.$svg` (the margin-translated group the axes live in) and `graph.$group` (the clipped plot area) are stable too, for drawing your own marks. Every other `$`- or `_`-prefixed name is private and may change |
-| `width`, `height` | the full `<svg>` box. `height` is exactly what you configured and is never replaced; `width` follows the container |
+| `width`, `height` | the full `<svg>` box. `height` is exactly what you configured and is never replaced; `width` follows the container (or is the logical width you configured, in fixed-size mode) |
 | `plotWidth`, `plotHeight` | the plot area, inside the margins |
 | `title` | the chart heading (blank unless set); assign and call `update()` to change it |
 | `paletteColors` | the resolved color array |

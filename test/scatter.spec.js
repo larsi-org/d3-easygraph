@@ -466,3 +466,39 @@ test('points join by id first, then label, then position - a dropped point keeps
   expect(r.label).toBe(true);
   expect(r.none).toBe(false);
 });
+
+test('width + height is a fixed-size chart: viewBox, no relayout, marks keep their screen size', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(async () => {
+    var wrap = document.createElement('div');
+    wrap.style.width = '400px';
+    document.body.appendChild(wrap);
+    var g = d3.easygraph.scatter({ container: wrap, width: 800, height: 400, radius: 6,
+                                   margin: { top: 0, right: 0, bottom: 0, left: 0 } });
+    g.update([{ x: 0, y: 0, value: 0 }, { x: 1, y: 1, value: 1 }], { x: [0, 800], y: [400, 0] });
+    var svg = wrap.querySelector('svg');
+    var out = { vb: svg.getAttribute('viewBox'), w: g.width, h: g.height,
+                rendered: svg.getBoundingClientRect().height, r1: Number(wrap.querySelector('circle').getAttribute('r')) };
+    wrap.style.width = '200px';
+    await new Promise((res) => setTimeout(res, 150));
+    out.w2 = g.width; out.rendered2 = svg.getBoundingClientRect().height;
+    out.r2 = Number(wrap.querySelector('circle').getAttribute('r'));
+    g.destroy(); wrap.remove();
+    return out;
+  });
+  expect(r.vb).toBe('0 0 800 400');
+  expect(r.w).toBe(800); expect(r.w2).toBe(800);
+  expect(r.rendered).toBeCloseTo(200, 0);   // 400px wide, 2:1
+  expect(r.rendered2).toBeCloseTo(100, 0);  // halves with the container: shape is kept
+  expect(r.r1).toBeCloseTo(12, 1);          // 6 screen px at scale 0.5
+  expect(r.r2).toBeCloseTo(24, 1);          // 6 screen px at scale 0.25
+});
+
+test('width must be positive', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const msg = await page.evaluate(() => {
+    try { d3.easygraph.scatter({ container: '#graph', width: -5, height: 100 }); return 'no error'; }
+    catch (e) { return e.message; }
+  });
+  expect(msg).toContain('width must be a positive number');
+});

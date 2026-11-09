@@ -104,7 +104,7 @@ d3.easygraph.scatter = function(config) {
       // Set by rescale() (default 1, i.e. no adjustment) - divides every on-screen size
       // (point radius, arrow length/head) so they stay constant when this render is reached
       // through a caller's own zoom-transform scaling, rather than growing with it.
-      var k = graph._zoomScale || 1;
+      var k = (graph._zoomScale || 1) * (graph._viewScale || 1);
 
       // ranges.color (this render) beats color.domain (fixed at construction) beats the data's
       // own clipped extent - see _colorDomain in core.js, which both color-scale families share.
@@ -207,7 +207,7 @@ d3.easygraph.scatter = function(config) {
       // render()), so they draw on top of everything else regardless of what else gets
       // toggled on/off after points already exist - same z-order-stability reasoning as
       // cells/points/arrows above.
-      var labelData = (graph.labels && k >= L.minZoom && data.length)
+      var labelData = (graph.labels && (graph._zoomScale || 1) >= L.minZoom && data.length)
         ? data.filter(function(d) { return d.label != null; })
         : [];
       var offset = L.offset / k;
