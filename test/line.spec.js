@@ -231,7 +231,7 @@ test('y clip narrows the data-driven domain away from a single outlier point', a
   expect(yMax).toBeLessThan(500);
 });
 
-test('units[i] gives the crosshair tooltip a per-series unit string, falling back to graph.unit', async ({ page }) => {
+test('units[i] gives the crosshair tooltip a per-series unit string, falling back to y.unit', async ({ page }) => {
   await page.goto(FIXTURE);
   const html = await page.evaluate(() => {
     var wrap = document.createElement('div');
@@ -243,7 +243,7 @@ test('units[i] gives the crosshair tooltip a per-series unit string, falling bac
       height: 200,
       crosshair: true,
       lines: true,
-      units: ['°F', null] // series 0 overrides, series 1 has no entry - falls back to graph.unit
+      units: ['°F', null] // series 0 overrides, series 1 has no entry - falls back to y.unit
     });
     var t0 = new Date('2026-01-01T00:00:00');
     g.update([
@@ -257,7 +257,7 @@ test('units[i] gives the crosshair tooltip a per-series unit string, falling bac
     return html;
   });
   expect(html).toContain('1°F'); // series 0's own units[0]
-  expect(html).toContain('3°C'); // series 1 falls back to graph.unit (from the y preset)
+  expect(html).toContain('3°C'); // series 1 falls back to y.unit (from the y preset)
 });
 
 test('destroy() removes the svg and the crosshair tooltip; a later resize does not throw', async ({ page }) => {

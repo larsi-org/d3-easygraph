@@ -37,7 +37,7 @@ chart (assign it, then call `update()`):
   point's `y` (e.g. °C to °F), convert `min`, `max`, `sigmaMin` and `sigmaMax` too.
 - **`stackedArea`** - a classic stacked area chart: plain `{ x, y }` points like `lines`, each
   series stacked cumulatively on the ones before it. The y axis always includes zero, regardless of
-  `clip`, as in bars' stacked mode. Series are stacked by array index, so (like bars' stacked mode)
+  `trim`, as in bars' stacked mode. Series are stacked by array index, so (like bars' stacked mode)
   they must be sampled at the same x positions to align.
 
 `zoom: { min, max }` (scale extent, defaults 1 and 10) enables scroll-to-zoom and drag-to-pan; `crosshair: true` (or `{ threshold }`, how close in pixels the cursor must be to show a point) adds a hover
@@ -45,7 +45,7 @@ crosshair with a tooltip. `d3.easygraph.syncZoom(graphs)` and `syncCrosshair(gra
 line charts together. `units: ["°F", "%"]` gives the tooltip a different unit string per series
 (index-matched to the series passed to `update()`), for a chart mixing quantities where the single
 shared `y` preset's unit isn't right for all of them; a series past the end of `units`, or with a
-falsy entry, falls back to the shared `graph.unit`.
+falsy entry, falls back to the shared `y.unit`.
 
 A point with `y: null` (or, for the bands, `min`/`max: null` or
 `sigmaMin`/`sigmaMax: null`) breaks the line, band or stacked area into a separate
@@ -86,7 +86,7 @@ is built in - plot pre-projected pixel coordinates (e.g. lat/lng run through you
 - **`labels: true`** (or an options object) draws each point's `label` (a string); a point without one renders without a
   label. Labels stay hidden below `labels.minZoom` (default 1, i.e. always on), for a caller with too
   many points to label all of them at once.
-- **`color`** takes `clip` (below) or a fixed `domain: [min, max]`, so a value maps to the same
+- **`color`** takes `trim` (below) or a fixed `domain: [min, max]`, so a value maps to the same
   color snapshot to snapshot instead of shifting with the current data's spread (e.g. altitude).
   `color.quantize: true` swaps the continuous gradient for `paletteColors.length` discrete,
   equal-width bands over the domain - better for data with a few clearly separated ranges (aircraft
@@ -95,13 +95,13 @@ is built in - plot pre-projected pixel coordinates (e.g. lat/lng run through you
 - **`graph.rescale(k)`** shrinks point and arrow radius, length and stroke width, and label size, by
   `1/k` and re-renders - for a caller layering its own SVG-transform zoom on top (e.g. a zoomable
   map background) so markers keep a constant on-screen size.
-- **Identity:** points are joined to existing circles by `label` - see *Update-to-update identity*
+- **Identity:** points are joined to existing circles by `id`, else `label` - see *Update-to-update identity*
   below.
 
 ### Shared config
 
-These are shared by all four families: `container`, `label`, `x`/`y` (`scale`, `unit`, `label`,
-`tickLabels`, `preset`, `convert`, `clip`), `height`, `margin`, `colorPalette`, `colorClasses`,
+These are shared by all four families: `container`, `title`, `x`/`y` (`scale`, `unit`, `label`,
+`tickLabels`, `preset`, `convert`, `trim`), `height`, `margin`, `colorPalette`, `colorClasses`,
 `duration`,
 `x.timeFormat: 'multi'` (multi-scale time tick labels - minute/hour/day/month formats picked per tick
 from the tick's own precision, rather than one fixed format for the whole axis; useful on any
@@ -110,14 +110,14 @@ time axis spanning enough range for one format to read badly at both ends).
 palette instead of its largest available one (3–9 shades per named palette); ignored for
 `Qualitative.*` and the hardcoded extras, none of which are classed data.
 
-Any `x`/`y`/`color` config accepts `clip: [loQuantile, hiQuantile]` (e.g. `[0.05, 0.95]`) - when
+Any `x`/`y`/`color` config accepts `trim: [loQuantile, hiQuantile]` (e.g. `[0.05, 0.95]`) - when
 that property's domain would otherwise come straight from the data (nothing pinned it - no
 `ranges.x`/`ranges.y`/`ranges.color` passed to `update()`, and no `color.domain` config), it's built from those
 quantiles instead of the true min/max, so a single extreme outlier doesn't stretch the whole scale
-so far that every other value compresses into one end of it. Omitting `clip` (the default) keeps
-the exact same true-min/max behavior. `color` clamps values past the clipped domain to the
-nearest end color; `x`/`y` don't clamp - an out-of-clip point just draws past the axis edge.
-Bars' value axis always includes zero, so `clip` has no effect there.
+so far that every other value compresses into one end of it. Omitting `trim` (the default) keeps
+the exact same true-min/max behavior. `color` clamps values past the trimmed domain to the
+nearest end color; `x`/`y` don't clamp - an out-of-trim point just draws past the axis edge.
+Bars' value axis always includes zero, so `trim` has no effect there.
 
 `tickLabels: false` blanks an axis's tick text while keeping its tick marks and gridlines.
 
@@ -148,8 +148,8 @@ Every chart has a `graph.destroy()` that disconnects its resize observer, tears 
 releases its reference to the last data you passed. Calling `update()` afterwards throws rather
 than quietly rendering into a detached SVG.
 
-`label` is optional. A `y`/`color` `preset` supplies one automatically (e.g. `temperatureF` →
-"Temperature"); with no preset and no `label` of your own, the chart's title just renders blank -
+`title` is optional. A `y`/`color` `preset` supplies a label automatically (e.g. `temperatureF` →
+"Temperature"); with no preset and no `title` of your own, the chart's title just renders blank -
 there's no generic placeholder to opt out of.
 
 ## Unit conversion (no chart required)
@@ -401,8 +401,8 @@ g.update([[{ x: 'Mon', y: 3 }, { x: 'Tue', y: 7 }]], { y: [0, 10] });  // pins t
 render. Three levels of precedence, most specific first: `ranges.color` (this render) beats
 `color.domain` (fixed at construction) beats the data's own extent. A pinned domain sticks
 through a resize and through `scatter`'s `rescale()`, both of which re-render from stored
-state rather than a fresh `update()`. `clip` applies only when nothing is pinned - there's no
-data-driven extent left to clip once a domain is given outright. Resize
+state rather than a fresh `update()`. `trim` applies only when nothing is pinned - there's no
+data-driven extent left to trim once a domain is given outright. Resize
 handling is automatic - no calls needed on your end.
 
 Your config object is never modified - it's cloned on the way in (as are its `x`/`y`/`color`/
@@ -418,14 +418,14 @@ array is always valid: "no data yet" is a normal state while a first fetch is in
 
 ### Update-to-update identity and animation
 
-`scatter` joins each `update()`'s points to existing circles by `label` first, falling back to
-array position only for a point with no `label` at all. This matters whenever the number of
+`scatter` joins each `update()`'s points to existing circles by `id` first, then `label`, falling
+back to array position only for a point with neither. This matters whenever the number of
 points can change between calls - e.g. a live map filtering out stations with no reading this
 hour. Without a stable identity, a point dropped from the middle of the array shifts every point
 after it down an index, so an existing circle - mid-transition or about to start one - gets
 rebound to a different point and visibly flies to its new position instead of just recoloring in
-place. Give every point a `label` (it still works as the join key with `labels: false` - it just
-isn't drawn) whenever the point set can grow, shrink, or reorder between updates; a fixed point
+place. Give every point an `id` (or a `label`, which still works as the join key with `labels: false` -
+it just isn't drawn) whenever the point set can grow, shrink, or reorder between updates; a fixed point
 set (same stations/entities every render) is safe either way.
 
 `line`'s band/stack/lines paths skip the `d`-attribute transition entirely for any series
@@ -501,7 +501,7 @@ properties to a graph is fine and supported; the library only ever writes the na
 
 | Re-read on every `update()` (toggle live) | Fixed when the chart is built |
 |---|---|
-| `lines`, `bands`, `stackedArea` (line), `mode` (bars), `voronoi`, `arrows`, `labels` (scatter), `duration`, `names`, `units`, `label`, `unit`, `radius`, `pointStrokeWidth` | `container`, `height`, `margin`, `orientation`, `curve`, `zoom`, `crosshair`, `colorPalette`, `colorClasses`, `x.scale`, `y.scale`, and the `x`/`y`/`color` presets |
+| `lines`, `bands`, `stackedArea` (line), `mode` (bars), `voronoi`, `arrows`, `labels` (scatter), `duration`, `names`, `units`, `title`, `radius`, `pointStrokeWidth` | `container`, `height`, `margin`, `orientation`, `curve`, `zoom`, `crosshair`, `colorPalette`, `colorClasses`, `x.scale`, `y.scale`, and the `x`/`y`/`color` presets |
 
 The right-hand column is what a chart is built around; to change one, `destroy()` it and build a
 new chart. This split, plus the names in this README, is the API that 1.0.0 freezes.
@@ -515,10 +515,10 @@ The `curve` config takes one of `'linear'`, `'monotone'`, `'step-after'`, `'step
 | | |
 | --- | --- |
 | every config key you passed | `container`, `height`, `margin`, `duration`, `colorPalette`, `colorClasses`, and the family's own flags - readable, and the family flags (`lines`, `bands`, `stackedArea`, `mode`, `voronoi`, `arrows`, `labels`, `units`, …) are re-read on every `update()`, so assigning one and re-rendering is the supported way to toggle a chart live |
-| `x`, `y`, and (heatmap/scatter) `color` | the resolved per-property configs; `$scale` and `$axis` on each are the intended escape hatch into D3 |
+| `x`, `y`, and (heatmap/scatter) `color` | the resolved per-property configs; `$scale` and `$axis` on each are the intended escape hatch into D3. `graph.$svg` (the margin-translated group the axes live in) and `graph.$group` (the clipped plot area) are stable too, for drawing your own marks. Every other `$`- or `_`-prefixed name is private and may change |
 | `width`, `height` | the full `<svg>` box. `height` is exactly what you configured and is never replaced; `width` follows the container |
 | `plotWidth`, `plotHeight` | the plot area, inside the margins |
-| `label`, `unit` | the effective title text: what you set, else the `y` preset's. Assign to override; assign `undefined` to fall back to the preset |
+| `title` | the effective chart title: what you set, else `y.label` (a preset supplies one). Assign to override; assign `undefined` to fall back |
 | `paletteColors` | the resolved color array |
 | `onZoom`, `onCrosshair` | optional callbacks; `syncZoom`/`syncCrosshair` compose with yours rather than replacing it |
 
@@ -541,7 +541,7 @@ code; these pages are the working examples:
 - **Scatter** - [Scatter & Voronoi](https://larsi.org/easygraph/scatter_voronoi.php),
   [Bubble Chart](https://larsi.org/easygraph/bubble_chart.php) (per-point `radius`), and two real
   map overlays: [Weather](https://larsi.org/weather/)'s "Pressure & Wind" tab (`voronoi: true`,
-  `color.clip`, `arrows: true` overlaying wind speed/direction on top of pressure) and
+  `color.trim`, `arrows: true` overlaying wind speed/direction on top of pressure) and
   [Air Traffic](https://larsi.org/air-traffic/) (`color.domain` + `color.quantize`/`colorClasses`
   for four discrete altitude bands instead of a continuous gradient, `labels: { minZoom }` for
   callsigns once zoomed in). Both are drawn over a D3 US map through a shared pan/zoom helper (not

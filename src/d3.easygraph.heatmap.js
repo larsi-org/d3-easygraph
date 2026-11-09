@@ -74,7 +74,7 @@ d3.easygraph.heatmap = function(config) {
 
     return {
       init: function() {
-        // clamp(true): a color clip narrows the domain but the palette still has to cover
+        // clamp(true): a color trim narrows the domain but the palette still has to cover
         // every cell, including the ones outside it - clamp so those draw as the nearest
         // end color instead of extrapolating past the palette into an unintended hue
         graph.color.$scale = d3.scaleLinear().range(graph.paletteColors).clamp(true);

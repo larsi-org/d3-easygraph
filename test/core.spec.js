@@ -246,7 +246,7 @@ test('the stylesheet does not restyle a host page element named #title / .tick /
   expect(result.tickFontSize).toBe('16px');
 });
 
-test('setting graph.y.label after construction updates the title; graph.label still overrides', async ({ page }) => {
+test('setting graph.y.label after construction updates the title; graph.title still overrides', async ({ page }) => {
   await page.goto(FIXTURE);
   const titles = await page.evaluate(() => {
     var g = d3.easygraph.line({ container: '#graph', height: 200, y: { preset: 'temperatureC' } });
@@ -257,7 +257,7 @@ test('setting graph.y.label after construction updates the title; graph.label st
     g.update([[{ x: 1, y: 1 }]]);
     var fromYConfig = g.$title.text();
 
-    g.label = 'Explicit Override';
+    g.title = 'Explicit Override';
     g.update([[{ x: 1, y: 1 }]]);
     var fromOverride = g.$title.text();
 
@@ -836,27 +836,62 @@ test('a pinned color domain survives a resize reflow and a scatter rescale()', a
   expect(r.afterResize).toEqual([0, 1000]);
 });
 
-test('graph.label and graph.unit read the effective text and assigning overrides it', async ({ page }) => {
+test('graph.title reads the effective text and assigning overrides it; top-level label/unit throw', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
     var g = d3.easygraph.line({ container: '#graph', height: 200, y: { preset: 'temperatureF' } });
-    var out = { fromPreset: [g.label, g.unit] };
-    g.label = 'Outdoor';
-    out.overridden = [g.label, g.unit];
+    var out = { fromPreset: g.title };
+    g.title = 'Outdoor';
+    out.overridden = g.title;
     g.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
-    out.title = g.$title.text();
-    g.label = undefined;
-    out.backToPreset = g.label;
-    var g2 = d3.easygraph.line({ container: '#graph', height: 200, label: 'Given', unit: 'u' });
-    out.fromConfig = [g2.label, g2.unit];
+    out.rendered = g.$title.text();
+    g.title = undefined;
+    out.backToPreset = g.title;
+    var g2 = d3.easygraph.line({ container: '#graph', height: 200, title: 'Given' });
+    out.fromConfig = g2.title;
+    function msg(cfg) { try { d3.easygraph.line(Object.assign({ container: '#graph', height: 200 }, cfg)); return ''; } catch (e) { return e.message; } }
+    out.oldLabel = msg({ label: 'x' });
+    out.oldUnit = msg({ unit: 'x' });
     g.destroy(); g2.destroy();
     return out;
   });
-  expect(r.fromPreset).toEqual(['Temperature', '°F']);
-  expect(r.overridden).toEqual(['Outdoor', '°F']);
-  expect(r.title).toBe('Outdoor [°F]');
+  expect(r.fromPreset).toBe('Temperature');
+  expect(r.overridden).toBe('Outdoor');
+  expect(r.rendered).toBe('Outdoor [°F]');
   expect(r.backToPreset).toBe('Temperature');
-  expect(r.fromConfig).toEqual(['Given', 'u']);
+  expect(r.fromConfig).toBe('Given');
+  expect(r.oldLabel).toContain("'title'");
+  expect(r.oldUnit).toContain('y.unit');
+});
+
+test('assigning a build-time key throws; live keys still assign', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var g = d3.easygraph.line({ container: '#graph', height: 200, curve: 'linear', lines: true });
+    function msg(fn) { try { fn(); return ''; } catch (e) { return e.message; } }
+    var out = {
+      curve: msg(function() { g.curve = 'step-after'; }),
+      height: msg(function() { g.height = 300; }),
+      stillReadable: [g.curve, g.height]
+    };
+    g.lines = false; g.duration = 0;
+    out.live = [g.lines, g.duration];
+    g.destroy();
+    return out;
+  });
+  expect(r.curve).toContain('fixed when the chart is built');
+  expect(r.height).toContain("'height'");
+  expect(r.stillReadable).toEqual(['linear', 200]);
+  expect(r.live).toEqual([false, 0]);
+});
+
+test('clip is now trim - the old key throws with a pointer', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const msg = await page.evaluate(() => {
+    try { d3.easygraph.line({ container: '#graph', height: 200, y: { clip: [0.05, 0.95] } }); return ''; }
+    catch (e) { return e.message; }
+  });
+  expect(msg).toContain("'trim'");
 });
 
 test('zoom as an array is rejected with a pointer to the { min, max } form', async ({ page }) => {

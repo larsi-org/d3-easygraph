@@ -29,6 +29,17 @@ All notable changes to this project are documented here. Format loosely follows
   and each band is named for what it draws. The old keys throw with a pointer to the new one. The
   DOM/CSS class `data-ribbons` is now `data-minmax`. This also fixes the no-marks warning firing
   on a chart that had only the sigma band.
+- **Graph-level `label` is now `title`, and top-level `unit` is gone** (use `y.unit`). `title` is
+  the chart title and defaults to `y.label`; the old keys throw with a pointer. `graph.label` and
+  `graph.unit` as accessors are replaced by `graph.title`.
+- **`clip` is now `trim`** on `x`, `y` and `color` (same `[loQuantile, hiQuantile]` value). The old
+  key throws.
+- **Scatter points join on `id` first**, then `label`, then array position, so the display text
+  no longer has to double as identity.
+- **Assigning a build-time key throws** (`container`, `height`, `margin`, `orientation`, `curve`,
+  `zoom`, `crosshair`, `colorPalette`, `colorClasses`) instead of silently doing nothing. Everything
+  else is still re-read on every `update()`.
+- `graph.$svg` and `graph.$group` are documented as stable alongside `$scale` and `$axis`.
 
 ## [0.8.0] - 2026-11-08
 

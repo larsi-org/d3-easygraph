@@ -4,7 +4,7 @@
 // Copyright (c) 2026, Lars Schumann, larsi.org@gmail.com
 //
 // Shared scaffolding for every chart family: container sizing/resize, SVG/margin/
-// clip/title DOM, number/time formatting, x/y/color config resolution, and the
+// clip-path/title DOM, number/time formatting, x/y/color config resolution, and the
 // shared _build() that d3.easygraph.line/.bars/.heatmap call into with their own hooks.
 // Two standalone lookups live in their own files, loaded right after this one - unit presets
 // (d3.easygraph.presets / getUnit()) in d3.easygraph.units.js, color palettes
@@ -27,6 +27,8 @@ d3.easygraph._extend = function(dst, src) {
 // neither the caller nor a preset supplies one, they stay undefined, and the title text
 // (see near the bottom of _build()) renders blank rather than some generic placeholder.
 d3.easygraph._resolveProperty = function(prop) {
+  if (prop.clip !== undefined)
+    throw new Error("d3.easygraph: 'clip' is now 'trim' (same [loQuantile, hiQuantile] value)");
   d3.easygraph._extend(prop, d3.easygraph.getUnit(prop.preset));
   return prop;
 };
@@ -34,13 +36,13 @@ d3.easygraph._resolveProperty = function(prop) {
 // [min, max] across a flat array of numbers, optionally clipped to the given
 // [loQuantile, hiQuantile] (e.g. [0.05, 0.95]) instead of the true min/max - a single
 // extreme outlier no longer stretches the whole domain so far that everything else
-// compresses into one end of it. Any x/y/color config accepts a `clip` of this shape;
+// compresses into one end of it. Any x/y/color config accepts a `trim` of this shape;
 // omitting it (the default everywhere) keeps the exact same true-min/max behavior as
 // before this existed.
-d3.easygraph._clippedExtent = function(values, clip) {
-  if (!clip) return d3.extent(values);
+d3.easygraph._clippedExtent = function(values, trim) {
+  if (!trim) return d3.extent(values);
   var sorted = values.slice().sort(function(a, b) { return a - b; });
-  return [d3.quantileSorted(sorted, clip[0]), d3.quantileSorted(sorted, clip[1])];
+  return [d3.quantileSorted(sorted, trim[0]), d3.quantileSorted(sorted, trim[1])];
 };
 
 // Stacks layered series, accumulating y0 offsets bottom-up - shared by bars.js's stacked
@@ -96,15 +98,15 @@ d3.easygraph._checkData = function(data, shape, family) {
 };
 
 // The color scale's domain, in precedence order: a per-render `ranges.color`, then a static
-// `color.domain` config, then the data's own (optionally clipped) extent. That's the same idea as
+// `color.domain` config, then the data's own (optionally trimmed) extent. That's the same idea as
 // ranges.x/ranges.y beating an auto-fitted axis, one step further - a value passed to *this*
 // render beats one fixed at construction, which beats whatever the data happens to span.
-// `clip` applies only to the last of the three: once a domain is given outright there's no
-// data-driven extent left to clip. Shared by heatmap and scatter so the precedence is defined
+// `trim` applies only to the last of the three: once a domain is given outright there's no
+// data-driven extent left to trim. Shared by heatmap and scatter so the precedence is defined
 // once rather than drifting between them (scatter honoured color.domain and heatmap didn't).
 d3.easygraph._colorDomain = function(graph, values) {
   var perRender = graph._lastRanges && graph._lastRanges.color;
-  return perRender || graph.color.domain || d3.easygraph._clippedExtent(values, graph.color.clip);
+  return perRender || graph.color.domain || d3.easygraph._clippedExtent(values, graph.color.trim);
 };
 
 // One legend row per series - color from the palette, label from the graph's `names` config.
@@ -176,6 +178,12 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // un-destroyable (its SVG orphaned, its ResizeObserver never disconnected). The nested
   // x/y/color/margin objects get their own clones further down for the same reason.
   var graph = Object.assign({}, config);
+
+  ['label', 'unit'].forEach(function(old) {
+    if (config[old] !== undefined)
+      throw new Error("d3.easygraph: '" + old + "' at the top level is gone - the chart title is 'title' " +
+                      "(defaults to y.label) and the unit is y.unit");
+  });
 
   var containerEl = _resolveContainer(graph.container);
   if (!containerEl) {
@@ -296,19 +304,19 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     }
   });
 
-  // graph.label / graph.unit are accessors: reading gives the effective chart title text -
-  // the value you set, else the y config's (a preset supplies one) - and assigning sets the
-  // explicit override (assign undefined to fall back to the preset again). One name to read and
-  // write, and the y config stays a live fallback rather than a one-time seed, so a later
-  // graph.y.label = ... still shows.
-  [['label', graph.label], ['unit', graph.unit]].forEach(function(p) {
-    var key = p[0], override = p[1];
-    Object.defineProperty(graph, key, {
+  // graph.title is an accessor: reading gives the effective chart title text - the value you
+  // set, else the y config's label (a preset supplies one) - and assigning sets the explicit
+  // override (assign undefined to fall back to the preset again). The y config stays a live
+  // fallback rather than a one-time seed, so a later graph.y.label = ... still shows. The unit
+  // shown after the title is always graph.y.unit.
+  (function() {
+    var override = graph.title;
+    Object.defineProperty(graph, 'title', {
       enumerable: true, configurable: true,
-      get: function() { return (override !== undefined) ? override : graph.y[key]; },
+      get: function() { return (override !== undefined) ? override : graph.y.label; },
       set: function(v) { override = v; }
     });
-  });
+  })();
 
   graph.plotHeight = graph.height - graph.margin.top - graph.margin.bottom;
   _measureWidth();
@@ -469,7 +477,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     // data-driven color domain.
     graph._lastRanges = ranges;
 
-    var label = graph.label, unit = graph.unit;
+    var label = graph.title, unit = graph.y.unit;
     var titleText = (unit) ? label + " [" + unit + "]" : label;
     graph.$title.text(titleText);
     // Mirrored onto the SVG's own accessible name. Falls back to the family name so a chart
@@ -488,6 +496,23 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
 
     return graph; // chainable, matching d3's own convention
   };
+
+  // Keys the chart is built around (scales, axes, DOM) can't change after construction, so
+  // assigning one throws instead of silently doing nothing. Everything else is re-read on
+  // every update().
+  ['container', 'height', 'margin', 'orientation', 'curve', 'zoom', 'crosshair',
+   'colorPalette', 'colorClasses'].forEach(function(key) {
+    if (!Object.prototype.hasOwnProperty.call(graph, key)) return;
+    var fixed = graph[key];
+    Object.defineProperty(graph, key, {
+      enumerable: true, configurable: true,
+      get: function() { return fixed; },
+      set: function() {
+        throw new Error("d3.easygraph: '" + key + "' is fixed when the chart is built - " +
+                        "destroy() it and build a new chart to change it");
+      }
+    });
+  });
 
   return graph;
 };

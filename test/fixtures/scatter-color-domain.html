@@ -20,12 +20,12 @@ window.testData = [
 
 window.graph = d3.easygraph.scatter({
   container: "#graph",
-  label:     " ",
+  title:     " ",
   x:         { scale: "linear" },
   y:         { scale: "linear" },
   // clip alongside domain - proves domain wins and clip is simply ignored, not combined
   // with it or erroring out
-  color:     { domain: [0, 40000], clip: [0.05, 0.95] },
+  color:     { domain: [0, 40000], trim: [0.05, 0.95] },
   height:    320,
   margin:    { top: 10, right: 14, bottom: 30, left: 50 }
 });

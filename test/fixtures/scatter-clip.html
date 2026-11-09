@@ -25,10 +25,10 @@ window.testData = [
 
 window.graph = d3.easygraph.scatter({
   container: "#graph",
-  label:     " ",
-  x:         { scale: "linear", clip: [0, 0.9] },
-  y:         { scale: "linear", clip: [0, 0.9] },
-  color:     { clip: [0, 0.9] },
+  title:     " ",
+  x:         { scale: "linear", trim: [0, 0.9] },
+  y:         { scale: "linear", trim: [0, 0.9] },
+  color:     { trim: [0, 0.9] },
   height:    320,
   margin:    { top: 10, right: 14, bottom: 30, left: 50 }
 });

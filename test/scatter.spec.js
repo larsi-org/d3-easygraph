@@ -437,3 +437,32 @@ test('voronoi accepts { opacity }; plain true keeps the 0.6 default', async ({ p
   });
   expect(custom).toBe('0.2');
 });
+
+test('points join by id first, then label, then position - a dropped point keeps the others\' circles', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    function run(keyField) {
+      var w = document.createElement('div'); document.body.appendChild(w);
+      var g = d3.easygraph.scatter({ container: w, height: 200, x: { scale: 'linear' }, y: { scale: 'linear' } });
+      function pts(names) {
+        return names.map(function(n, i) {
+          var p = { x: i, y: i, value: i };
+          if (keyField) p[keyField] = n;
+          return p;
+        });
+      }
+      g.update(pts(['a', 'b', 'c']));
+      var before = w.querySelectorAll('circle.scatter-point')[2];
+      // drop 'a': with a stable key, the circle for 'c' must be reused; by position it would not
+      var next = [{ x: 1, y: 1, value: 1 }, { x: 2, y: 2, value: 2 }];
+      if (keyField) { next[0][keyField] = 'b'; next[1][keyField] = 'c'; }
+      g.update(next);
+      var after = [...w.querySelectorAll('circle.scatter-point')];
+      return after.indexOf(before) >= 0;
+    }
+    return { id: run('id'), label: run('label'), none: run(null) };
+  });
+  expect(r.id).toBe(true);
+  expect(r.label).toBe(true);
+  expect(r.none).toBe(false);
+});

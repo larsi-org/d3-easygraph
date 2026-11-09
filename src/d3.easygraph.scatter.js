@@ -161,9 +161,9 @@ d3.easygraph.scatter = function(config) {
       // have every point *after* a dropped one shift down an index, so the existing DOM circle
       // at that index - still mid-transition or about to start one - suddenly represents a
       // different station and visibly flies from the old station's position to the new one.
-      // A caller that never sets `label` keeps the exact index-based identity this always had.
+      // A caller that never sets `id` or `label` keeps the exact index-based identity this always had.
       var points = graph.$pointsGroup.selectAll(".scatter-point")
-        .data(data, function(d, i) { return d.label != null ? d.label : i; });
+        .data(data, function(d, i) { return d.id != null ? d.id : (d.label != null ? d.label : i); });
       var pointsEnter = points.enter().append("circle").attr("class", "scatter-point")
         .attr("cx", function(d) { return graph.x.$scale(d.x); })
         .attr("cy", function(d) { return graph.y.$scale(d.y); })
@@ -232,7 +232,7 @@ d3.easygraph.scatter = function(config) {
 
     return {
       init: function() {
-        // clamp(true): a color clip narrows the domain but the palette still has to cover
+        // clamp(true): a color trim narrows the domain but the palette still has to cover
         // every point, including the ones outside it - clamp so those draw as the nearest
         // end color instead of extrapolating past the palette into an unintended hue.
         // color.quantize: true swaps this for a quantize scale - paletteColors.length
@@ -251,15 +251,15 @@ d3.easygraph.scatter = function(config) {
 
       // a caller plotting pre-projected pixel coordinates (e.g. a map overlay) always passes
       // explicit xRange/yRange; this fallback only guards against one that doesn't. Unlike
-      // color, x/y are never clamped - a clip here means "zoom the axis to this range", and
+      // color, x/y are never clamped - a trim here means "zoom the axis to this range", and
       // a point outside it should draw past the edge (or get clipped by the chart's own
       // clip-path), not get dragged back onto it.
       // Guards against empty data the same way bars.js already does - d3.extent on an empty
       // array returns [undefined, undefined], which would otherwise become the scale's domain.
       domain: function(data, xRange, yRange) {
         return {
-          x: xRange || (data.length ? d3.easygraph._clippedExtent(data.map(function(d) { return d.x; }), graph.x.clip) : [0, 1]),
-          y: yRange || (data.length ? d3.easygraph._clippedExtent(data.map(function(d) { return d.y; }), graph.y.clip) : [0, 1])
+          x: xRange || (data.length ? d3.easygraph._clippedExtent(data.map(function(d) { return d.x; }), graph.x.trim) : [0, 1]),
+          y: yRange || (data.length ? d3.easygraph._clippedExtent(data.map(function(d) { return d.y; }), graph.y.trim) : [0, 1])
         };
       },
 

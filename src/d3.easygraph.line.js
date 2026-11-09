@@ -51,7 +51,7 @@ d3.easygraph.line = function(config) {
                               // and what the crosshair tooltip names each row by. Same shape as
                               // `units` below.
     units:              null // optional per-series unit strings for the crosshair tooltip -
-                             // see _moveCrosshair() below; graph.unit (singular, from the
+                             // see _moveCrosshair() below; graph.y.unit (, from the
                              // shared y preset) is the fallback when a series has no entry
   }, function(graph) {
     var _cx, _cy, _bisect;
@@ -186,7 +186,7 @@ d3.easygraph.line = function(config) {
               if (!d) return;
               var crosshairThreshold = (graph.crosshair && graph.crosshair.threshold != null) ? graph.crosshair.threshold : 10;
               var near = Math.abs(graph.x.$scale(d.x) - mouseX) <= crosshairThreshold;
-              var unit = (graph.units && graph.units[i] != null) ? graph.units[i] : (graph.unit || '');
+              var unit = (graph.units && graph.units[i] != null) ? graph.units[i] : (graph.y.unit || '');
               // the series' own name, when `names` supplies one - otherwise the row is just the
               // swatch and the value, exactly as before
               var name = (graph.names && graph.names[i] != null) ? graph.names[i] + ' ' : '';
@@ -233,16 +233,16 @@ d3.easygraph.line = function(config) {
         // otherwise become the scale's domain and break axis rendering. "No data yet" (e.g.
         // page loaded, first fetch hasn't resolved) is a common real state, not an edge case.
         var xValues = _nestedValues(data, function(d) { return d.x; });
-        var xDomain = xRange || (xValues.length ? d3.easygraph._clippedExtent(xValues, graph.x.clip) : [0, 1]);
+        var xDomain = xRange || (xValues.length ? d3.easygraph._clippedExtent(xValues, graph.x.trim) : [0, 1]);
 
         var yDomain;
         if (yRange) {
           yDomain = yRange;
         } else if (graph.stackedArea) {
           // a stacked area's own top edge is a cumulative sum across series, not a single
-          // series' own values - clip doesn't have a single value array to work from here
+          // series' own values - trim doesn't have a single value array to work from here
           // either, and (like bars' stacked mode) the axis always includes zero regardless of
-          // graph.y.clip, since a stack's height is only meaningful measured from the bottom.
+          // graph.y.trim, since a stack's height is only meaningful measured from the bottom.
           var stacked = d3.easygraph._computeStacked(data);
           var stackedMax = d3.max(stacked, function(series) {
             return d3.max(series, function(d) { return d.y0 + d.y; });
@@ -250,9 +250,9 @@ d3.easygraph.line = function(config) {
           yDomain = [0, (stackedMax === undefined) ? 1 : stackedMax];
         } else if (_bandSet().minmax || _bandSet().sigma) {
           // A ribbon's/sigma band's extent comes from each point's own precomputed min/max (or
-          // sigmaMin/sigmaMax), not a plain value per point - clip doesn't have a single value
+          // sigmaMin/sigmaMax), not a plain value per point - trim doesn't have a single value
           // array to work from here, so this path always uses the true extent regardless of
-          // graph.y.clip. Both keys are folded in whenever both bands are on (the normal case -
+          // graph.y.trim. Both keys are folded in whenever both bands are on (the normal case -
           // a sigma band nests inside the wider min/max one) as two separate d3.min/max passes
           // combined afterward, so a point missing one of the two (same optional-per-point
           // convention _definedRibbon/_definedSigma already rely on for gaps) doesn't poison
@@ -265,7 +265,7 @@ d3.easygraph.line = function(config) {
           yDomain = (ribbonMin === undefined) ? [0, 1] : [ribbonMin, ribbonMax];
         } else {
           var yValues = _nestedValues(data, function(d) { return d.y; });
-          yDomain = yValues.length ? d3.easygraph._clippedExtent(yValues, graph.y.clip) : [0, 1];
+          yDomain = yValues.length ? d3.easygraph._clippedExtent(yValues, graph.y.trim) : [0, 1];
         }
 
         return { x: xDomain, y: yDomain };
