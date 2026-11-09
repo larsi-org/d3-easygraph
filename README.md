@@ -3,7 +3,7 @@
 [![Build](https://github.com/larsi-org/d3-easygraph/actions/workflows/build.yml/badge.svg)](https://github.com/larsi-org/d3-easygraph/actions/workflows/build.yml)
 
 A small, batteries-included charting library built on [D3](https://d3js.org) v7: lines, min/max
-and mean ±1σ ribbon bands, stacked areas, zoom, a hover crosshair, stacked/grouped bars (vertical
+and min/max and mean ±1σ bands, stacked areas, zoom, a hover crosshair, stacked/grouped bars (vertical
 and horizontal), heatmaps, and scatter and bubble plots - all through one consistent config
 object, with chart width that tracks its container's rendered size (height stays fixed). Unit
 presets, color palettes and legend rows are also available with no chart at all.
@@ -16,7 +16,7 @@ Each chart family has its own constructor, taking only the config that family un
 
 | Family | Constructor | Config |
 | --- | --- | --- |
-| Line / ribbon / stacked area | `d3.easygraph.line(config)` | `lines`, `ribbons`, `sigmaBand`, `stackedArea`, `zoom`, `crosshair` (`true` or `{ threshold }`, pixels, default 10), `curve`, `names`, `units` |
+| Line / ribbon / stacked area | `d3.easygraph.line(config)` | `lines`, `bands` (`['minmax']`, `['sigma']` or both), `stackedArea`, `zoom`, `crosshair` (`true` or `{ threshold }`, pixels, default 10), `curve`, `names`, `units` |
 | Bars | `d3.easygraph.bars(config)` | `orientation` (`'vertical'`\|`'horizontal'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData`, `names` |
 | Heatmap | `d3.easygraph.heatmap(config)` | `color` |
 | Scatter / bubble | `d3.easygraph.scatter(config)` | `color`, `radius`, `pointStrokeWidth`, `voronoi` (`true` or `{ opacity }`), `arrows` (`true` or `{ color, strokeWidth, minLength, maxLength, headLength, headAngle }`), `labels` (`true` or `{ size, offset, minZoom }`) |
@@ -27,12 +27,13 @@ A continuous (time or linear) x axis. Four drawing modes, each a flag you can to
 chart (assign it, then call `update()`):
 
 - **`lines`** - one line per series.
-- **`ribbons`** - a filled min/max band per series (e.g. a daily high/low around a mean line),
-  drawn from each point's `min`/`max`.
-- **`sigmaBand`** - a second, more opaque band nested inside the ribbon, drawn from each point's
-  `sigmaMin`/`sigmaMax` (typically the mean ±1 standard deviation): a faint band for the extreme
-  range and a darker one for the typical spread. `ribbons` and `sigmaBand` are independent, so
-  either can be used without the other, but the usual case is both together. If you convert a
+- **`bands`** - a list of shaded bands drawn around each series, nested widest first. `'minmax'` is
+  a filled band from each point's `min`/`max` (e.g. a daily high/low around a mean line); `'sigma'`
+  is a second, more opaque band from each point's `sigmaMin`/`sigmaMax` (typically the mean ±1
+  standard deviation): a faint band for the extreme range and a darker one for the typical
+  spread. `[]` or omitted draws none, and either name works alone. It is re-read on every
+  `update()`, so one assignment toggles both: `graph.bands = hourly ? [] : ['minmax', 'sigma']`.
+  If you convert a
   point's `y` (e.g. °C to °F), convert `min`, `max`, `sigmaMin` and `sigmaMax` too.
 - **`stackedArea`** - a classic stacked area chart: plain `{ x, y }` points like `lines`, each
   series stacked cumulatively on the ones before it. The y axis always includes zero, regardless of
@@ -46,8 +47,8 @@ line charts together. `units: ["°F", "%"]` gives the tooltip a different unit s
 shared `y` preset's unit isn't right for all of them; a series past the end of `units`, or with a
 falsy entry, falls back to the shared `graph.unit`.
 
-A point with `y: null` (or, for ribbons and the sigma band, `min`/`max: null` or
-`sigmaMin`/`sigmaMax: null`) breaks the line, ribbon, sigma band or stacked area into a separate
+A point with `y: null` (or, for the bands, `min`/`max: null` or
+`sigmaMin`/`sigmaMax: null`) breaks the line, band or stacked area into a separate
 subpath there instead of drawing a straight segment through the gap. That is also how to chart a
 circular quantity such as compass bearing: insert a `null`-y point at each wraparound so the chart
 doesn't draw a false diagonal from 359° to 0°.
@@ -130,7 +131,7 @@ than left to fall through, since every internal test on them reads as "one value
 - a typo would otherwise render the wrong chart with no complaint. `mode` is re-checked on every
 `update()`, so a bad value assigned to a live chart is caught too.
 
-A `line` chart with data but none of `lines`/`ribbons`/`stackedArea` enabled draws axes and
+A `line` chart with data but none of `lines`/`bands`/`stackedArea` enabled draws axes and
 nothing else, and warns on the console saying so. That's a warning rather than an error because
 the flags are meant to be toggled on a live chart, so being briefly in that state is legitimate.
 
@@ -427,7 +428,7 @@ place. Give every point a `label` (it still works as the join key with `labels: 
 isn't drawn) whenever the point set can grow, shrink, or reorder between updates; a fixed point
 set (same stations/entities every render) is safe either way.
 
-`line`'s ribbons/stack/lines paths skip the `d`-attribute transition entirely for any series
+`line`'s band/stack/lines paths skip the `d`-attribute transition entirely for any series
 whose point count changed since the last render - e.g. toggling between hourly and daily
 aggregation - rather than animating it. d3's default string interpolator for `d` pairs the old
 and new path's numeric tokens positionally, so a sharply different vertex count produces a
@@ -500,7 +501,7 @@ properties to a graph is fine and supported; the library only ever writes the na
 
 | Re-read on every `update()` (toggle live) | Fixed when the chart is built |
 |---|---|
-| `lines`, `ribbons`, `sigmaBand`, `stackedArea` (line), `mode` (bars), `voronoi`, `arrows`, `labels` (scatter), `duration`, `names`, `units`, `label`, `unit`, `radius`, `pointStrokeWidth` | `container`, `height`, `margin`, `orientation`, `curve`, `zoom`, `crosshair`, `colorPalette`, `colorClasses`, `x.scale`, `y.scale`, and the `x`/`y`/`color` presets |
+| `lines`, `bands`, `stackedArea` (line), `mode` (bars), `voronoi`, `arrows`, `labels` (scatter), `duration`, `names`, `units`, `label`, `unit`, `radius`, `pointStrokeWidth` | `container`, `height`, `margin`, `orientation`, `curve`, `zoom`, `crosshair`, `colorPalette`, `colorClasses`, `x.scale`, `y.scale`, and the `x`/`y`/`color` presets |
 
 The right-hand column is what a chart is built around; to change one, `destroy()` it and build a
 new chart. This split, plus the names in this README, is the API that 1.0.0 freezes.
@@ -529,7 +530,7 @@ included in this repo). The [index page](https://larsi.org/easygraph/) documents
 code; these pages are the working examples:
 
 - **Line** - [Hourly Data](https://larsi.org/easygraph/data_hourly.php) (zoom + crosshair, an
-  hourly/daily toggle that adds the min/max ribbon and the ±1σ band),
+  hourly/daily toggle that adds the min/max and ±1σ bands),
   [Multi Hourly Data](https://larsi.org/easygraph/multi_data_hourly.php) (several simulations,
   same toggle), [Stacked Area](https://larsi.org/easygraph/stacked_area.php)
 - **Bars** - [Monthly Data](https://larsi.org/easygraph/data_monthly.php) (live

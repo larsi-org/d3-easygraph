@@ -749,16 +749,16 @@ test('a line chart with data but no mark type enabled warns instead of silently 
   page.on('console', (m) => { if (m.type() === 'warning') warnings.push(m.text()); });
   const marks = await page.evaluate(() => {
     var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
-    var g = d3.easygraph.line({ container: w, height: 200 }); // no lines/ribbons/stackedArea
+    var g = d3.easygraph.line({ container: w, height: 200 }); // no lines/bands/stackedArea
     g.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
-    var withData = w.querySelectorAll('path.data-lines, path.data-ribbons, path.data-stack').length;
+    var withData = w.querySelectorAll('path.data-lines, path.data-minmax, path.data-stack').length;
     g.update([]); // an empty render must stay quiet - nothing was asked for
     g.destroy(); w.remove();
     return withData;
   });
   expect(marks).toBe(0);
   expect(warnings.length).toBe(1); // exactly one: the data render, not the empty one
-  expect(warnings[0]).toContain('none of lines/ribbons/stackedArea');
+  expect(warnings[0]).toContain('none of lines/bands/stackedArea');
 });
 
 test('ranges.color pins the color domain, beating both color.domain and the data', async ({ page }) => {

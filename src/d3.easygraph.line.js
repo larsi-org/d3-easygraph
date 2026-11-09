@@ -3,7 +3,7 @@
 // https://opensource.org/licenses/MIT
 // Copyright (c) 2026, Lars Schumann, larsi.org@gmail.com
 //
-// The continuous chart-family constructor: lines, ribbons, stacked areas, zoom, and
+// The continuous chart-family constructor: lines, min/max and sigma bands, stacked areas, zoom, and
 // crosshair - these always travel together in practice and share a continuous
 // (time/linear) x scale.
 
@@ -32,12 +32,16 @@ function _nestedValues(data, acc) {
 }
 
 d3.easygraph.line = function(config) {
+  ['ribbons', 'sigmaBand'].forEach(function(old) {
+    if (config && config[old] !== undefined)
+      throw new Error("d3.easygraph.line: '" + old + "' is gone - use bands: ['minmax', 'sigma'] " +
+                      "(minmax = the min/max band, sigma = the mean +-1 sigma band)");
+  });
   return d3.easygraph._build(config, {
     _chartType:         'line',
     _dataShape:         'series',
     lines:              false,
-    ribbons:            false,
-    sigmaBand:          false,
+    bands:              null, // [] / null = none; 'minmax' and/or 'sigma' - see _bandSet() below
     stackedArea:        false,
     zoom:               false,
     crosshair:          false,
@@ -51,6 +55,22 @@ d3.easygraph.line = function(config) {
                              // shared y preset) is the fallback when a series has no entry
   }, function(graph) {
     var _cx, _cy, _bisect;
+
+    // bands is a list of the shaded bands to draw around each series, nested widest first:
+    // 'minmax' (each point's min/max) and 'sigma' (sigmaMin/sigmaMax, typically mean +-1 sd).
+    // A bare string is one band; null, false or [] is none. Re-read on every update(), so a
+    // page toggles both with one assignment: graph.bands = hourly ? [] : ['minmax', 'sigma'].
+    function _bandSet() {
+      var b = graph.bands;
+      if (b == null || b === false) b = [];
+      if (typeof b === 'string') b = [b];
+      if (!Array.isArray(b)) throw new Error("d3.easygraph.line: bands must be an array like ['minmax', 'sigma']");
+      b.forEach(function(name) {
+        if (name !== 'minmax' && name !== 'sigma')
+          throw new Error("d3.easygraph.line: unknown band " + JSON.stringify(name) + " (use 'minmax' or 'sigma')");
+      });
+      return { minmax: b.indexOf('minmax') >= 0, sigma: b.indexOf('sigma') >= 0 };
+    }
 
     return {
       init: function() {
@@ -66,8 +86,8 @@ d3.easygraph.line = function(config) {
         graph.$ribbon  = d3.area().curve(_curve).defined(_definedRibbon).x(_cx)
           .y0(function(d) { return graph.y.$scale(d.min); })
           .y1(function(d) { return graph.y.$scale(d.max); });
-        // sigmaBand: a second, narrower band (typically mean +-1 standard deviation) nested
-        // inside ribbons' wider min/max one - same shape/gap convention as ribbons (a point
+        // bands: ['sigma'] - a second, narrower band (typically mean +-1 standard deviation) nested
+        // inside the wider 'minmax' one - same shape/gap convention (a point
         // missing sigmaMin/sigmaMax just isn't drawn there), a separate feature since a caller
         // may have one without the other (min/max always derivable from raw samples; sigma
         // needs a sum-of-squares alongside them - see bucket-series.js/daily-from-hourly.js).
@@ -98,7 +118,7 @@ d3.easygraph.line = function(config) {
         // optional module hooks rather than promises every family has to keep.
         graph._redraw = function() {
           graph._drawAxes();
-          graph.$group.selectAll("path.data-ribbons").attr("d", graph.$ribbon);
+          graph.$group.selectAll("path.data-minmax").attr("d", graph.$ribbon);
           graph.$group.selectAll("path.data-sigma").attr("d", graph.$sigma);
           graph.$group.selectAll("path.data-stack").attr("d", graph.$stack);
           graph.$group.selectAll("path.data-lines").attr("d", graph.$line);
@@ -228,7 +248,7 @@ d3.easygraph.line = function(config) {
             return d3.max(series, function(d) { return d.y0 + d.y; });
           });
           yDomain = [0, (stackedMax === undefined) ? 1 : stackedMax];
-        } else if (graph.ribbons || graph.sigmaBand) {
+        } else if (_bandSet().minmax || _bandSet().sigma) {
           // A ribbon's/sigma band's extent comes from each point's own precomputed min/max (or
           // sigmaMin/sigmaMax), not a plain value per point - clip doesn't have a single value
           // array to work from here, so this path always uses the true extent regardless of
@@ -240,8 +260,8 @@ d3.easygraph.line = function(config) {
           // a single combined pass using plain Math.min/max on the two raw values wouldn't.
           function nestedMin(key) { return d3.min(data, function(a) { return d3.min(a, function(d) { return d[key]; }); }); }
           function nestedMax(key) { return d3.max(data, function(a) { return d3.max(a, function(d) { return d[key]; }); }); }
-          var ribbonMin = d3.min([graph.ribbons ? nestedMin('min') : undefined, graph.sigmaBand ? nestedMin('sigmaMin') : undefined]);
-          var ribbonMax = d3.max([graph.ribbons ? nestedMax('max') : undefined, graph.sigmaBand ? nestedMax('sigmaMax') : undefined]);
+          var ribbonMin = d3.min([_bandSet().minmax ? nestedMin('min') : undefined, _bandSet().sigma ? nestedMin('sigmaMin') : undefined]);
+          var ribbonMax = d3.max([_bandSet().minmax ? nestedMax('max') : undefined, _bandSet().sigma ? nestedMax('sigmaMax') : undefined]);
           yDomain = (ribbonMin === undefined) ? [0, 1] : [ribbonMin, ribbonMax];
         } else {
           var yValues = _nestedValues(data, function(d) { return d.y; });
@@ -255,11 +275,12 @@ d3.easygraph.line = function(config) {
         // A line chart with none of the three mark types enabled draws axes and nothing else -
         // the likeliest first-run mistake, and previously a silent one. A warning rather than an
         // error on purpose: the flags are meant to be toggled on a live chart (larsi.org's own
-        // pages do `graph.ribbons = !hourly` between renders), so a caller can legitimately be
+        // pages do `graph.bands = hourly ? [] : [...]` between renders), so a caller can legitimately be
         // mid-flight with all three off, and throwing would break that. Only warns when there's
         // actually data being asked for, so an empty first render stays quiet.
-        if (data.length && !graph.lines && !graph.ribbons && !graph.stackedArea) {
-          console.warn('d3.easygraph: line chart has data but none of lines/ribbons/stackedArea ' +
+        var B = _bandSet();
+        if (data.length && !graph.lines && !B.minmax && !B.sigma && !graph.stackedArea) {
+          console.warn('d3.easygraph: line chart has data but none of lines/bands/stackedArea ' +
                        'enabled, so nothing will be drawn');
         }
 
@@ -293,10 +314,10 @@ d3.easygraph.line = function(config) {
         }
         graph._prevSeriesLengths = data.map(function(series) { return series.length; });
 
-        if (graph.ribbons) {
-          var dataRibbons = graph.$group.selectAll(".data-ribbons").data(data);
+        if (B.minmax) {
+          var dataRibbons = graph.$group.selectAll(".data-minmax").data(data);
           var ribbonsEntered = dataRibbons.enter().append("path")
-            .attr("class",      "data-ribbons")
+            .attr("class",      "data-minmax")
             .attr("clip-path",  "url(#" + graph._clipId + ")")
             .attr("d",          graph.$ribbon0)
             .style("fill",      function(d, i) { return graph.getPaletteColor(i); })
@@ -308,10 +329,10 @@ d3.easygraph.line = function(config) {
             .style("fill",    function(d, i) { return graph.getPaletteColor(i); })
             .style("opacity", 0.4);
         } else {
-          graph.$group.selectAll(".data-ribbons").remove();
+          graph.$group.selectAll(".data-minmax").remove();
         }
 
-        // Appended right after ribbons (before stack/lines) so a sigma band always draws on
+        // Appended right after the minmax band (before stack/lines) so a sigma band always draws on
         // top of the wider min/max ribbon it nests inside, but under the mean line. Its own
         // opacity is 0.5, not the ~0.7 the band is meant to *look* like - the browser's normal
         // source-over compositing stacks it on top of the ribbon's own 0.4 wherever the two
@@ -319,7 +340,7 @@ d3.easygraph.line = function(config) {
         // inside min/max), and two same-color layers combine as 1-(1-a)(1-b): 1-(1-0.5)(1-0.4)
         // = 0.7. Setting this to the visually-intended 0.7 directly would compound with the
         // ribbon underneath into ~0.82, reading darker than intended.
-        if (graph.sigmaBand) {
+        if (B.sigma) {
           var dataSigma = graph.$group.selectAll(".data-sigma").data(data);
           var sigmaEntered = dataSigma.enter().append("path")
             .attr("class",      "data-sigma")

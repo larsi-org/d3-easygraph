@@ -23,6 +23,12 @@ All notable changes to this project are documented here. Format loosely follows
 - **`crosshairThreshold` is now `crosshair: { threshold }`** and **`voronoiOpacity` is now
   `voronoi: { opacity }`**, the same "`true` or an options object" shape as scatter's `arrows` and
   `labels`. `crosshair: true` and `voronoi: true` still work.
+- **`ribbons` and `sigmaBand` are replaced by `bands`**, a list: `['minmax']`, `['sigma']` or
+  `['minmax', 'sigma']` (`[]` or omitted is none). A bare string is one band. Every caller toggled
+  the two together, so this is one assignment (`graph.bands = hourly ? [] : ['minmax', 'sigma']`),
+  and each band is named for what it draws. The old keys throw with a pointer to the new one. The
+  DOM/CSS class `data-ribbons` is now `data-minmax`. This also fixes the no-marks warning firing
+  on a chart that had only the sigma band.
 
 ## [0.8.0] - 2026-11-08
 

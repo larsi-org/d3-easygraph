@@ -5,18 +5,18 @@ const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/line.html');
 const CLIP_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/line-clip.html');
 const GAP_FIXTURE = 'file://' + path.join(__dirname, 'fixtures/line-gap.html');
 
-test('renders lines and ribbons with the right element counts', async ({ page }) => {
+test('renders lines and a minmax band with the right element counts', async ({ page }) => {
   await page.goto(FIXTURE);
   await expect(page.locator('path.data-lines')).toHaveCount(1);
-  await expect(page.locator('path.data-ribbons')).toHaveCount(1);
+  await expect(page.locator('path.data-minmax')).toHaveCount(1);
 });
 
-test('sigmaBand renders a path nested between ribbons and the line in z-order', async ({ page }) => {
+test('the sigma band renders a path nested between the minmax band and the line in z-order', async ({ page }) => {
   await page.goto(FIXTURE);
   const order = await page.evaluate(() => {
     var wrap = document.createElement('div');
     document.body.appendChild(wrap);
-    var g = d3.easygraph.line({ container: wrap, height: 200, lines: true, ribbons: true, sigmaBand: true });
+    var g = d3.easygraph.line({ container: wrap, height: 200, lines: true, bands: ['minmax', 'sigma'] });
     g.update([[
       { x: 0, y: 10, min: 5, max: 15, sigmaMin: 8, sigmaMax: 12 },
       { x: 1, y: 12, min: 6, max: 18, sigmaMin: 9, sigmaMax: 15 }
@@ -26,41 +26,41 @@ test('sigmaBand renders a path nested between ribbons and the line in z-order', 
     wrap.remove();
     return classes;
   });
-  expect(order.indexOf('data-ribbons')).toBeGreaterThanOrEqual(0);
-  expect(order.indexOf('data-sigma')).toBeGreaterThan(order.indexOf('data-ribbons'));
+  expect(order.indexOf('data-minmax')).toBeGreaterThanOrEqual(0);
+  expect(order.indexOf('data-sigma')).toBeGreaterThan(order.indexOf('data-minmax'));
   expect(order.indexOf('data-lines')).toBeGreaterThan(order.indexOf('data-sigma'));
 });
 
-test('a point missing sigmaMin/sigmaMax skips the sigma band there without affecting ribbons/lines', async ({ page }) => {
+test('a point missing sigmaMin/sigmaMax skips the sigma band there without affecting the minmax band/lines', async ({ page }) => {
   await page.goto(FIXTURE);
   const d = await page.evaluate(() => {
     var wrap = document.createElement('div');
     document.body.appendChild(wrap);
-    var g = d3.easygraph.line({ container: wrap, height: 200, lines: true, ribbons: true, sigmaBand: true });
+    var g = d3.easygraph.line({ container: wrap, height: 200, lines: true, bands: ['minmax', 'sigma'] });
     g.update([[
       { x: 0, y: 10, min: 5, max: 15 }, // no sigma this point
       { x: 1, y: 12, min: 6, max: 18, sigmaMin: 9, sigmaMax: 15 }
     ]]);
     var sigmaD = wrap.querySelector('path.data-sigma').getAttribute('d');
     var linesCount = wrap.querySelectorAll('path.data-lines').length;
-    var ribbonsCount = wrap.querySelectorAll('path.data-ribbons').length;
+    var minmaxCount = wrap.querySelectorAll('path.data-minmax').length;
     g.destroy();
     wrap.remove();
-    return { sigmaD: sigmaD, linesCount: linesCount, ribbonsCount: ribbonsCount };
+    return { sigmaD: sigmaD, linesCount: linesCount, minmaxCount: minmaxCount };
   });
   // only the second point is defined for sigma, so d3.area() draws a degenerate single-point
   // path there rather than throwing or drawing a false band across the undefined first point
   expect(d.sigmaD).not.toMatch(/NaN/);
   expect(d.linesCount).toBe(1);
-  expect(d.ribbonsCount).toBe(1);
+  expect(d.minmaxCount).toBe(1);
 });
 
-test('sigmaBand widens the y domain to its own extent when ribbons is off', async ({ page }) => {
+test('the sigma band widens the y domain to its own extent when minmax is off', async ({ page }) => {
   await page.goto(FIXTURE);
   const yDomain = await page.evaluate(() => {
     var wrap = document.createElement('div');
     document.body.appendChild(wrap);
-    var g = d3.easygraph.line({ container: wrap, height: 200, lines: true, sigmaBand: true });
+    var g = d3.easygraph.line({ container: wrap, height: 200, lines: true, bands: ['sigma'] });
     g.update([[
       { x: 0, y: 10, sigmaMin: 2, sigmaMax: 18 }
     ]]);
@@ -283,7 +283,7 @@ test('a null-y point breaks the line and ribbon into separate subpaths (gap)', a
 
   const [lineD, ribbonD] = await page.evaluate(() => [
     document.querySelector('path.data-lines').getAttribute('d'),
-    document.querySelector('path.data-ribbons').getAttribute('d')
+    document.querySelector('path.data-minmax').getAttribute('d')
   ]);
 
   // one gap among 4 real points -> two subpaths -> 2 "move to" commands
@@ -342,4 +342,31 @@ test('crosshair accepts { threshold } as well as true', async ({ page }) => {
     return !!g.$crosshairTip;
   });
   expect(ok).toBe(true);
+});
+
+test('bands is a list: [] draws none, a bare string is one band, unknown names and the old keys throw', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var data = [[{ x: 0, y: 1, min: 0, max: 2, sigmaMin: 0.5, sigmaMax: 1.5 }, { x: 1, y: 2, min: 1, max: 3, sigmaMin: 1.5, sigmaMax: 2.5 }]];
+    function mk(extra) {
+      var w = document.createElement('div'); document.body.appendChild(w);
+      var g = d3.easygraph.line(Object.assign({ container: w, height: 200, lines: true }, extra));
+      g.update(data);
+      return { g: g, w: w };
+    }
+    function msg(fn) { try { fn(); return ''; } catch (e) { return e.message; } }
+    var both = mk({ bands: ['minmax', 'sigma'] });
+    var counts = function(o) { return [o.w.querySelectorAll('path.data-minmax').length, o.w.querySelectorAll('path.data-sigma').length]; };
+    var out = { both: counts(both) };
+    both.g.bands = [];            out.none = (both.g.update(data), counts(both));
+    both.g.bands = 'sigma';       out.sigmaOnly = (both.g.update(data), counts(both));
+    out.unknown = msg(function() { mk({ bands: ['median'] }); });
+    out.old = msg(function() { mk({ ribbons: true }); });
+    return out;
+  });
+  expect(r.both).toEqual([1, 1]);
+  expect(r.none).toEqual([0, 0]);
+  expect(r.sigmaOnly).toEqual([0, 1]);
+  expect(r.unknown).toContain('median');
+  expect(r.old).toContain('bands');
 });
