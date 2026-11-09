@@ -39,6 +39,7 @@ d3.easygraph.line = function(config) {
   });
   return d3.easygraph._build(config, {
     _chartType:         'line',
+    _eventTypes:        ['zoom', 'crosshair'],
     _dataShape:         'series',
     lines:              false,
     bands:              null, // null / {} = none; { minmax, sigma } booleans - see _bandSet() below
@@ -129,7 +130,7 @@ d3.easygraph.line = function(config) {
           graph.$zoom = d3.zoom().scaleExtent([z.min != null ? z.min : 1, z.max != null ? z.max : 10]).on("zoom", function(event) {
             graph.x.$scale.domain(event.transform.rescaleX(graph.$xScaleRef).domain());
             graph._redraw();
-            if (graph.onZoom) graph.onZoom(event.transform);
+            graph._emit('zoom', event.transform);
           });
 
           graph.$pane = graph.$svg
@@ -214,14 +215,14 @@ d3.easygraph.line = function(config) {
             var mouseX = d3.pointer(event, graph.$svg.node())[0];
             if (mouseX >= 0 && mouseX <= graph.plotWidth) {
               graph._moveCrosshair(mouseX);
-              if (graph.onCrosshair) graph.onCrosshair(mouseX);
+              graph._emit('crosshair', mouseX);
             } else {
               graph._hideCrosshair();
-              if (graph.onCrosshair) graph.onCrosshair(null);
+              graph._emit('crosshair', null);
             }
           }).on("mouseleave.crosshair", function() {
             graph._hideCrosshair();
-            if (graph.onCrosshair) graph.onCrosshair(null);
+            graph._emit('crosshair', null);
           });
         }
       },
@@ -409,31 +410,26 @@ d3.easygraph.line = function(config) {
   });
 };
 
-// onZoom/onCrosshair are the caller's own hooks, so sync composes with whatever is already
-// there rather than replacing it - assigning over the top (which is what these used to do)
-// silently dropped a callback the caller had set, with no way to have both.
+// The sync helpers are ordinary listeners named 'sync' (graph.on('zoom.sync', ...)), so they sit
+// beside any listener the caller added and calling them twice replaces rather than stacks.
 d3.easygraph.syncZoom = function(graphs) {
   graphs.forEach(function(g) {
     if (!g.$pane) return;
-    var callerOnZoom = g.onZoom;
-    g.onZoom = function(transform) {
-      if (callerOnZoom) callerOnZoom.call(g, transform);
+    g.on('zoom.sync', function(transform) {
       graphs.forEach(function(other) {
         if (other === g || !other.$pane || !other.$xScaleRef) return;
         other.x.$scale.domain(transform.rescaleX(other.$xScaleRef).domain());
         other._redraw();
         other.$pane.node().__zoom = transform;
       });
-    };
+    });
   });
 };
 
 d3.easygraph.syncCrosshair = function(graphs) {
   graphs.forEach(function(g) {
     if (!g._moveCrosshair) return;
-    var callerOnCrosshair = g.onCrosshair;
-    g.onCrosshair = function(mouseX) {
-      if (callerOnCrosshair) callerOnCrosshair.call(g, mouseX);
+    g.on('crosshair.sync', function(mouseX) {
       graphs.forEach(function(other) {
         if (other === g || !other._moveCrosshair || !other.$xScaleRef) return;
         if (mouseX === null) {
@@ -443,6 +439,6 @@ d3.easygraph.syncCrosshair = function(graphs) {
           other._moveCrosshair(other.x.$scale(xValue));
         }
       });
-    };
+    });
   });
 };

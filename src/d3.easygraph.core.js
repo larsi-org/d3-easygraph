@@ -216,7 +216,7 @@ var _nextClipId = 0;
 // almost always a mistake that would otherwise do nothing and say nothing.
 var _SHARED_KEYS = ['container', 'width', 'height', 'margin', 'x', 'y', 'color', 'title', 'duration', 'meta'];
 var _FAMILY_KEYS = {
-  line:    ['lines', 'bands', 'stacked', 'zoom', 'crosshair', 'curve', 'series', 'onZoom', 'onCrosshair'],
+  line:    ['lines', 'bands', 'stacked', 'zoom', 'crosshair', 'curve', 'series'],
   bar:     ['orientation', 'stacked', 'colorPerData', 'series'],
   heatmap: [],
   scatter: ['points', 'voronoi', 'arrows', 'labels']
@@ -229,6 +229,8 @@ var _MOVED_KEYS = {
   mode:             { to: "stacked: true | false ('grouped' is stacked: false)", only: 'bar' },
   radius:           { to: "points: { radius }", only: 'scatter' },
   pointStrokeWidth: { to: "points: { strokeWidth }", only: 'scatter' },
+  onZoom:           { to: "graph.on('zoom', fn)", only: 'line' },
+  onCrosshair:      { to: "graph.on('crosshair', fn)", only: 'line' },
   names:            { to: "series: [{ label }, ...] (one entry per series)" },
   units:            { to: "series: [{ unit }, ...] (one entry per series)" },
   label:            { to: "title (the chart heading) or x.label / y.label (axis names)" },
@@ -459,6 +461,41 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
 
   graph.plotHeight = graph.height - graph._margin.top - graph._margin.bottom;
   _measureWidth();
+
+  // Events: graph.on('zoom', fn) adds a listener; 'zoom.name' replaces the listener with that name
+  // (so calling a setup twice does not stack it); graph.on('zoom.name', null) or graph.off('zoom'[, fn])
+  // removes. Several listeners per event, called in the order added. Which events exist is up to the
+  // family (graph._eventTypes: line has 'zoom' and 'crosshair'); an unknown one throws.
+  var _listeners = [];
+  function _parseEvent(spec) {
+    var dot = spec.indexOf('.'), type = dot < 0 ? spec : spec.slice(0, dot);
+    if ((graph._eventTypes || []).indexOf(type) < 0)
+      throw new Error("d3.easygraph: this chart has no '" + type + "' event" +
+                      ((graph._eventTypes || []).length ? " (available: " + graph._eventTypes.join(', ') + ")" : " (it emits no events)"));
+    return { type: type, name: dot < 0 ? '' : spec.slice(dot + 1) };
+  }
+  graph.on = function(spec, fn) {
+    var ev = _parseEvent(spec);
+    if (fn == null) return graph.off(spec);
+    if (typeof fn !== 'function') throw new Error("d3.easygraph: on(" + JSON.stringify(spec) + ", fn) needs a function");
+    if (ev.name) _listeners = _listeners.filter(function(l) { return !(l.type === ev.type && l.name === ev.name); });
+    _listeners.push({ type: ev.type, name: ev.name, fn: fn });
+    return graph;
+  };
+  graph.off = function(spec, fn) {
+    var ev = _parseEvent(spec);
+    _listeners = _listeners.filter(function(l) {
+      if (l.type !== ev.type) return true;
+      if (ev.name && l.name !== ev.name) return true;
+      if (fn && l.fn !== fn) return true;
+      return false;
+    });
+    return graph;
+  };
+  graph._emit = function(type) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    _listeners.slice().forEach(function(l) { if (l.type === type) l.fn.apply(graph, args); });
+  };
 
   graph._module = moduleFactory(graph);
 

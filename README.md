@@ -556,7 +556,7 @@ The `curve` config takes one of `'linear'`, `'monotone'`, `'step-after'`, `'step
 | `plotWidth`, `plotHeight` | the plot area, inside the margins |
 | `title` | the chart heading (blank unless set); assign and call `update()` to change it |
 | `paletteColors` | the resolved color array |
-| `onZoom`, `onCrosshair` | optional callbacks; `syncZoom`/`syncCrosshair` compose with yours rather than replacing it |
+| `on(event, fn)`, `off(event[, fn])` | listeners, chainable; line charts emit `'zoom'` (the d3 zoom transform) and `'crosshair'` (pixel x, or `null` when it leaves). Several per event, called in the order added. `'zoom.name'` names a listener so adding it again replaces it; `on('zoom.name', null)` or `off` removes. `syncZoom`/`syncCrosshair` are listeners named `sync`. An event the chart does not emit throws |
 
 ## Examples
 

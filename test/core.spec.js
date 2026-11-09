@@ -448,14 +448,14 @@ test('syncZoom/syncCrosshair compose with a caller-set callback instead of repla
     b.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
 
     var zoomCalls = 0, crosshairCalls = 0;
-    a.onZoom = function() { zoomCalls++; };
-    a.onCrosshair = function() { crosshairCalls++; };
+    a.on('zoom', function() { zoomCalls++; });
+    a.on('crosshair', function() { crosshairCalls++; });
     d3.easygraph.syncZoom([a, b]);
     d3.easygraph.syncCrosshair([a, b]);
 
     // drive both through the same path a real gesture would
     d3.select(a.$pane.node()).call(a.$zoom.transform, d3.zoomIdentity.scale(2));
-    a.onCrosshair(10);
+    a._emit('crosshair', 10);
 
     var syncedDomain = b.x.$scale.domain();
     a.destroy(); b.destroy(); w1.remove(); w2.remove();
@@ -998,4 +998,36 @@ test('x.scale, y.scale and color.scale throw when assigned after construction; g
   expect(r.color).toContain('color.scale is fixed');
   expect(r.readable).toBe('time');
   expect(r.palettes).toBe('undefined');
+});
+
+test('graph.on / off: several listeners, namespaces replace, off removes, unknown events and the old onZoom throw', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
+    var g = d3.easygraph.line({ container: w, height: 200, zoom: { min: 1, max: 10 }, lines: true });
+    g.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
+    var log = [];
+    function f1() { log.push('f1'); }
+    var chained = g.on('zoom', f1) === g;
+    g.on('zoom.a', function() { log.push('a1'); });
+    g.on('zoom.a', function() { log.push('a2'); });          // replaces a1
+    g.on('zoom', function() { log.push('f3'); });
+    d3.select(g.$pane.node()).call(g.$zoom.transform, d3.zoomIdentity.scale(2));
+    var first = log.slice(); log.length = 0;
+    g.off('zoom', f1); g.on('zoom.a', null);
+    d3.select(g.$pane.node()).call(g.$zoom.transform, d3.zoomIdentity.scale(3));
+    var second = log.slice();
+    function msg(fn) { try { fn(); return ''; } catch (e) { return e.message; } }
+    var unknown = msg(function() { g.on('click', function() {}); });
+    var old = msg(function() { d3.easygraph.line({ container: w, height: 200, onZoom: function() {} }); });
+    var bars = msg(function() { d3.easygraph.bars({ container: w, height: 200 }).on('zoom', function() {}); });
+    g.destroy(); w.remove();
+    return { chained, first, second, unknown, old, bars };
+  });
+  expect(r.chained).toBe(true);
+  expect(r.first).toEqual(['f1', 'a2', 'f3']);
+  expect(r.second).toEqual(['f3']);
+  expect(r.unknown).toContain("no 'click' event");
+  expect(r.old).toContain("graph.on('zoom', fn)");
+  expect(r.bars).toContain("no 'zoom' event");
 });

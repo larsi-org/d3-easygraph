@@ -17,6 +17,10 @@ All notable changes to this project are documented here. Format loosely follows
 - **Unknown config keys throw** (did-you-mean, or a pointer for a moved or other-family key) instead
   of warning or staying silent. Your own fields go under the new open-ended **`meta`** object
   (`graph.meta`).
+- **`graph.on(event, fn)` / `graph.off(event, fn)`** replace the `onZoom`/`onCrosshair` callback
+  properties (which now throw with a pointer): several listeners per event, d3-style `.name`
+  namespaces, chainable. Line charts emit `'zoom'` and `'crosshair'`. `syncZoom`/`syncCrosshair`
+  register as `zoom.sync`/`crosshair.sync`, so calling them twice no longer stacks.
 - `timeFormatShort` is private; `numberFormat` stays public.
 
 ### Added
