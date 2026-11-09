@@ -42,7 +42,7 @@ d3.easygraph.line = function(config) {
     _dataShape:         'series',
     lines:              false,
     bands:              null, // null / {} = none; { minmax, sigma } booleans - see _bandSet() below
-    stackedArea:        false,
+    stacked:            false,
     zoom:               false,
     crosshair:          false,
     curve:              'linear',
@@ -98,7 +98,7 @@ d3.easygraph.line = function(config) {
           .y1(function(d) { return graph.y.$scale(d.sigmaMax); });
         graph.$line0 = d3.line().curve(_curve).defined(_definedLine).x(_cx).y(function(d) { return graph.y.$scale(0); });
         graph.$line  = d3.line().curve(_curve).defined(_definedLine).x(_cx).y(_cy);
-        // stackedArea's points are d3.easygraph._computeStacked()'s output - same shape as a
+        // stacked's points are d3.easygraph._computeStacked()'s output - same shape as a
         // plain {x,y} point plus a precomputed y0 offset, so _definedLine (checks d.y != null)
         // is exactly the same check a stacked point needs too, no separate function.
         graph.$stack0 = d3.area().curve(_curve).defined(_definedLine).x(_cx)
@@ -237,7 +237,7 @@ d3.easygraph.line = function(config) {
         var yDomain;
         if (yRange) {
           yDomain = yRange;
-        } else if (graph.stackedArea) {
+        } else if (graph.stacked) {
           // a stacked area's own top edge is a cumulative sum across series, not a single
           // series' own values - trim doesn't have a single value array to work from here
           // either, and (like bars' stacked mode) the axis always includes zero regardless of
@@ -278,8 +278,8 @@ d3.easygraph.line = function(config) {
         // mid-flight with all three off, and throwing would break that. Only warns when there's
         // actually data being asked for, so an empty first render stays quiet.
         var B = _bandSet();
-        if (data.length && !graph.lines && !B.minmax && !B.sigma && !graph.stackedArea) {
-          console.warn('d3.easygraph: line chart has data but none of lines/bands/stackedArea ' +
+        if (data.length && !graph.lines && !B.minmax && !B.sigma && !graph.stacked) {
+          console.warn('d3.easygraph: line chart has data but none of lines/bands/stacked ' +
                        'enabled, so nothing will be drawn');
         }
 
@@ -357,7 +357,7 @@ d3.easygraph.line = function(config) {
           graph.$group.selectAll(".easygraph-sigma").remove();
         }
 
-        if (graph.stackedArea) {
+        if (graph.stacked) {
           var stackedData = d3.easygraph._computeStacked(data);
           var dataStack = graph.$group.selectAll(".easygraph-stack").data(stackedData);
           var stackEntered = dataStack.enter().append("path")

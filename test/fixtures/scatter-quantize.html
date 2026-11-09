@@ -24,9 +24,7 @@ window.graph = d3.easygraph.scatter({
   title:        " ",
   x:            { scale: "linear" },
   y:            { scale: "linear" },
-  color:        { domain: [0, 40000], quantize: true },
-  colorPalette: "Sequential.Blues",
-  colorClasses: 4,
+  color: { palette: "Sequential.Blues", classes: 4, domain: [0, 40000], quantize: true },
   height:       320,
   margin:       { top: 10, right: 14, bottom: 30, left: 50 }
 });

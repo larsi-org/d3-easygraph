@@ -16,10 +16,10 @@ Each chart family has its own constructor, taking only the config that family un
 
 | Family | Constructor | Config |
 | --- | --- | --- |
-| Line / band / stacked area | `d3.easygraph.line(config)` | `lines`, `bands` (`{ minmax, sigma }`, each `true` or `false`), `stackedArea`, `zoom`, `crosshair` (`true` or `{ threshold }`, pixels, default 10), `curve`, `series` |
-| Bars | `d3.easygraph.bars(config)` | `orientation` (`'vertical'`\|`'horizontal'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData`, `series` |
+| Line / band / stacked area | `d3.easygraph.line(config)` | `lines`, `bands` (`{ minmax, sigma }`, each `true` or `false`), `stacked`, `zoom`, `crosshair` (`true` or `{ threshold }`, pixels, default 10), `curve`, `series` |
+| Bars | `d3.easygraph.bars(config)` | `orientation` (`'vertical'`\|`'horizontal'`), `stacked` (`true`\|`false`), `colorPerData`, `series` |
 | Heatmap | `d3.easygraph.heatmap(config)` | `color` |
-| Scatter / bubble | `d3.easygraph.scatter(config)` | `color`, `radius`, `pointStrokeWidth`, `voronoi` (`true` or `{ opacity }`), `arrows` (`true` or `{ color, strokeWidth, minLength, maxLength, headLength, headAngle }`), `labels` (`true` or `{ size, offset, minZoom }`) |
+| Scatter / bubble | `d3.easygraph.scatter(config)` | `color`, `points` (`{ radius, strokeWidth }`), `voronoi` (`true` or `{ opacity }`), `arrows` (`true` or `{ color, strokeWidth, minLength, maxLength, headLength, headAngle }`), `labels` (`true` or `{ size, offset, minZoom }`) |
 
 ### Line
 
@@ -38,7 +38,7 @@ chart (assign it, then call `update()`):
   does (see the Public API table), and you're free to supply percentiles or anything else instead.
   If you convert a
   point's `y` (e.g. °C to °F), convert `min`, `max`, `sigmaMin` and `sigmaMax` too.
-- **`stackedArea`** - a classic stacked area chart: plain `{ x, y }` points like `lines`, each
+- **`stacked: true`** - a classic stacked area chart: plain `{ x, y }` points like `lines`, each
   series stacked cumulatively on the ones before it. The y axis always includes zero, regardless of
   `trim`, as in bars' stacked mode. Series are stacked by array index, so (like bars' stacked mode)
   they must be sampled at the same x positions to align.
@@ -59,7 +59,7 @@ doesn't draw a false diagonal from 359° to 0°.
 
 ### Bars
 
-A category axis (`d3.scaleBand()`). `orientation` is fixed for a chart's lifetime; `mode` can be
+A category axis (`d3.scaleBand()`). `orientation` is fixed for a chart's lifetime; `stacked` (default `false`, i.e. grouped) can be
 toggled live. `colorPerData: true` colors each bar from its own `color` field instead of the
 series' palette color.
 
@@ -75,7 +75,7 @@ Colored circles at arbitrary `{ x, y, value }` points over plain continuous x/y 
 is built in - plot pre-projected pixel coordinates (e.g. lat/lng run through your own
 `d3.geoProjection`) to overlay points on a map you draw yourself.
 
-- **Bubble chart:** a point's own `radius` overrides the graph-level `radius` for just that point
+- **Bubble chart:** a point's own `radius` overrides `points.radius` for just that point
   (point size driven by a third data dimension, independent of `value`'s color).
 - **`voronoi: true`** fills the region closer to each point than to any other with that point's own
   color (via `d3.Delaunay`/`.voronoi()`, part of the full `d3@7` bundle). Semi-transparent by
@@ -94,7 +94,7 @@ is built in - plot pre-projected pixel coordinates (e.g. lat/lng run through you
   color snapshot to snapshot instead of shifting with the current data's spread (e.g. altitude).
   `color.quantize: true` swaps the continuous gradient for `paletteColors.length` discrete,
   equal-width bands over the domain - better for data with a few clearly separated ranges (aircraft
-  altitude: a low/climbing band and a distinct cruise band), especially with `colorClasses` to
+  altitude: a low/climbing band and a distinct cruise band), especially with `color.classes` to
   control how many bands a ColorBrewer palette yields.
 - **`graph.rescale(k)`** shrinks point and arrow radius, length and stroke width, and label size, by
   `1/k` and re-renders - for a caller layering its own SVG-transform zoom on top (e.g. a zoomable
@@ -105,12 +105,12 @@ is built in - plot pre-projected pixel coordinates (e.g. lat/lng run through you
 ### Shared config
 
 These are shared by all four families: `container`, `title`, `x`/`y` (`scale`, `unit`, `label`,
-`tickLabels`, `preset`, `convert`, `trim`; `label`/`unit` title the axis), `height`, `margin`, `colorPalette`, `colorClasses`,
-`duration`,
+`tickLabels`, `preset`, `convert`, `trim`; `label`/`unit` title the axis), `height`, `margin`, `duration`, `meta`,
+`color: { palette, classes }`,
 `x.timeFormat: 'multi'` (multi-scale time tick labels - minute/hour/day/month formats picked per tick
 from the tick's own precision, rather than one fixed format for the whole axis; useful on any
 time axis spanning enough range for one format to read badly at both ends).
-`colorClasses` (e.g. `4`) picks that specific class count from a `Sequential.*`/`Diverging.*`
+`color.palette` is a `Kind.Name[.reversed]` palette name (default `Qualitative.Tableau10`; heatmaps default to `Diverging.RdBu.reversed`), and `color.classes` (e.g. `4`) picks that specific class count from a `Sequential.*`/`Diverging.*`
 palette instead of its largest available one (3–9 shades per named palette); ignored for
 `Qualitative.*` and the hardcoded extras, none of which are classed data.
 
@@ -130,19 +130,18 @@ be sorted ascending by `x`**. Unsorted input doesn't error - it just reports the
 Every other feature is order-independent; this is the one that isn't.
 
 `x`/`y`'s `scale` must be `'linear'` (the default) or `'time'`; bars' `orientation` must be
-`'vertical'` or `'horizontal'` and its `mode` `'stacked'` or `'grouped'`. Each is checked rather
-than left to fall through, since every internal test on them reads as "one value, else the other"
-- a typo would otherwise render the wrong chart with no complaint. `mode` is re-checked on every
-`update()`, so a bad value assigned to a live chart is caught too.
+`'vertical'` or `'horizontal'`. Each is checked rather than left to fall through, since every
+internal test on them reads as "one value, else the other" - a typo would otherwise render the
+wrong chart with no complaint.
 
-A `line` chart with data but none of `lines`/`bands`/`stackedArea` enabled draws axes and
+A `line` chart with data but none of `lines`/`bands`/`stacked` enabled draws axes and
 nothing else, and warns on the console saying so. That's a warning rather than an error because
 the flags are meant to be toggled on a live chart, so being briefly in that state is legitimate.
 
-Config keys a family doesn't understand are ignored, because you can hang your own properties on a
-config (see **Public API**). The constructor does warn on the console, with a suggestion, when a
-key is a near-miss of a real option (`colorPallete`) or belongs to another family (`zoom` on a
-bar chart); a key that looks like neither stays silent.
+An unknown top-level config key **throws**, with a did-you-mean when it is a near-miss of a real
+option (`titel`) and a pointer when it is an old name (`colorPalette` is now `color: { palette }`) or
+belongs to another family (`zoom` on a bar chart). Your own fields go under **`meta`**, an
+open-ended object that is copied to `graph.meta` untouched (`meta: { sensors: [0, 1] }`).
 
 `container` accepts a CSS selector string, a DOM element, or a d3 selection. `container` must
 resolve to an element, and `height` must be a positive number *greater than
@@ -182,7 +181,7 @@ d3.easygraph.resolvePreset("temperatureF");
 // => { label: "Temperature", unit: "°F", scale: "linear", convert: f(v, d) }
 
 d3.easygraph.resolvePreset("temperatureF").convert(20);      // => 68        (20°C to °F)
-d3.easygraph.resolvePreset("temperatureF").convert(20.44, 1); // => 68.8 (68.792, rounded to 1 decimal)
+d3.easygraph.resolvePreset("temperatureF").convertRounded(20.44, 1); // => 68.8 (68.792, rounded to 1 decimal)
 ```
 
 `resolvePreset(name)` returns the named preset - a complete, ready-to-use `{ label, unit, scale,
@@ -195,10 +194,11 @@ preset declares a `range` either - a sensible axis range is data-dependent (what
 sensor actually observes), not a fixed property of the physical quantity, so charts with no
 `range` of their own auto-scale from whatever data is currently loaded.
 
-`convert` optionally takes a second argument, `convert(v, d)`, rounding the converted result to
-`d` decimal places via `d3.easygraph.round` - sugar for `round(convert(v), d)` in one call.
-`convert(v)` alone stays unrounded, so a consumer that needs full precision (e.g. interpolating a
-continuous color scale) isn't forced to lose it. `d3.easygraph.round(x, n)` itself is also public -
+`convert(v)` takes exactly one argument and stays unrounded, so a consumer that needs full
+precision (e.g. interpolating a continuous color scale) isn't forced to lose it. `convertRounded(v, d)`
+rounds the converted result to `d` decimal places, sugar for `round(convert(v), d)`; a custom
+`convert` you supply gets a `convertRounded` automatically. (Passing a second argument to `convert`
+throws.) `d3.easygraph.round(x, n)` itself is also public -
 a plain explicit-precision helper.
 
 ### Compass labels
@@ -218,7 +218,7 @@ function returning a label can't be one.
 
 ## Color palettes (no chart required)
 
-The same `colorPalette`/`colorClasses` resolution a chart's `paletteColors` goes through
+The same `color.palette`/`color.classes` resolution a chart's `paletteColors` goes through
 internally is also available standalone - no container, no chart construction:
 
 ```js
@@ -321,7 +321,7 @@ d3.easygraph.presets.soilMoisture =
 d3.easygraph.colorPalettes["Sequential.MyBrand"] = ["#eef", "#88a", "#114"];
 
 d3.easygraph.line({ container: "#g", height: 320, y: { preset: "soilMoisture" },
-                    colorPalette: "Sequential.MyBrand" });
+                    color: { palette: "Sequential.MyBrand" } });
 ```
 
 A preset needs all four of `label`, `unit`, `scale`, and `convert` - `resolvePreset()` returns whatever
@@ -505,7 +505,7 @@ calling code. **Filter non-finite values out, or convert them to `null`, before 
 This is the supported surface - what semantic versioning covers. **Everything else reachable on a
 graph object, including all `$`-prefixed (D3 selections, scales, shape generators) and
 `_`-prefixed properties, is internal and may change in any release.** Attaching your own
-properties to a graph is fine and supported; the library only ever writes the names below.
+properties to a graph is fine and supported (in config, put them under `meta`); the library only ever writes the names below.
 
 **Module-level** - usable with no chart at all:
 
@@ -531,13 +531,13 @@ properties to a graph is fine and supported; the library only ever writes the na
 | `paletteColor(i)` | the i-th palette color, wrapping past the end |
 | `legendItems()` | the `{ index, color, label }` rows a legend is drawn from - see below |
 | `rescale(k)` | scatter only - divide on-screen marker sizes by `k` (see the table above) |
-| `numberFormat(v)`, `timeFormatShort(date)` | the formatters the axes use, exposed so a tooltip or legend can match them |
+| `numberFormat(v)` | the number formatter the axes use, exposed so a tooltip or legend can match it |
 
 **Which keys can change after construction.** Assign to the graph, then call `update()` again.
 
 | Re-read on every `update()` (toggle live) | Fixed when the chart is built |
 |---|---|
-| `lines`, `bands`, `stackedArea` (line), `mode` (bars), `voronoi`, `arrows`, `labels` (scatter), `duration`, `series`, `title`, `radius`, `pointStrokeWidth` | `container`, `height`, `margin`, `orientation`, `curve`, `zoom`, `crosshair`, `colorPalette`, `colorClasses`, `x.scale`, `y.scale`, `color.scale`, and the `x`/`y`/`color` presets |
+| `lines`, `bands`, `stacked` (line and bars), `voronoi`, `arrows`, `labels`, `points` (scatter), `duration`, `series`, `title`, `meta` | `container`, `height`, `margin`, `orientation`, `curve`, `zoom`, `crosshair`, `color.palette`, `color.classes`, `x.scale`, `y.scale`, `color.scale`, and the `x`/`y`/`color` presets |
 
 The right-hand column is what a chart is built around; to change one, `destroy()` it and build a
 new chart. This split, plus the names in this README, is the API that 1.0.0 freezes.
@@ -550,7 +550,7 @@ The `curve` config takes one of `'linear'`, `'monotone'`, `'step-after'`, `'step
 
 | | |
 | --- | --- |
-| every config key you passed | `container`, `height`, `margin`, `duration`, `colorPalette`, `colorClasses`, and the family's own flags - readable, and the family flags (`lines`, `bands`, `stackedArea`, `mode`, `voronoi`, `arrows`, `labels`, `series`, …) are re-read on every `update()`, so assigning one and re-rendering is the supported way to toggle a chart live |
+| every config key you passed | `container`, `height`, `margin`, `duration`, `color`, and the family's own flags - readable, and the family flags (`lines`, `bands`, `stacked`, `voronoi`, `points`, `arrows`, `labels`, `series`, …) are re-read on every `update()`, so assigning one and re-rendering is the supported way to toggle a chart live |
 | `x`, `y`, and (heatmap/scatter) `color` | the resolved per-property configs; `$scale` and `$axis` on each are the intended escape hatch into D3. `graph.$svg` (the margin-translated group the axes live in) and `graph.$group` (the clipped plot area) are stable too, for drawing your own marks. Every other `$`- or `_`-prefixed name is private and may change |
 | `width`, `height` | the full `<svg>` box. `height` is exactly what you configured and is never replaced; `width` follows the container (or is the logical width you configured, in fixed-size mode) |
 | `plotWidth`, `plotHeight` | the plot area, inside the margins |
@@ -580,7 +580,7 @@ code; these pages are the working examples:
   `voronoi: { opacity }`; drop a point and the others stay put), and two real
   map overlays: [Weather](https://larsi.org/weather/)'s "Pressure & Wind" tab (`voronoi: true`,
   `color.trim`, `arrows: true` overlaying wind speed/direction on top of pressure) and
-  [Air Traffic](https://larsi.org/air-traffic/) (`color.domain` + `color.quantize`/`colorClasses`
+  [Air Traffic](https://larsi.org/air-traffic/) (`color.domain` + `color.quantize`/`color.classes`
   for four discrete altitude bands instead of a continuous gradient, `labels: { minZoom }` for
   callsigns once zoomed in). Both are drawn over a D3 US map through a shared pan/zoom helper (not
   part of this repo) that drives `graph.rescale(k)` to keep points and arrows a constant size

@@ -9,11 +9,11 @@ test('renders grouped bars with the right element counts', async ({ page }) => {
   await expect(page.locator('rect.easygraph-bar')).toHaveCount(6);
 });
 
-test('live graph.mode toggle to stacked re-renders in place, no reconstruction', async ({ page }) => {
+test('live graph.stacked toggle to true re-renders in place, no reconstruction', async ({ page }) => {
   await page.goto(FIXTURE);
 
   await page.evaluate(() => {
-    window.graph.mode = 'stacked';
+    window.graph.stacked = true;
     window.graph.update(window.testData);
   });
 
@@ -73,41 +73,21 @@ test('update([]) with no data yields a real [0,1] value domain, not [0, undefine
   expect(result.bars).toBe(0);
 });
 
-test('mode rejects an unrecognized value, at construction and on a live toggle', async ({ page }) => {
+test('the old mode key throws with a pointer to stacked', async ({ page }) => {
   await page.goto(FIXTURE);
-  const r = await page.evaluate(() => {
-    var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
-    var data = [[{ x: 'a', y: 1 }], [{ x: 'a', y: 2 }]];
-
-    var atConstruction;
-    try {
-      var bad = d3.easygraph.bars({ container: w, height: 200, mode: 'stakced' });
-      bad.update(data); atConstruction = 'NO ERROR';
-    } catch (e) { atConstruction = e.message; }
-
-    // the live-toggle path - mode is documented as switchable on a rendered chart
-    var g = d3.easygraph.bars({ container: w, height: 200, mode: 'grouped' });
-    g.update(data);
-    var onToggle;
-    try { g.mode = 'Stacked'; g.update(data); onToggle = 'NO ERROR'; }
-    catch (e) { onToggle = e.message; }
-
-    g.mode = 'stacked'; g.update(data);          // a correct toggle still works
-    var validToggleBars = w.querySelectorAll('rect.easygraph-bar').length;
-    g.destroy(); w.remove();
-    return { atConstruction, onToggle, validToggleBars };
+  const msg = await page.evaluate(() => {
+    var w = document.createElement('div'); document.body.appendChild(w);
+    try { d3.easygraph.bars({ container: w, height: 200, mode: 'stacked' }); return 'NO ERROR'; }
+    catch (e) { return e.message; }
   });
-  expect(r.atConstruction).toContain('mode must be "stacked" or "grouped"');
-  expect(r.atConstruction).toContain('stakced');
-  expect(r.onToggle).toContain('mode must be "stacked" or "grouped"'); // case matters
-  expect(r.validToggleBars).toBe(2);
+  expect(msg).toContain("'mode' is now stacked");
 });
 
 test('horizontal bars render: grouped bars start at the value axis zero and run right', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(async () => {
     var w = document.createElement('div'); w.style.width = '600px'; document.body.appendChild(w);
-    var g = d3.easygraph.bars({ container: w, height: 300, orientation: 'horizontal', mode: 'grouped', duration: 0 });
+    var g = d3.easygraph.bars({ container: w, height: 300, orientation: 'horizontal', stacked: false, duration: 0 });
     g.update([[{ x: 'a', y: 10 }, { x: 'b', y: 20 }]]); // no ranges: categories and value auto-fit
     // d3 transitions run on the next frame even at duration 0, so the geometry below is the
     // enter state until they have flushed
@@ -134,7 +114,7 @@ test('horizontal bars render: stacked series pick up where the previous one ends
   await page.goto(FIXTURE);
   const r = await page.evaluate(async () => {
     var w = document.createElement('div'); w.style.width = '600px'; document.body.appendChild(w);
-    var g = d3.easygraph.bars({ container: w, height: 300, orientation: 'horizontal', mode: 'stacked', duration: 0 });
+    var g = d3.easygraph.bars({ container: w, height: 300, orientation: 'horizontal', stacked: true, duration: 0 });
     // two series over one category: 10 then 20 stacked on top of it
     g.update([[{ x: 'a', y: 10 }], [{ x: 'a', y: 20 }]]);
     await new Promise(function (r) { setTimeout(r, 250); });

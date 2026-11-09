@@ -87,13 +87,16 @@ test('convert() is a no-op (identity) for presets without a real conversion', as
   expect(value).toBe(1013.25);
 });
 
-test('convert(v, d) rounds the converted result to d decimal places', async ({ page }) => {
+test('convertRounded(v, d) rounds the converted result; convert takes one argument only', async ({ page }) => {
   await page.goto(FIXTURE);
   const results = await page.evaluate(() => [
-    d3.easygraph.resolvePreset('temperatureF').convert(20.5, 0),  // 68.9 -> 69
-    d3.easygraph.resolvePreset('temperatureF').convert(20.5, 1),  // 68.9 -> 68.9
-    d3.easygraph.resolvePreset('pressureInhg').convert(1000, 2)   // 29.53 -> 29.53
+    d3.easygraph.resolvePreset('temperatureF').convertRounded(20.5, 0),  // 68.9 -> 69
+    d3.easygraph.resolvePreset('temperatureF').convertRounded(20.5, 1),  // 68.9 -> 68.9
+    d3.easygraph.resolvePreset('pressureInhg').convertRounded(1000, 2),  // 29.53 -> 29.53
+    (function() { try { d3.easygraph.resolvePreset('temperatureF').convert(20.5, 1); return 'no error'; }
+                  catch (e) { return e.message; } })()
   ]);
+  expect(results[3]).toContain('convertRounded');
   expect(results[0]).toBe(69);
   expect(results[1]).toBe(68.9);
   expect(results[2]).toBe(29.53);
@@ -208,7 +211,7 @@ test('presets and colorPalettes are extensible - the documented way to add your 
     document.body.appendChild(wrap);
     var g = d3.easygraph.line({
       container: wrap, height: 200, lines: true,
-      y: { preset: 'soilMoisture' }, colorPalette: 'Sequential.MyBrand'
+      y: { preset: 'soilMoisture' }, color: { palette: 'Sequential.MyBrand' }
     });
     g.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
     var title = g.$yTitle.text();

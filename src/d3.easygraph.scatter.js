@@ -70,7 +70,7 @@ d3.easygraph.scatter = function(config) {
   return d3.easygraph._build(config, {
     _chartType: 'scatter',
     _dataShape: 'points',
-    radius: 4, pointStrokeWidth: 0.5, voronoi: false,
+    points: true, voronoi: false,
     arrows: false,
     labels: false
   }, function(graph) {
@@ -78,6 +78,7 @@ d3.easygraph.scatter = function(config) {
     // these. Resolved on every render so assigning graph.arrows / graph.labels live still works.
     var ARROW_DEFAULTS = { color: '#000', strokeWidth: 1.5, minLength: 6, maxLength: 24,
                            headLength: 6, headAngle: Math.PI / 7 };
+    var POINT_DEFAULTS = { radius: 4, strokeWidth: 0.5 };
     var LABEL_DEFAULTS = { size: 10, offset: 8, minZoom: 1 };
     function withDefaults(value, defaults) {
       return Object.assign({}, defaults, (value && typeof value === 'object') ? value : null);
@@ -105,6 +106,7 @@ d3.easygraph.scatter = function(config) {
       // (point radius, arrow length/head) so they stay constant when this render is reached
       // through a caller's own zoom-transform scaling, rather than growing with it.
       var k = (graph._zoomScale || 1) * (graph._viewScale || 1);
+      var P = withDefaults(graph.points, POINT_DEFAULTS);
 
       // ranges.color (this render) beats color.domain (fixed at construction) beats the data's
       // own clipped extent - see _colorDomain in core.js, which both color-scale families share.
@@ -171,8 +173,8 @@ d3.easygraph.scatter = function(config) {
       points.exit().remove();
       points = pointsEnter.merge(points);
       points
-        .attr("r",  function(d) { return (d.radius != null ? d.radius : graph.radius) / k; })
-        .style("stroke-width", (graph.pointStrokeWidth / k) + "px");
+        .attr("r",  function(d) { return (d.radius != null ? d.radius : P.radius) / k; })
+        .style("stroke-width", (P.strokeWidth / k) + "px");
       points.transition().duration(graph.duration).ease(d3.easeCubicInOut)
         .attr("cx", function(d) { return graph.x.$scale(d.x); })
         .attr("cy", function(d) { return graph.y.$scale(d.y); })

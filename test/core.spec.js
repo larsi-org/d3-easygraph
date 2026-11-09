@@ -702,15 +702,14 @@ test('graph.legendItems(): a quantized color scale gives bands with from/to edge
     var w = document.createElement('div'); w.style.width = '500px'; document.body.appendChild(w);
     var g = d3.easygraph.scatter({
       container: w, height: 200,
-      color: { domain: [0, 40000], quantize: true },
-      colorPalette: 'Sequential.Blues', colorClasses: 4
+      color: { domain: [0, 40000], quantize: true, palette: 'Sequential.Blues', classes: 4 }
     });
     g.update([{ x: 0, y: 0, value: 0 }, { x: 1, y: 1, value: 40000 }], { x: [0, 1], y: [0, 1] });
     var items = g.legendItems();
     g.destroy(); w.remove();
     return items;
   });
-  expect(items.length).toBe(4);                       // one per band, matching colorClasses
+  expect(items.length).toBe(4);                       // one per band, matching color.classes
   expect(items[0].from).toBe(0);
   expect(items[0].to).toBe(10000);
   expect(items[3].from).toBe(30000);
@@ -789,7 +788,7 @@ test('a line chart with data but no mark type enabled warns instead of silently 
   page.on('console', (m) => { if (m.type() === 'warning') warnings.push(m.text()); });
   const marks = await page.evaluate(() => {
     var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
-    var g = d3.easygraph.line({ container: w, height: 200 }); // no lines/bands/stackedArea
+    var g = d3.easygraph.line({ container: w, height: 200 }); // no lines/bands/stacked
     g.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
     var withData = w.querySelectorAll('path.easygraph-line, path.easygraph-minmax, path.easygraph-stack').length;
     g.update([]); // an empty render must stay quiet - nothing was asked for
@@ -798,7 +797,7 @@ test('a line chart with data but no mark type enabled warns instead of silently 
   });
   expect(marks).toBe(0);
   expect(warnings.length).toBe(1); // exactly one: the data render, not the empty one
-  expect(warnings[0]).toContain('none of lines/bands/stackedArea');
+  expect(warnings[0]).toContain('none of lines/bands/stacked');
 });
 
 test('ranges.color pins the color domain, beating both color.domain and the data', async ({ page }) => {
@@ -886,7 +885,7 @@ test('top-level label and unit throw with a pointer to title and x/y.label', asy
     return out;
   });
   expect(r.title).toBe('Given');
-  expect(r.oldLabel).toContain("'title'");
+  expect(r.oldLabel).toContain('title');
   expect(r.oldUnit).toContain('x.unit');
 });
 
@@ -952,25 +951,32 @@ test('names and units are gone: they throw with a pointer to series; series must
   expect(r.notArray).toContain('array');
 });
 
-test('config typos and wrong-family keys warn with a suggestion; custom fields stay silent', async ({ page }) => {
+test('unknown, misspelled, wrong-family and moved config keys throw; meta carries your own fields', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
-    var warnings = []; var orig = console.warn; console.warn = function(m) { warnings.push(String(m)); };
     function mk(ctor, cfg) { var w = document.createElement('div'); document.body.appendChild(w);
-      return d3.easygraph[ctor](Object.assign({ container: w, height: 200 }, cfg)); }
-    mk('line', { lines: true, colorPallete: 'x', curv: 'linear' });
-    mk('bars', { zoom: { min: 1, max: 5 } });
-    mk('line', { lines: true, sensors: [0, 1], channels: [3], preset: 'temperatureF', stationName: 'x' });
-    // the same typo twice warns once
-    mk('line', { lines: true, colorPallete: 'x' });
-    console.warn = orig;
-    return warnings;
+      try { var g = d3.easygraph[ctor](Object.assign({ container: w, height: 200 }, cfg)); return g; }
+      catch (e) { return e.message; } }
+    var meta = mk('line', { lines: true, meta: { sensors: [0, 1], preset: 'temperatureF' } });
+    return {
+      typo:    mk('line', { lines: true, titel: 'x' }),
+      typo2:   mk('line', { curv: 'linear' }),
+      family:  mk('bars', { zoom: { min: 1, max: 5 } }),
+      unknown: mk('line', { sensors: [0, 1] }),
+      moved:   mk('line', { colorPalette: 'Sequential.Blues' }),
+      stacked: mk('line', { stackedArea: true }),
+      radius:  mk('scatter', { radius: 5 }),
+      meta:    meta.meta
+    };
   });
-  expect(r.some((m) => m.includes("'colorPallete'") && m.includes("'colorPalette'"))).toBe(true);
-  expect(r.some((m) => m.includes("'curv'") && m.includes("'curve'"))).toBe(true);
-  expect(r.some((m) => m.includes("'zoom'") && m.includes('line'))).toBe(true);
-  expect(r.filter((m) => m.includes('colorPallete')).length).toBe(1);
-  expect(r.some((m) => /sensors|channels|preset|stationName/.test(m))).toBe(false);
+  expect(r.typo).toContain("did you mean");
+  expect(r.typo2).toContain("'curve'");
+  expect(r.family).toContain("line option");
+  expect(r.unknown).toContain('meta');
+  expect(r.moved).toContain('color: { palette }');
+  expect(r.stacked).toContain('stacked: true');
+  expect(r.radius).toContain('points: { radius }');
+  expect(r.meta.sensors).toEqual([0, 1]);
 });
 
 test('x.scale, y.scale and color.scale throw when assigned after construction; graph.colorPalettes is gone', async ({ page }) => {

@@ -4,32 +4,22 @@
 // Copyright (c) 2026, Lars Schumann, larsi.org@gmail.com
 //
 // The bars chart-family constructor: vertical/horizontal, stacked/grouped.
-// `orientation` is fixed for a graph's lifetime, but `mode` can be toggled live
+// `orientation` is fixed for a graph's lifetime, but `stacked` can be toggled live
 // (see data_monthly.php/h.php's dropdown) - domain()/render() always re-read the
 // live config rather than caching a choice made at construction. Stacking itself
 // (accumulating y0 offsets) is d3.easygraph._computeStacked() in core.js, shared with
-// line.js's stackedArea.
+// line.js's stacked.
 
 d3.easygraph.bars = function(config) {
   return d3.easygraph._build(config, {
     _chartType:   'bar',
     _dataShape:   'series',
     orientation:  'vertical',
-    mode:         'grouped',
+    stacked:      false,
     colorPerData: false,
     series:       null // optional [{ label }, ...], one per series passed to update(): what legendItems()
                        // labels each entry with
   }, function(graph) {
-    // `mode`, unlike `orientation`, is meant to be toggled on a live chart, so it's re-checked on
-    // every update() rather than only at construction - a bad value assigned afterwards would
-    // otherwise fall through to "grouped" just as silently as a bad one passed in.
-    function _checkMode() {
-      if (graph.mode !== 'stacked' && graph.mode !== 'grouped') {
-        throw new Error('d3.easygraph: mode must be "stacked" or "grouped", got ' +
-                        JSON.stringify(graph.mode));
-      }
-    }
-
     // enter/exit/merge bar group <g> elements
     function _bindGroups(data) {
       var sel = graph.$group.selectAll("g.easygraph-bar-group").data(data);
@@ -164,7 +154,6 @@ d3.easygraph.bars = function(config) {
           throw new Error('d3.easygraph: orientation must be "vertical" or "horizontal", got ' +
                           JSON.stringify(graph.orientation));
         }
-        _checkMode();
         if (graph.orientation === 'vertical') {
           graph.x.$scale = d3.scaleBand().rangeRound([0, graph.plotWidth]).padding(.2);
           graph.y.$scale = (graph.y.scale === 'time') ? d3.scaleTime() : d3.scaleLinear();
@@ -177,9 +166,8 @@ d3.easygraph.bars = function(config) {
       },
 
       domain: function(data, xRange, yRange) {
-        _checkMode(); // runs before every render, so a live `graph.mode = ...` is checked too
         var isH = graph.orientation === 'horizontal';
-        var isStacked = graph.mode === 'stacked';
+        var isStacked = graph.stacked;
 
         var stacked = isStacked ? d3.easygraph._computeStacked(data) : undefined;
 
@@ -218,7 +206,7 @@ d3.easygraph.bars = function(config) {
       legendItems: function() { return d3.easygraph._seriesLegendItems(graph); },
 
       render: function(data) {
-        var isStacked = graph.mode === 'stacked';
+        var isStacked = graph.stacked;
         var stacked = isStacked ? d3.easygraph._computeStacked(data) : undefined;
         if (graph.orientation === 'vertical' && isStacked)  barsStackedV(stacked);
         if (graph.orientation === 'vertical' && !isStacked) barsGroupedV(data);

@@ -5,6 +5,20 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Changed (final pre-1.0 API pass)
+- **`color: { palette, classes }`** replaces top-level `colorPalette`/`colorClasses`, on every family
+  (heatmap and scatter keep their scale options in the same object). Both are fixed at construction.
+- **`stacked`** replaces line's `stackedArea` and bars' `mode: 'stacked' | 'grouped'`: one boolean
+  name for both families (`stacked: false` is grouped). Live-toggleable.
+- **`points: { radius, strokeWidth }`** replaces scatter's `radius` and `pointStrokeWidth`, matching
+  `arrows`/`labels`/`voronoi`. A point's own `radius` field still overrides.
+- **`convert(v)` takes one argument; `convertRounded(v, d)` rounds.** `convert(v, d)` throws. A
+  custom `convert` gets a `convertRounded` automatically.
+- **Unknown config keys throw** (did-you-mean, or a pointer for a moved or other-family key) instead
+  of warning or staying silent. Your own fields go under the new open-ended **`meta`** object
+  (`graph.meta`).
+- `timeFormatShort` is private; `numberFormat` stays public.
+
 ### Added
 - **Fixed-size mode: `width` together with `height`.** The chart is drawn once at that logical size
   and scaled uniformly by the browser through a `viewBox` (no relayout on resize), for maps and other

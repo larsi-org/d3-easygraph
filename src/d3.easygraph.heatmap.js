@@ -15,12 +15,12 @@ d3.easygraph.heatmap = function(config) {
 
   // Overrides _build()'s shared Qualitative.Tableau10 default - a set of unrelated categorical
   // hues makes no sense spread across a heatmap's continuous scaleLinear gradient the way it
-  // does as line/bars/scatter's per-series colors. A caller's own colorPalette in config still
+  // does as line/bars/scatter's per-series colors. A caller's own color.palette in config still
   // wins (config is folded onto graph before familyDefaults is even consulted).
   return d3.easygraph._build(config, {
     _chartType:   'heatmap',
     _dataShape:   'grid',
-    colorPalette: 'Diverging.RdBu.reversed'
+    _palette:     'Diverging.RdBu.reversed'
   }, function(graph) {
     function render(data) {
       // Empty data (a page whose first fetch hasn't resolved yet) used to reach data[0].length

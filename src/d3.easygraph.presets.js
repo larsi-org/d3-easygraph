@@ -68,18 +68,22 @@ function _windSpeedMs2Kmph(v)  { return v * 3.6; }
 function _windSpeedMs2Mph(v)   { return v * 2.23694; }
 function _rainFallMm2Inches(v) { return v / 25.4; }
 
-// wraps a raw convert(v) formula so it also accepts an optional decimals arg: convert(v) stays
-// the raw, unrounded value (safe for e.g. color-scale interpolation); convert(v, d) rounds it
-// via d3.easygraph.round(..., d) - sugar for round(convert(v), d) in one call
-function _withRounding(rawConvert) {
-  return function(v, d) {
-    var converted = rawConvert(v);
-    return (d === undefined) ? converted : d3.easygraph.round(converted, d);
+// convert(v) is the raw, unrounded value (safe for color-scale interpolation); the rounded form
+// is its own function, convertRounded(v, d) = round(convert(v), d). convert takes exactly one
+// argument: the old convert(v, d) overload throws instead of silently doing something else.
+function _strictConvert(rawConvert) {
+  return function(v) {
+    if (arguments.length > 1)
+      throw new Error("d3.easygraph: convert(v) takes one argument - use convertRounded(v, decimals) to round");
+    return rawConvert(v);
   };
 }
+d3.easygraph._roundedFrom = function(convert) {
+  return function(v, d) { return d3.easygraph.round(convert(v), d); };
+};
 
-// shared by every preset with no real conversion - computed once, referenced everywhere below
-var _roundedIdentity = _withRounding(_identity);
+var _withRounding = _strictConvert;
+var _roundedIdentity = _strictConvert(_identity);
 
 // every preset is a complete unit definition - `convert` is always present (identity when a
 // quantity needs no conversion), so resolvePreset() never needs a second fallback merge to fill gaps
@@ -107,6 +111,11 @@ d3.easygraph.presets = {
 // Returns the named preset, or presets.default when name is falsy (no preset asked for). An
 // unrecognized non-empty name throws: a typo like 'temprature' used to fall back to the blank
 // default silently, giving a chart with no label, unit or conversion and no hint why.
+Object.keys(d3.easygraph.presets).forEach(function(name) {
+  var p = d3.easygraph.presets[name];
+  p.convertRounded = d3.easygraph._roundedFrom(p.convert);
+});
+
 d3.easygraph.resolvePreset = function(name) {
   if (!name) return d3.easygraph.presets.default;
   var preset = d3.easygraph.presets[name];

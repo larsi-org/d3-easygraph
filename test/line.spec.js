@@ -118,12 +118,12 @@ test('a series whose point count stays the same still transitions smoothly (regr
   expect(settledD).toBe(finalD);
 });
 
-test('stackedArea stacks series cumulatively, each layer riding on top of the previous', async ({ page }) => {
+test('stacked stacks series cumulatively, each layer riding on top of the previous', async ({ page }) => {
   await page.goto(FIXTURE);
   const result = await page.evaluate(() => {
     var wrap = document.createElement('div');
     document.body.appendChild(wrap);
-    var g = d3.easygraph.line({ container: wrap, x: { scale: 'linear' }, height: 200, stackedArea: true });
+    var g = d3.easygraph.line({ container: wrap, x: { scale: 'linear' }, height: 200, stacked: true });
     g.update([
       [ { x: 0, y: 10 }, { x: 1, y: 10 } ],
       [ { x: 0, y: 5 },  { x: 1, y: 5 } ]
@@ -139,12 +139,12 @@ test('stackedArea stacks series cumulatively, each layer riding on top of the pr
   expect(result.yDomain).toEqual([0, 15]);
 });
 
-test('stackedArea with no data falls back to a [0,1] y domain instead of NaN', async ({ page }) => {
+test('stacked with no data falls back to a [0,1] y domain instead of NaN', async ({ page }) => {
   await page.goto(FIXTURE);
   const yDomain = await page.evaluate(() => {
     var wrap = document.createElement('div');
     document.body.appendChild(wrap);
-    var g = d3.easygraph.line({ container: wrap, height: 200, stackedArea: true });
+    var g = d3.easygraph.line({ container: wrap, height: 200, stacked: true });
     g.update([]);
     var yDomain = g.y.$scale.domain();
     g.destroy();
@@ -154,16 +154,16 @@ test('stackedArea with no data falls back to a [0,1] y domain instead of NaN', a
   expect(yDomain).toEqual([0, 1]);
 });
 
-test('toggling stackedArea off and re-rendering removes its paths', async ({ page }) => {
+test('toggling stacked off and re-rendering removes its paths', async ({ page }) => {
   await page.goto(FIXTURE);
   const counts = await page.evaluate(() => {
     var wrap = document.createElement('div');
     document.body.appendChild(wrap);
-    var g = d3.easygraph.line({ container: wrap, height: 200, stackedArea: true });
+    var g = d3.easygraph.line({ container: wrap, height: 200, stacked: true });
     var data = [[ { x: 0, y: 10 }, { x: 1, y: 10 } ]];
     g.update(data);
     var before = wrap.querySelectorAll('path.easygraph-stack').length;
-    g.stackedArea = false;
+    g.stacked = false;
     g.update(data);
     var after = wrap.querySelectorAll('path.easygraph-stack').length;
     g.destroy();

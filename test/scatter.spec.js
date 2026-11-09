@@ -21,7 +21,7 @@ test('a point\'s own radius overrides the graph-level radius (bubble chart)', as
   const radii = await page.evaluate(() => {
     var wrap = document.createElement('div');
     document.body.appendChild(wrap);
-    var g = d3.easygraph.scatter({ container: wrap, height: 200, radius: 4 });
+    var g = d3.easygraph.scatter({ container: wrap, height: 200, points: { radius: 4 } });
     g.update([
       { x: 0, y: 0, value: 0, radius: 10 },
       { x: 1, y: 1, value: 1 } // no radius - falls back to the graph-level default (4)
@@ -232,14 +232,14 @@ test('color.quantize: true buckets points into paletteColors.length discrete col
   const fills = await page.evaluate(() =>
     [...document.querySelectorAll('circle.easygraph-point')].map((c) => getComputedStyle(c).fill)
   );
-  // 5 points across 4 bands (colorClasses: 4) - exactly 4 distinct colors, not 5
+  // 5 points across 4 bands (color.classes: 4) - exactly 4 distinct colors, not 5
   expect(new Set(fills).size).toBe(4);
   // the two points in the same 30-40k band (32000 and 38000) get the identical color, not
   // two subtly different shades the way a continuous gradient would produce
   expect(fills[3]).toBe(fills[4]);
 });
 
-test('colorClasses picks a specific class count from a Sequential palette instead of its largest available', async ({ page }) => {
+test('color.classes picks a specific class count from a Sequential palette instead of its largest available', async ({ page }) => {
   await page.goto(QUANTIZE_FIXTURE);
   const paletteLength = await page.evaluate(() => window.graph.paletteColors.length);
   expect(paletteLength).toBe(4);
@@ -397,7 +397,7 @@ test('rescale(k) shrinks point stroke-width by 1/k too, not just radius', async 
     window.graph.rescale(2);
     return document.querySelector('circle.easygraph-point').style.strokeWidth;
   });
-  // default pointStrokeWidth is 0.5
+  // default points.strokeWidth is 0.5
   expect(before).toBe('0.5px');
   expect(after).toBe('0.25px');
 });
@@ -473,7 +473,7 @@ test('width + height is a fixed-size chart: viewBox, no relayout, marks keep the
     var wrap = document.createElement('div');
     wrap.style.width = '400px';
     document.body.appendChild(wrap);
-    var g = d3.easygraph.scatter({ container: wrap, width: 800, height: 400, radius: 6,
+    var g = d3.easygraph.scatter({ container: wrap, width: 800, height: 400, points: { radius: 6 },
                                    margin: { top: 0, right: 0, bottom: 0, left: 0 } });
     g.update([{ x: 0, y: 0, value: 0 }, { x: 1, y: 1, value: 1 }], { x: [0, 800], y: [400, 0] });
     var svg = wrap.querySelector('svg');
