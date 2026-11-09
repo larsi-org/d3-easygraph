@@ -73,16 +73,6 @@ test('update([]) with no data yields a real [0,1] value domain, not [0, undefine
   expect(result.bars).toBe(0);
 });
 
-test('the old mode key throws with a pointer to stacked', async ({ page }) => {
-  await page.goto(FIXTURE);
-  const msg = await page.evaluate(() => {
-    var w = document.createElement('div'); document.body.appendChild(w);
-    try { d3.easygraph.bars({ container: w, height: 200, mode: 'stacked' }); return 'NO ERROR'; }
-    catch (e) { return e.message; }
-  });
-  expect(msg).toContain("'mode' is now stacked");
-});
-
 test('horizontal bars render: grouped bars start at the value axis zero and run right', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(async () => {

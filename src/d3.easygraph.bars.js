@@ -3,12 +3,15 @@
 // https://opensource.org/licenses/MIT
 // Copyright (c) 2026, Lars Schumann, larsi.org@gmail.com
 //
-// The bars chart-family constructor: vertical/horizontal, stacked/grouped.
+// The bars chart-family constructor: vertical/horizontal, stacked/grouped, values of either sign.
 // `orientation` is fixed for a graph's lifetime, but `stacked` can be toggled live
 // (see data_monthly.php/h.php's dropdown) - domain()/render() always re-read the
 // live config rather than caching a choice made at construction. Stacking itself
 // (accumulating y0 offsets) is d3.easygraph._computeStacked() in core.js, shared with
-// line.js's stacked.
+// line.js's stacked area; bars ask for its signed form, where positive values pile up from zero
+// and negative ones down from it.
+//
+// A datum's own `color` field, when it has one, colors that bar instead of its series' palette color.
 
 d3.easygraph.bars = function(config) {
   return d3.easygraph._build(config, {
@@ -16,10 +19,21 @@ d3.easygraph.bars = function(config) {
     _dataShape:   'series',
     orientation:  'vertical',
     stacked:      false,
-    colorPerData: false,
     series:       null // optional [{ label }, ...], one per series passed to update(): what legendItems()
                        // labels each entry with
   }, function(graph) {
+    function _horizontal() { return graph.orientation === 'horizontal'; }
+
+    // The bars' value axis: y for vertical bars, x for horizontal ones (data stays { x: category,
+    // y: value } either way).
+    function _valueScale() { return _horizontal() ? graph.x.$scale : graph.y.$scale; }
+    function _categoryScale() { return _horizontal() ? graph.y.$scale : graph.x.$scale; }
+
+    // The two values a bar spans on the value axis: from its base (y0, which is 0 unless stacked)
+    // to base + y. Order does not matter, a negative bar just runs the other way.
+    function _spanStart(d) { return Math.min(_valueScale()(d.y0 || 0), _valueScale()((d.y0 || 0) + d.y)); }
+    function _spanSize(d)  { return Math.abs(_valueScale()((d.y0 || 0) + d.y) - _valueScale()(d.y0 || 0)); }
+
     // enter/exit/merge bar group <g> elements
     function _bindGroups(data) {
       var sel = graph.$group.selectAll("g.easygraph-bar-group").data(data);
@@ -28,121 +42,49 @@ d3.easygraph.bars = function(config) {
       return enter.merge(sel);
     }
 
-    // optional per-datum color transition - colorPerData: true colors each bar from its own
-    // `color` field instead of the series' palette color (the field was a bare `d.c` before
-    // 1.0, the one single-letter name in a data format that otherwise spells everything out:
-    // value, radius, label, angle, magnitude)
+    // a datum with its own `color` is drawn in it; one without keeps the series' color from its group
     function _colorTransition(sel) {
-      if (graph.colorPerData) {
-        sel.transition('color').duration(graph.duration).ease(d3.easeCubicInOut)
-          .style("fill", function(d) { return d.color; });
+      sel.transition('color').duration(graph.duration).ease(d3.easeCubicInOut)
+        .style("fill", function(d) { return d.color != null ? d.color : null; });
+    }
+
+    // One bar layout for all four modes. Stacked: every series' bar sits on the same band, on top of
+    // the ones before it. Grouped: each series gets its own slot inside the band, all based at zero.
+    function drawBars(data, stacked) {
+      var horizontal = _horizontal(), band = _categoryScale();
+      var slots = stacked ? null : d3.scaleBand()
+        .domain(d3.range(data.length))
+        .rangeRound([0, band.bandwidth()])
+        .padding((data.length > 1) ? .2 : 0);
+      var thickness = stacked ? band.bandwidth() : slots.bandwidth();
+
+      var groups = _bindGroups(data);
+      groups
+        .attr("transform", stacked ? null : function(d, i) {
+          return horizontal ? "translate(0," + slots(i) + ")" : "translate(" + slots(i) + ",0)";
+        })
+        .style("fill", function(d, i) { return graph.paletteColor(i); });
+
+      var dataBars = groups.selectAll(".easygraph-bar").data(function(d) { return d; }, function(d) { return d.x; });
+      var zero = _valueScale()(0);
+      var entered = dataBars.enter().append("rect").attr("class", "easygraph-bar");
+      if (horizontal) {
+        entered.attr("x", zero).attr("width", 0).attr("y", function(d) { return band(d.x); }).attr("height", thickness);
+      } else {
+        entered.attr("x", function(d) { return band(d.x); }).attr("width", thickness).attr("y", zero).attr("height", 0);
       }
-    }
-
-    function barsStackedV(data) {
-      var groups = _bindGroups(data);
-      groups
-        .attr("transform", null)
-        .style("fill", function(d, i) { return graph.paletteColor(i); });
-
-      var dataBars = groups.selectAll(".easygraph-bar").data(function(d) { return d; }, function(d) { return d.x; });
-      var entered = dataBars.enter().append("rect")
-        .attr("class", "easygraph-bar")
-        .attr("x",      function(d) { return graph.x.$scale(d.x); })
-        .attr("width",  graph.x.$scale.bandwidth())
-        .attr("y",      function(d) { return graph.y.$scale(0); })
-        .attr("height", 0);
       dataBars.exit().remove();
       dataBars = entered.merge(dataBars);
 
       _colorTransition(dataBars);
-      dataBars.transition('size').duration(graph.duration).ease(d3.easeCubicInOut)
-        .attr("x",      function(d) { return graph.x.$scale(d.x); })
-        .attr("width",  graph.x.$scale.bandwidth())
-        .attr("y",      function(d) { return graph.y.$scale(d.y0 + d.y); })
-        .attr("height", function(d) { return graph.plotHeight - graph.y.$scale(d.y); });
-    }
-
-    function barsGroupedV(data) {
-      var x1 = d3.scaleBand()
-        .domain(d3.range(data.length))
-        .rangeRound([0, graph.x.$scale.bandwidth()])
-        .padding((data.length > 1) ? .2 : 0);
-
-      var groups = _bindGroups(data);
-      groups
-        .attr("transform", function(d, i) { return "translate(" + x1(i) + ",0)"; })
-        .style("fill",     function(d, i) { return graph.paletteColor(i); });
-
-      var dataBars = groups.selectAll(".easygraph-bar").data(function(d) { return d; }, function(d) { return d.x; });
-      var entered = dataBars.enter().append("rect")
-        .attr("class", "easygraph-bar")
-        .attr("x",      function(d) { return graph.x.$scale(d.x); })
-        .attr("width",  x1.bandwidth())
-        .attr("y",      function(d) { return graph.y.$scale(0); })
-        .attr("height", 0);
-      dataBars.exit().remove();
-      dataBars = entered.merge(dataBars);
-
-      _colorTransition(dataBars);
-      dataBars.transition('size').duration(graph.duration).ease(d3.easeCubicInOut)
-        .attr("x",      function(d) { return graph.x.$scale(d.x); })
-        .attr("width",  x1.bandwidth())
-        .attr("y",      function(d) { return graph.y.$scale(d.y); })
-        .attr("height", function(d) { return graph.plotHeight - graph.y.$scale(d.y); });
-    }
-
-    function barsStackedH(data) {
-      var groups = _bindGroups(data);
-      groups
-        .attr("transform", null)
-        .style("fill", function(d, i) { return graph.paletteColor(i); });
-
-      var dataBars = groups.selectAll(".easygraph-bar").data(function(d) { return d; }, function(d) { return d.x; });
-      var entered = dataBars.enter().append("rect")
-        .attr("class",  "easygraph-bar")
-        .attr("x",      function(d) { return graph.x.$scale(0); })
-        .attr("width",  0)
-        .attr("y",      function(d) { return graph.y.$scale(d.x); })
-        .attr("height", graph.y.$scale.bandwidth());
-      dataBars.exit().remove();
-      dataBars = entered.merge(dataBars);
-
-      _colorTransition(dataBars);
-      dataBars.transition('size').duration(graph.duration).ease(d3.easeCubicInOut)
-        .attr("x",      function(d) { return graph.x.$scale(d.y0); })
-        .attr("width",  function(d) { return graph.x.$scale(d.y); })
-        .attr("y",      function(d) { return graph.y.$scale(d.x); })
-        .attr("height", graph.y.$scale.bandwidth());
-    }
-
-    function barsGroupedH(data) {
-      var y1 = d3.scaleBand()
-        .domain(d3.range(data.length))
-        .rangeRound([0, graph.y.$scale.bandwidth()])
-        .padding((data.length > 1) ? .2 : 0);
-
-      var groups = _bindGroups(data);
-      groups
-        .attr("transform", function(d, i) { return "translate(0," + y1(i) + ")"; })
-        .style("fill",     function(d, i) { return graph.paletteColor(i); });
-
-      var dataBars = groups.selectAll(".easygraph-bar").data(function(d) { return d; }, function(d) { return d.x; });
-      var entered = dataBars.enter().append("rect")
-        .attr("class",  "easygraph-bar")
-        .attr("x",      function(d) { return graph.x.$scale(0); })
-        .attr("width",  0)
-        .attr("y",      function(d) { return graph.y.$scale(d.x); })
-        .attr("height", y1.bandwidth());
-      dataBars.exit().remove();
-      dataBars = entered.merge(dataBars);
-
-      _colorTransition(dataBars);
-      dataBars.transition('size').duration(graph.duration).ease(d3.easeCubicInOut)
-        .attr("x",      function(d) { return graph.x.$scale(0); })
-        .attr("width",  function(d) { return graph.x.$scale(d.y); })
-        .attr("y",      function(d) { return graph.y.$scale(d.x); })
-        .attr("height", y1.bandwidth());
+      var t = dataBars.transition('size').duration(graph.duration).ease(d3.easeCubicInOut);
+      if (horizontal) {
+        t.attr("x", _spanStart).attr("width", _spanSize)
+         .attr("y", function(d) { return band(d.x); }).attr("height", thickness);
+      } else {
+        t.attr("x", function(d) { return band(d.x); }).attr("width", thickness)
+         .attr("y", _spanStart).attr("height", _spanSize);
+      }
     }
 
     return {
@@ -167,38 +109,26 @@ d3.easygraph.bars = function(config) {
 
       domain: function(data, xRange, yRange) {
         var isH = graph.orientation === 'horizontal';
-        var isStacked = graph.stacked;
 
-        var stacked = isStacked ? d3.easygraph._computeStacked(data) : undefined;
-
-        // d3.max over empty/all-empty data returns undefined, which would otherwise land in
-        // the domain as [0, undefined] - same empty-data guard line/scatter's domain() have.
-        function groupedMax() {
+        // The value axis always includes zero and reaches every bar's far end, negative ones
+        // included. d3.min/max skip null and return undefined for no data at all, which falls back
+        // to [0, 1] - "no data yet" is a normal state.
+        var valueDomain;
+        if (graph.stacked) {
+          var stacked = d3.easygraph._computeStacked(data, true);
+          var lo = d3.min(stacked, function(a) { return d3.min(a, function(d) { return Math.min(d.y0, d.y0 + d.y); }); });
+          var hi = d3.max(stacked, function(a) { return d3.max(a, function(d) { return Math.max(d.y0, d.y0 + d.y); }); });
+          valueDomain = [Math.min(0, lo === undefined ? 0 : lo), Math.max(0, hi === undefined ? 1 : hi)];
+        } else {
+          var min = d3.min(data, function(a) { return d3.min(a, function(d) { return d.y; }); });
           var max = d3.max(data, function(a) { return d3.max(a, function(d) { return d.y; }); });
-          return (max === undefined) ? 1 : max;
+          valueDomain = [Math.min(0, min === undefined ? 0 : min), Math.max(0, max === undefined ? 1 : max)];
         }
+        if (valueDomain[0] === valueDomain[1]) valueDomain[1] = valueDomain[0] + 1;
 
-        var xDomain = [ 0, 1 ];
-        if (xRange) {
-          xDomain = xRange;
-        } else if (!isH) {
-          if (data.length > 0) xDomain = data[0].map(function(d) { return d.x; });
-        } else if (isStacked) {
-          if (stacked.length > 0) xDomain = [ 0, d3.max(stacked[stacked.length - 1], function(d) { return d.y0 + d.y; }) ];
-        } else {
-          xDomain = [ 0, groupedMax() ];
-        }
-
-        var yDomain = [ 0, 1 ];
-        if (yRange) {
-          yDomain = yRange;
-        } else if (isH) {
-          if (data.length > 0) yDomain = data[0].map(function(d) { return d.x; });
-        } else if (isStacked) {
-          if (stacked.length > 0) yDomain = [ 0, d3.max(stacked[stacked.length - 1], function(d) { return d.y0 + d.y; }) ];
-        } else {
-          yDomain = [ 0, groupedMax() ];
-        }
+        var categories = data.length > 0 ? data[0].map(function(d) { return d.x; }) : [];
+        var xDomain = xRange || (isH ? valueDomain : (categories.length ? categories : [0, 1]));
+        var yDomain = yRange || (isH ? (categories.length ? categories : [0, 1]) : valueDomain);
 
         return { x: xDomain, y: yDomain };
       },
@@ -206,12 +136,8 @@ d3.easygraph.bars = function(config) {
       legendItems: function() { return d3.easygraph._seriesLegendItems(graph); },
 
       render: function(data) {
-        var isStacked = graph.stacked;
-        var stacked = isStacked ? d3.easygraph._computeStacked(data) : undefined;
-        if (graph.orientation === 'vertical' && isStacked)  barsStackedV(stacked);
-        if (graph.orientation === 'vertical' && !isStacked) barsGroupedV(data);
-        if (graph.orientation === 'horizontal' && isStacked)  barsStackedH(stacked);
-        if (graph.orientation === 'horizontal' && !isStacked) barsGroupedH(data);
+        if (graph.stacked) drawBars(d3.easygraph._computeStacked(data, true), true);
+        else               drawBars(data, false);
       }
     };
   });

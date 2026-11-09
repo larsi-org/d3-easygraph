@@ -3,10 +3,10 @@ const path = require('path');
 
 const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/presets.html');
 
-test('resolvePreset returns a preset\'s complete label/unit/scale/convert', async ({ page }) => {
+test('preset returns a preset\'s complete label/unit/scale/convert', async ({ page }) => {
   await page.goto(FIXTURE);
   const resolved = await page.evaluate(() => {
-    var u = d3.easygraph.resolvePreset('temperatureF');
+    var u = d3.easygraph.preset('temperatureF');
     return { label: u.label, unit: u.unit, scale: u.scale, converted: u.convert(0) };
   });
   expect(resolved.label).toBe('Temperature');
@@ -23,15 +23,15 @@ test('presets have no range property - a sensible axis range is data-dependent, 
   expect(ranges.every((r) => r === undefined)).toBe(true);
 });
 
-test('resolvePreset falls back to the "default" preset for a falsy name and throws on an unrecognized one', async ({ page }) => {
+test('preset falls back to the "default" preset for a falsy name and throws on an unrecognized one', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
-    var out = [d3.easygraph.resolvePreset(undefined), d3.easygraph.resolvePreset('')]
+    var out = [d3.easygraph.preset(undefined), d3.easygraph.preset('')]
       .map((u) => ({ unit: u.unit, scale: u.scale, converted: u.convert(5) }));
     function msg(fn) { try { fn(); return ''; } catch (e) { return e.message; } }
     return {
       out: out,
-      unknown: msg(function() { d3.easygraph.resolvePreset('temprature'); }),
+      unknown: msg(function() { d3.easygraph.preset('temprature'); }),
       inChart: msg(function() {
         var w = document.createElement('div'); document.body.appendChild(w);
         d3.easygraph.line({ container: w, height: 200, y: { preset: 'temprature' } });
@@ -47,9 +47,9 @@ test('resolvePreset falls back to the "default" preset for a falsy name and thro
   expect(r.old).toBe('undefined');
 });
 
-test('resolvePreset("default") is the same object as the implicit fallback', async ({ page }) => {
+test('preset("default") is the same object as the implicit fallback', async ({ page }) => {
   await page.goto(FIXTURE);
-  const isSame = await page.evaluate(() => d3.easygraph.resolvePreset('default') === d3.easygraph.resolvePreset());
+  const isSame = await page.evaluate(() => d3.easygraph.preset('default') === d3.easygraph.preset());
   expect(isSame).toBe(true);
 });
 
@@ -74,8 +74,8 @@ test('every real preset declares its own scale: "linear"', async ({ page }) => {
 test('convert() applies a preset\'s conversion (°C to °F)', async ({ page }) => {
   await page.goto(FIXTURE);
   const [freezing, boiling] = await page.evaluate(() => [
-    d3.easygraph.resolvePreset('temperatureF').convert(0),
-    d3.easygraph.resolvePreset('temperatureF').convert(100)
+    d3.easygraph.preset('temperatureF').convert(0),
+    d3.easygraph.preset('temperatureF').convert(100)
   ]);
   expect(freezing).toBe(32);
   expect(boiling).toBe(212);
@@ -83,20 +83,17 @@ test('convert() applies a preset\'s conversion (°C to °F)', async ({ page }) =
 
 test('convert() is a no-op (identity) for presets without a real conversion', async ({ page }) => {
   await page.goto(FIXTURE);
-  const value = await page.evaluate(() => d3.easygraph.resolvePreset('pressureHpa').convert(1013.25));
+  const value = await page.evaluate(() => d3.easygraph.preset('pressureHpa').convert(1013.25));
   expect(value).toBe(1013.25);
 });
 
-test('convertRounded(v, d) rounds the converted result; convert takes one argument only', async ({ page }) => {
+test('convertRounded(v, d) rounds the converted result', async ({ page }) => {
   await page.goto(FIXTURE);
   const results = await page.evaluate(() => [
-    d3.easygraph.resolvePreset('temperatureF').convertRounded(20.5, 0),  // 68.9 -> 69
-    d3.easygraph.resolvePreset('temperatureF').convertRounded(20.5, 1),  // 68.9 -> 68.9
-    d3.easygraph.resolvePreset('pressureInhg').convertRounded(1000, 2),  // 29.53 -> 29.53
-    (function() { try { d3.easygraph.resolvePreset('temperatureF').convert(20.5, 1); return 'no error'; }
-                  catch (e) { return e.message; } })()
+    d3.easygraph.preset('temperatureF').convertRounded(20.5, 0),  // 68.9 -> 69
+    d3.easygraph.preset('temperatureF').convertRounded(20.5, 1),  // 68.9 -> 68.9
+    d3.easygraph.preset('pressureInhg').convertRounded(1000, 2)   // 29.53 -> 29.53
   ]);
-  expect(results[3]).toContain('convertRounded');
   expect(results[0]).toBe(69);
   expect(results[1]).toBe(68.9);
   expect(results[2]).toBe(29.53);
@@ -104,7 +101,7 @@ test('convertRounded(v, d) rounds the converted result; convert takes one argume
 
 test('convert(v) without d stays unrounded, even for presets with a real conversion', async ({ page }) => {
   await page.goto(FIXTURE);
-  const value = await page.evaluate(() => d3.easygraph.resolvePreset('temperatureF').convert(20.55555));
+  const value = await page.evaluate(() => d3.easygraph.preset('temperatureF').convert(20.55555));
   expect(value).toBeCloseTo(68.99999, 4);
   expect(value).not.toBe(69);
 });
@@ -112,7 +109,7 @@ test('convert(v) without d stays unrounded, even for presets with a real convers
 test('works with no chart or container on the page at all', async ({ page }) => {
   await page.goto(FIXTURE);
   await expect(page.locator('svg')).toHaveCount(0);
-  const value = await page.evaluate(() => d3.easygraph.resolvePreset('windSpeedMph').convert(10));
+  const value = await page.evaluate(() => d3.easygraph.preset('windSpeedMph').convert(10));
   expect(value).toBeCloseTo(22.3694, 4);
   await expect(page.locator('svg')).toHaveCount(0);
 });
@@ -202,9 +199,9 @@ test('presets and colorPalettes are extensible - the documented way to add your 
       { label: 'Soil Moisture', unit: '%', scale: 'linear', convert: function (v) { return v; } };
     d3.easygraph.colorPalettes['Sequential.MyBrand'] = ['#eef', '#88a', '#114'];
 
-    var unit = d3.easygraph.resolvePreset('soilMoisture');
-    var palette = d3.easygraph.resolvePalette('Sequential.MyBrand');
-    var reversed = d3.easygraph.resolvePalette('Sequential.MyBrand.reversed');
+    var unit = d3.easygraph.preset('soilMoisture');
+    var palette = d3.easygraph.paletteColors('Sequential.MyBrand');
+    var reversed = d3.easygraph.paletteColors('Sequential.MyBrand.reversed');
 
     var wrap = document.createElement('div');
     wrap.style.width = '400px';

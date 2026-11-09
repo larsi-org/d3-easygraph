@@ -32,16 +32,11 @@ function _nestedValues(data, acc) {
 }
 
 d3.easygraph.line = function(config) {
-  ['ribbons', 'sigmaBand'].forEach(function(old) {
-    if (config && config[old] !== undefined)
-      throw new Error("d3.easygraph.line: '" + old + "' is gone - use bands: { minmax: true, sigma: true } " +
-                      "(minmax = the min/max band, sigma = the mean +-1 sigma band)");
-  });
   return d3.easygraph._build(config, {
     _chartType:         'line',
     _eventTypes:        ['zoom', 'crosshair'],
     _dataShape:         'series',
-    lines:              false,
+    lines:              null, // null = on, except on a stacked chart (see _linesOn() below); true/false decides
     bands:              null, // null / {} = none; { minmax, sigma } booleans - see _bandSet() below
     stacked:            false,
     zoom:               false,
@@ -59,6 +54,13 @@ d3.easygraph.line = function(config) {
     // mean +-1 sd), or both. A missing key or false is off; null or {} is none. Re-read on every
     // update(), so a page toggles both with one assignment:
     // graph.bands = hourly ? {} : { minmax: true, sigma: true }.
+    // lines left unset draws the lines, so a plain { container, height } chart shows something - except
+    // on a stacked chart, where the stacked areas are the picture. Set true or false to decide.
+    // Re-read on every update(), like the other flags.
+    function _linesOn() {
+      return (graph.lines == null) ? !graph.stacked : !!graph.lines;
+    }
+
     function _bandSet() {
       var b = graph.bands;
       if (b == null) b = {};
@@ -123,8 +125,6 @@ d3.easygraph.line = function(config) {
           graph.$group.selectAll("path.easygraph-line").attr("d", graph.$line);
         };
 
-        if (Array.isArray(graph.zoom))
-          throw new Error("d3.easygraph.line: zoom is { min, max } now, not [min, max]");
         if (graph.zoom) {
           var z = (typeof graph.zoom === 'object') ? graph.zoom : {};
           graph.$zoom = d3.zoom().scaleExtent([z.min != null ? z.min : 1, z.max != null ? z.max : 10]).on("zoom", function(event) {
@@ -215,7 +215,7 @@ d3.easygraph.line = function(config) {
             var mouseX = d3.pointer(event, graph.$svg.node())[0];
             if (mouseX >= 0 && mouseX <= graph.plotWidth) {
               graph._moveCrosshair(mouseX);
-              graph._emit('crosshair', mouseX);
+              graph._emit('crosshair', { x: graph.x.$scale.invert(mouseX), pixel: mouseX });
             } else {
               graph._hideCrosshair();
               graph._emit('crosshair', null);
@@ -279,7 +279,7 @@ d3.easygraph.line = function(config) {
         // mid-flight with all three off, and throwing would break that. Only warns when there's
         // actually data being asked for, so an empty first render stays quiet.
         var B = _bandSet();
-        if (data.length && !graph.lines && !B.minmax && !B.sigma && !graph.stacked) {
+        if (data.length && !_linesOn() && !B.minmax && !B.sigma && !graph.stacked) {
           console.warn('d3.easygraph: line chart has data but none of lines/bands/stacked ' +
                        'enabled, so nothing will be drawn');
         }
@@ -377,7 +377,7 @@ d3.easygraph.line = function(config) {
           graph.$group.selectAll(".easygraph-stack").remove();
         }
 
-        if (graph.lines) {
+        if (_linesOn()) {
           var dataLines = graph.$group.selectAll(".easygraph-line").data(data);
           var linesEntered = dataLines.enter().append("path")
             .attr("class",     "easygraph-line")
@@ -429,14 +429,13 @@ d3.easygraph.syncZoom = function(graphs) {
 d3.easygraph.syncCrosshair = function(graphs) {
   graphs.forEach(function(g) {
     if (!g._moveCrosshair) return;
-    g.on('crosshair.sync', function(mouseX) {
+    g.on('crosshair.sync', function(position) {
       graphs.forEach(function(other) {
-        if (other === g || !other._moveCrosshair || !other.$xScaleRef) return;
-        if (mouseX === null) {
+        if (other === g || !other._moveCrosshair) return;
+        if (position === null) {
           other._hideCrosshair();
         } else {
-          var xValue = g.x.$scale.invert(mouseX);
-          other._moveCrosshair(other.x.$scale(xValue));
+          other._moveCrosshair(other.x.$scale(position.x));
         }
       });
     });

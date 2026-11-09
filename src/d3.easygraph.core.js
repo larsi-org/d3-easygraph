@@ -7,8 +7,8 @@
 // clip-path/title DOM, number/time formatting, x/y/color config resolution, and the
 // shared _build() that d3.easygraph.line/.bars/.heatmap call into with their own hooks.
 // Two standalone lookups live in their own files, loaded right after this one - unit presets
-// (d3.easygraph.presets / resolvePreset()) in d3.easygraph.presets.js, color palettes
-// (colorPalettes / resolvePalette / colorScale) in d3.easygraph.colors.js - neither has
+// (d3.easygraph.presets / preset()) in d3.easygraph.presets.js, color palettes
+// (colorPalettes / paletteColors / colorScale) in d3.easygraph.colors.js - neither has
 // any chart concepts of its own; this file is the only thing that folds either onto a graph's
 // config.
 
@@ -22,14 +22,12 @@ d3.easygraph._extend = function(dst, src) {
   return dst;
 };
 
-// resolves a preset (via presets.js's resolvePreset(), which always returns a complete unit
+// resolves a preset (via presets.js's preset(), which always returns a complete unit
 // definition) onto an x/y/color config object. label/unit are genuinely optional - if
 // neither the caller nor a preset supplies one, they stay undefined, and the title text
 // (see near the bottom of _build()) renders blank rather than some generic placeholder.
 d3.easygraph._resolveProperty = function(prop) {
-  if (prop.clip !== undefined)
-    throw new Error("d3.easygraph: 'clip' is now 'trim' (same [loQuantile, hiQuantile] value)");
-  d3.easygraph._extend(prop, d3.easygraph.resolvePreset(prop.preset));
+  d3.easygraph._extend(prop, d3.easygraph.preset(prop.preset));
   // a caller's own convert (no preset, or overriding one) gets its rounded sibling too
   if (prop.convert && prop.convertRounded === undefined) prop.convertRounded = d3.easygraph._roundedFrom(prop.convert);
   return prop;
@@ -93,14 +91,27 @@ d3.easygraph.bandStats = function(values, k) {
 // corresponds to the same category/x position across every series) - fine for bars'
 // same-length category arrays; a stacked area caller needs its series sampled at the same x
 // points for the same reason.
-d3.easygraph._computeStacked = function(data) {
+d3.easygraph._computeStacked = function(data, signed) {
   var result = data.map(function(series) {
     return series.map(function(d) { return Object.assign({ y0: 0 }, d); });
   });
-  var len = result[0] ? result[0].length : 0;
+  var len = signed ? result.reduce(function(m, series) { return Math.max(m, series.length); }, 0)
+                   : (result[0] ? result[0].length : 0);
   for (var j = 0; j < len; j++) {
-    for (var i = 1; i < result.length; i++) {
-      result[i][j].y0 = result[i-1][j].y0 + result[i-1][j].y;
+    if (signed) {
+      // Bars: values of either sign. Positive values stack upward from zero and negative ones
+      // downward from zero, each on its own pile, so a bar spans [y0, y0 + y] either way.
+      var up = 0, down = 0;
+      for (var k = 0; k < result.length; k++) {
+        var d = result[k][j];
+        if (!d || d.y == null) continue;
+        if (d.y >= 0) { d.y0 = up;   up   += d.y; }
+        else          { d.y0 = down; down += d.y; }
+      }
+    } else {
+      for (var i = 1; i < result.length; i++) {
+        result[i][j].y0 = result[i-1][j].y0 + result[i-1][j].y;
+      }
     }
   }
   return result;
@@ -208,35 +219,41 @@ function _resolveContainer(container) {
 // caller's container reference
 var _nextClipId = 0;
 
-// shared constructor body - each family (line/bars/heatmap) calls this with its own
-// defaults and a moduleFactory(graph) returning { prepareScales?, init?, domain, render, resize? }
-// Config keys each constructor understands. Used only to warn: a key outside this list is still
-// accepted and left on the graph (a caller may hang its own fields on a config), but one that is
-// a near-miss of a real key (colorPallete) or belongs to another family (zoom on bars) is
-// almost always a mistake that would otherwise do nothing and say nothing.
+// Config keys each constructor understands. A key outside this list throws: a misspelled option
+// used to do nothing and say nothing. Keys inside the nested option objects (x, y, color, margin,
+// points, arrows, ...) are checked too, against _NESTED below.
 var _SHARED_KEYS = ['container', 'width', 'height', 'margin', 'x', 'y', 'color', 'title', 'duration', 'meta'];
 var _FAMILY_KEYS = {
   line:    ['lines', 'bands', 'stacked', 'zoom', 'crosshair', 'curve', 'series'],
-  bar:     ['orientation', 'stacked', 'colorPerData', 'series'],
+  bar:     ['orientation', 'stacked', 'series'],
   heatmap: [],
   scatter: ['points', 'voronoi', 'arrows', 'labels']
 };
-// keys that existed before 1.0 and now throw, with where they went
-var _MOVED_KEYS = {
-  colorPalette:     { to: "color: { palette }" },
-  colorClasses:     { to: "color: { classes }" },
-  stackedArea:      { to: "stacked: true", only: 'line' },
-  mode:             { to: "stacked: true | false ('grouped' is stacked: false)", only: 'bar' },
-  radius:           { to: "points: { radius }", only: 'scatter' },
-  pointStrokeWidth: { to: "points: { strokeWidth }", only: 'scatter' },
-  onZoom:           { to: "graph.on('zoom', fn)", only: 'line' },
-  onCrosshair:      { to: "graph.on('crosshair', fn)", only: 'line' },
-  names:            { to: "series: [{ label }, ...] (one entry per series)" },
-  units:            { to: "series: [{ unit }, ...] (one entry per series)" },
-  label:            { to: "title (the chart heading) or x.label / y.label (axis names)" },
-  unit:             { to: "x.unit / y.unit" }
-};
 var _FAMILY_CTOR = { line: 'line', bar: 'bars', heatmap: 'heatmap', scatter: 'scatter' };
+
+// The keys each nested option object accepts. 'object' options must be an object; 'flag' options
+// may also be true/false (true = all defaults).
+var _AXIS_KEYS = ['scale', 'unit', 'label', 'tickLabels', 'tickFormat', 'preset', 'convert', 'convertRounded', 'trim'];
+var _PRESET_KEYS = ['preset', 'label', 'unit', 'scale', 'convert', 'convertRounded'];
+var _NESTED = {
+  margin: { kind: 'object', keys: ['top', 'right', 'bottom', 'left'] },
+  x:      { kind: 'object', keys: _AXIS_KEYS },
+  y:      { kind: 'object', keys: _AXIS_KEYS },
+  bands:  { kind: 'object', keys: ['minmax', 'sigma'] },
+  zoom:   { kind: 'flag',   keys: ['min', 'max'] },
+  crosshair: { kind: 'flag', keys: ['threshold'] },
+  points: { kind: 'flag',   keys: ['radius', 'strokeWidth'] },
+  voronoi: { kind: 'flag',  keys: ['opacity'] },
+  arrows: { kind: 'flag',   keys: ['color', 'strokeWidth', 'minLength', 'maxLength', 'headLength', 'headAngle'] },
+  labels: { kind: 'flag',   keys: ['size', 'offset', 'minZoom'] }
+};
+var _COLOR_KEYS = {
+  line:    ['palette', 'classes'],
+  bar:     ['palette', 'classes'],
+  heatmap: ['palette', 'classes', 'domain', 'trim'].concat(_PRESET_KEYS),
+  scatter: ['palette', 'classes', 'domain', 'trim', 'quantize'].concat(_PRESET_KEYS)
+};
+var _SERIES_KEYS = { line: ['label', 'unit'], bar: ['label'] };
 
 function _editDistance(a, b) {
   var prev = [], i, j;
@@ -251,8 +268,43 @@ function _editDistance(a, b) {
   return prev[b.length];
 }
 
+function _nearest(key, known) {
+  // within 2 edits, and for a very short key within 1 ('mn' -> 'min')
+  var best = null, bestDistance = Math.min(3, key.length);
+  if (key.length >= 2) known.forEach(function(k) {
+    var d = _editDistance(key.toLowerCase(), k.toLowerCase());
+    if (d < bestDistance) { best = k; bestDistance = d; }
+  });
+  return best;
+}
 
-// Unknown top-level keys throw: a misspelled option used to do nothing and say nothing. A page's
+// Throws for any key of `obj` that is not in `allowed`. `path` names the object ('x', 'points'),
+// so the message can say 'x.lable' and suggest 'x.label'. Keys starting with _ or $ are internal.
+d3.easygraph._checkKeys = function(ctor, path, obj, allowed) {
+  Object.keys(obj).forEach(function(key) {
+    if (allowed.indexOf(key) >= 0 || key.charAt(0) === '_' || key.charAt(0) === '$') return;
+    var best = _nearest(key, allowed);
+    throw new Error(ctor + ": unknown option '" + path + "." + key + "'" +
+                    (best ? " - did you mean '" + path + "." + best + "'?" : "") +
+                    " (" + path + " takes: " + allowed.join(', ') + ")");
+  });
+};
+
+// Checks one nested option's value: an object (any kind) with known keys, or - for a 'flag' option -
+// also true/false/null/undefined. An array or a number is always a mistake (zoom: [1, 10]).
+d3.easygraph._checkOption = function(ctor, path, value, spec, keys) {
+  if (value === undefined || value === null) return;
+  if (typeof value === 'boolean') {
+    if (spec.kind === 'flag') return;
+    throw new Error(ctor + ": '" + path + "' must be an object like { " + keys.join(': ..., ') + ": ... }, not " + value);
+  }
+  if (typeof value !== 'object' || Array.isArray(value))
+    throw new Error(ctor + ": '" + path + "' must be " + (spec.kind === 'flag' ? "true or " : "") +
+                    "an object with " + keys.join(', ') + " (got " + (Array.isArray(value) ? "an array" : typeof value) + ")");
+  d3.easygraph._checkKeys(ctor, path, value, keys);
+};
+
+// Unknown top-level keys throw, then every nested option object is checked the same way. A page's
 // own fields go under `meta` (copied to graph.meta), which is the one open-ended key.
 d3.easygraph._checkConfig = function(config, chartType) {
   var ctor = 'd3.easygraph.' + _FAMILY_CTOR[chartType];
@@ -263,20 +315,40 @@ d3.easygraph._checkConfig = function(config, chartType) {
   });
   Object.keys(config).forEach(function(key) {
     if (own.indexOf(key) >= 0 || key.charAt(0) === '_' || key.charAt(0) === '$') return;
-    var moved = _MOVED_KEYS[key];
-    if (moved && (!moved.only || moved.only === chartType))
-      throw new Error(ctor + ": '" + key + "' is now " + moved.to);
     var families = Object.keys(_FAMILY_KEYS).filter(function(f) { return _FAMILY_KEYS[f].indexOf(key) >= 0; });
     if (families.length)
       throw new Error(ctor + ": '" + key + "' is a " + families.map(function(f) { return _FAMILY_CTOR[f]; }).join('/') +
                       " option and does not apply here");
-    var best = null, bestDistance = 3;
-    if (key.length >= 4) everything.forEach(function(known) {
-      var d = _editDistance(key.toLowerCase(), known.toLowerCase());
-      if (d < bestDistance) { best = known; bestDistance = d; }
-    });
+    var best = _nearest(key, everything);
     throw new Error(ctor + ": unknown option '" + key + "'" + (best ? " - did you mean '" + best + "'?" : "") +
                     " (your own fields go under meta: { ... })");
+  });
+
+  ['margin', 'x', 'y', 'bands', 'zoom', 'crosshair', 'points', 'voronoi', 'arrows', 'labels'].forEach(function(name) {
+    if (own.indexOf(name) >= 0) d3.easygraph._checkOption(ctor, name, config[name], _NESTED[name], _NESTED[name].keys);
+  });
+  d3.easygraph._checkOption(ctor, 'color', config.color, { kind: 'object' }, _COLOR_KEYS[chartType]);
+
+  if (config.series != null) {
+    if (!Array.isArray(config.series))
+      throw new Error(ctor + ": series must be an array like [{ label, unit }, ...], one entry per series");
+    config.series.forEach(function(entry, i) {
+      if (entry != null) d3.easygraph._checkOption(ctor, 'series[' + i + ']', entry, { kind: 'object' }, _SERIES_KEYS[chartType]);
+    });
+  }
+};
+
+// update()'s second argument pins domains: { x, y } on every chart, plus { color } on the two charts
+// that have a color scale.
+d3.easygraph._checkRanges = function(ranges, chartType) {
+  var ctor = 'd3.easygraph.' + _FAMILY_CTOR[chartType];
+  if (ranges === null || typeof ranges !== 'object' || Array.isArray(ranges))
+    throw new Error(ctor + ".update(): the second argument is an object like { x: [min, max], y: [min, max] }");
+  var allowed = (chartType === 'heatmap' || chartType === 'scatter') ? ['x', 'y', 'color'] : ['x', 'y'];
+  Object.keys(ranges).forEach(function(key) {
+    if (allowed.indexOf(key) >= 0) return;
+    throw new Error(ctor + ".update(): unknown domain '" + key + "' (" + ctor.replace('d3.easygraph.', '') +
+                    " takes: " + allowed.join(', ') + ")" + (key === 'color' ? " - only heatmap and scatter have a color scale" : ""));
   });
 };
 
@@ -292,19 +364,6 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   d3.easygraph._checkConfig(config, familyDefaults._chartType);
 
   var graph = Object.assign({}, config);
-
-  ['names', 'units'].forEach(function(old) {
-    if (config[old] !== undefined)
-      throw new Error("d3.easygraph: '" + old + "' is gone - use series: [{ label, unit }, ...], one entry per series");
-  });
-  if (config.series != null && !Array.isArray(config.series))
-    throw new Error("d3.easygraph: series must be an array like [{ label, unit }, ...]");
-
-  ['label', 'unit'].forEach(function(old) {
-    if (config[old] !== undefined)
-      throw new Error("d3.easygraph: '" + old + "' at the top level is gone - the chart title is 'title'; " +
-                      "axis names are x.label / y.label and the unit is x.unit / y.unit");
-  });
 
   var containerEl = _resolveContainer(graph.container);
   if (!containerEl) {
@@ -330,6 +389,17 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   if (_fixedW !== undefined && !(_fixedW > 0)) {
     throw new Error('d3.easygraph: width must be a positive number (and is only for a fixed-size chart, together with height)');
   }
+  // graph.width is the svg box's width: the logical width in fixed-size mode, else measured from the
+  // container. Either way it is the library's to set, so assigning it throws.
+  var _widthValue = _fixedW;
+  Object.defineProperty(graph, 'width', {
+    enumerable: true, configurable: true,
+    get: function() { return _widthValue; },
+    set: function() {
+      throw new Error("d3.easygraph: 'width' is set by the chart (the container's width, or the fixed width you built it with) - " +
+                      "destroy() it and build a new chart to change it");
+    }
+  });
   graph._viewScale = 1;
   // The width path already refuses a container narrower than its own horizontal margins (see
   // _measureWidth below); without the matching vertical check, a height smaller than
@@ -349,7 +419,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     // resize) that would otherwise drive graph.plotWidth negative
     if (w <= graph._margin.left + graph._margin.right) return false;
     var changed = graph.plotWidth === undefined || Math.abs(w - graph.width) >= 1;
-    graph.width = w;
+    _widthValue = w;
     graph.plotWidth = graph.width - graph._margin.left - graph._margin.right;
     return changed;
   }
@@ -415,7 +485,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // the same object). palette is a "Kind.Name[.reversed]" name; classes asks a Sequential/Diverging
   // palette for a specific class count instead of its largest (ignored for Qualitative).
   graph.color = Object.assign({}, graph.color);
-  graph.paletteColors = d3.easygraph.resolvePalette(
+  graph.paletteColors = d3.easygraph.paletteColors(
     graph.color.palette || familyDefaults._palette || 'Qualitative.Tableau10', graph.color.classes || null);
   graph.meta = graph.meta || {};
 
@@ -508,19 +578,37 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     graph.y.$scale.range([graph.plotHeight, 0]);
   }
 
+  // x.tickFormat / y.tickFormat: 'multi' (a time axis: minute, hour, day or month format picked per
+  // tick), a function (value => text), or a format string (d3.timeFormat on a time axis, d3.format on
+  // a linear one). Left out, a linear axis uses numberFormat and a time axis d3's own multi-format.
+  // tickLabels: false blanks the tick *text* and keeps the tick marks and gridlines, and wins over
+  // tickFormat.
+  function _applyTickFormat(name, axis) {
+    var prop = graph[name], fmt = prop.tickFormat, band = !!prop.$scale.bandwidth;
+    if (prop.tickLabels === false) { axis.tickFormat(function() { return ''; }); return; }
+    if (fmt === undefined) {
+      if (prop.scale === 'linear' && !band) axis.tickFormat(graph.numberFormat);
+      return;
+    }
+    if (fmt === 'multi') {
+      if (prop.scale !== 'time' || band)
+        throw new Error("d3.easygraph: " + name + ".tickFormat 'multi' is for a time axis (set " + name + ".scale: 'time')");
+      axis.tickFormat(graph._timeFormatShort);
+    } else if (typeof fmt === 'function') {
+      axis.tickFormat(fmt);
+    } else if (typeof fmt === 'string') {
+      if (band) throw new Error("d3.easygraph: " + name + ".tickFormat as a format string needs a number or time axis; pass a function for a category axis");
+      axis.tickFormat(prop.scale === 'time' ? d3.timeFormat(fmt) : d3.format(fmt));
+    } else {
+      throw new Error("d3.easygraph: " + name + ".tickFormat must be 'multi', a format string or a function, got " + JSON.stringify(fmt));
+    }
+  }
+
   graph.x.$axis = d3.axisBottom(graph.x.$scale).tickSize(-graph.plotHeight).tickPadding(12);
-  if (graph.x.scale === 'linear' && !graph.x.$scale.bandwidth) graph.x.$axis.tickFormat(graph.numberFormat);
-  if (graph.x.timeFormat !== undefined && graph.x.timeFormat !== 'multi')
-    throw new Error("d3.easygraph: x.timeFormat must be 'multi' (or omitted), got " + JSON.stringify(graph.x.timeFormat));
-  if (graph.x.scale === 'time'   && graph.x.timeFormat === 'multi') graph.x.$axis.tickFormat(graph._timeFormatShort);
-  // tickLabels: false blanks the tick *text* and keeps the tick marks and gridlines, which is
-  // exactly what this does - the old name for it, noTick, both read as a double negative when
-  // written out (noTick: false) and over-promised, since the ticks themselves stay.
-  if (graph.x.tickLabels === false)                            graph.x.$axis.tickFormat(function() { return ''; });
+  _applyTickFormat('x', graph.x.$axis);
 
   graph.y.$axis = d3.axisLeft(graph.y.$scale).tickSize(-graph.plotWidth).tickPadding(6);
-  if (graph.y.scale === 'linear' && !graph.y.$scale.bandwidth) graph.y.$axis.tickFormat(graph.numberFormat);
-  if (graph.y.tickLabels === false)                            graph.y.$axis.tickFormat(function() { return ''; });
+  _applyTickFormat('y', graph.y.$axis);
 
   // The "easygraph" class is what every rule in d3.easygraph.css is scoped under - without it
   // the stylesheet's generic selectors (a bare #title, .tick, .axis) would restyle any host
@@ -678,7 +766,8 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
       throw new Error('d3.easygraph: update() called on a destroyed chart');
     }
     d3.easygraph._checkData(data, graph._dataShape, graph._chartType);
-    ranges = ranges || {};
+    ranges = (ranges === undefined) ? {} : ranges;
+    d3.easygraph._checkRanges(ranges, graph._chartType);
     graph._lastData = data;
     // Kept alongside _lastData so a resize reflow or a scatter rescale() - both of which
     // re-render from stored state rather than a fresh update() - don't silently drop back to a
@@ -712,8 +801,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // Keys the chart is built around (scales, axes, DOM) can't change after construction, so
   // assigning one throws instead of silently doing nothing. Everything else is re-read on
   // every update().
-  ['container', 'height', 'margin', 'orientation', 'curve', 'zoom', 'crosshair',
-   'colorPalette', 'colorClasses'].forEach(function(key) {
+  ['container', 'height', 'margin', 'orientation', 'curve', 'zoom', 'crosshair'].forEach(function(key) {
     if (!Object.prototype.hasOwnProperty.call(graph, key)) return;
     var fixed = graph[key];
     Object.defineProperty(graph, key, {
@@ -726,8 +814,12 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     });
   });
 
-  // The axis/color `scale` is part of what the chart is built around too, one level down.
-  [['x', 'scale'], ['y', 'scale'], ['color', 'scale'], ['color', 'palette'], ['color', 'classes']].forEach(function(pair) {
+  // One level down, the same: an axis's scale, preset, conversion and tick format are resolved once
+  // while the axis is built, and the color palette, class count and quantize flag when the color scale is.
+  [['x', 'scale'], ['y', 'scale'], ['x', 'preset'], ['y', 'preset'], ['x', 'convert'], ['y', 'convert'],
+   ['x', 'convertRounded'], ['y', 'convertRounded'], ['x', 'tickFormat'], ['y', 'tickFormat'],
+   ['x', 'tickLabels'], ['y', 'tickLabels'],
+   ['color', 'palette'], ['color', 'classes'], ['color', 'quantize'], ['color', 'preset']].forEach(function(pair) {
     var axis = pair[0], key = pair[1], prop = graph[axis];
     if (!prop || typeof prop !== 'object') return;
     var fixedValue = prop[key];

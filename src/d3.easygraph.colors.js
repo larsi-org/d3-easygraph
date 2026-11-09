@@ -3,25 +3,25 @@
 // https://opensource.org/licenses/MIT
 // Copyright (c) 2026, Lars Schumann, larsi.org@gmail.com
 //
-// A small, easygraph-agnostic palette lookup: colorPalettes/resolvePalette/colorScale/
+// A small, easygraph-agnostic palette lookup: colorPalettes/paletteColors/colorScale/
 // hueWheelPalette have no chart concepts of their own - no graph, no container, no SVG - so
 // they're reusable well beyond charting (e.g. coloring a Leaflet marker, a parcoords line, or a
 // canvas point cloud). Same shape as d3.easygraph.presets.js's standalone preset table, just not
 // quite as dependency-free: presets.js needs nothing but its own data, while this file expects `d3`
 // (scaleLinear/scaleQuantize/range/hsl/rgb, and - as of 2026-08 - its bundled d3-scale-chromatic
 // schemes), same as core.js does.
-// Chart config resolution (folding colorPalette/colorClasses onto graph.paletteColors) lives in
+// Chart config resolution (folding color.palette/color.classes onto graph.paletteColors) lives in
 // core.js, the only actual chart consumer that needs it - same division of labor as presets.js's
-// resolvePreset() vs. core.js's _resolveProperty().
+// preset() vs. core.js's _resolveProperty().
 
 // Every palette name is "Kind.Name" - Sequential (a plain value gradient), Diverging (a gradient
 // with a meaningful midpoint), or Qualitative (unordered, mutually distinct categories) - the
 // same three groups colorbrewer.schemeGroups itself uses. The kind leads because it's what a
 // caller is actually choosing on: what sort of quantity am I representing.
 //
-// The only other thing a name carries is an "LS-" marker on the six palettes hand-picked for
-// specific pages on larsi.org, so they're distinguishable from the externally designed and
-// tested schemes at a glance. See the colorPalettes map below for why nothing else is marked.
+// Every palette here is an externally designed and tested scheme. A palette of your own can be
+// added to d3.easygraph.colorPalettes (see the README); give it a prefix of your own so a future
+// version of this library cannot overwrite it.
 //
 // The three arrays below are colorbrewer's own three groups (SEQUENTIAL folds in its
 // single-hue/multi-hue split, which doesn't affect lookup) plus D3's own (non-ColorBrewer)
@@ -55,7 +55,7 @@ var DEFAULT_INTERPOLATE_SAMPLES = 9;
 // export correctly without needing to know about it in advance. Colorbrewer's own smaller-class
 // variants are verified literal prefixes of its largest set, so slicing a flat array reproduces
 // them exactly. `classes` omitted (or not available) resolves to the largest/full set. Takes the
-// bare d3 scheme name ("RdYlBu", not "Diverging.RdYlBu") - resolvePalette strips the kind prefix
+// bare d3 scheme name ("RdYlBu", not "Diverging.RdYlBu") - paletteColors strips the kind prefix
 // before calling this. Falls back to sampling d3.interpolateX when d3.schemeX doesn't exist -
 // see DEFAULT_INTERPOLATE_SAMPLES above.
 function schemeColors(name, classes) {
@@ -79,61 +79,47 @@ function schemeColors(name, classes) {
 }
 
 // Every scheme above (see schemeColors) at its largest class count, flattened to a plain
-// {"Kind.Name": [colors]} map, plus the entries d3 can't supply.
-//
-// The `LS-` marker means "hand-picked for one page on larsi.org" rather than an external,
-// published, tested scheme. That's the only distinction a caller choosing a palette actually
-// needs - how vetted is this for my data - so it's the only one encoded in a name. Note what
-// is deliberately *not* marked: Category20/20b/20c are hardcoded here purely because D3 dropped
-// them from d3-scale-chromatic in v5, which is a packaging accident, not a property of the
-// palette. They're as externally-designed as Set1 or Tableau10 and are named like them. Marking
-// them (an earlier idea was a `D3-` prefix) would have drawn the line at "which file is this
-// defined in" instead of "who designed it", and left the unmarked set silently meaning
-// "ColorBrewer, or Tableau, or Observable, or Google" - four origins wearing no marker at all.
+// {"Kind.Name": [colors]} map, plus the entries d3 can't supply: Category20/20b/20c are hardcoded
+// here purely because D3 dropped them from d3-scale-chromatic in v5, which is a packaging
+// accident, not a property of the palette. They're as externally-designed as Set1 or Tableau10
+// and are named like them.
 //
 // Computed once at load time (not rebuilt per chart instance) since it depends only on the `d3`
 // global, not on any particular graph's config.
 d3.easygraph.colorPalettes = (function() {
   var palettes = {};
   DIVERGING.forEach(function(name) { palettes["Diverging." + name] = schemeColors(name); });
-  palettes["Diverging.LS-BuMaRd"]         = ["#00F","#F0F","#F00"];
-  palettes["Diverging.LS-BuCyGnYlRd"]     = ["#00F","#0FF","#0F0","#FF0","#F00"];
   QUALITATIVE.forEach(function(name) { palettes["Qualitative." + name] = schemeColors(name); });
   palettes["Qualitative.Category20"]      = ["#1f77b4","#aec7e8","#ff7f0e","#ffbb78","#2ca02c","#98df8a","#d62728","#ff9896","#9467bd","#c5b0d5","#8c564b","#c49c94","#e377c2","#f7b6d2","#7f7f7f","#c7c7c7","#bcbd22","#dbdb8d","#17becf","#9edae5"];
   palettes["Qualitative.Category20b"]     = ["#393b79","#5254a3","#6b6ecf","#9c9ede","#637939","#8ca252","#b5cf6b","#cedb9c","#8c6d31","#bd9e39","#e7ba52","#e7cb94","#843c39","#ad494a","#d6616b","#e7969c","#7b4173","#a55194","#ce6dbd","#de9ed6"];
   palettes["Qualitative.Category20c"]     = ["#3182bd","#6baed6","#9ecae1","#c6dbef","#e6550d","#fd8d3c","#fdae6b","#fdd0a2","#31a354","#74c476","#a1d99b","#c7e9c0","#756bb1","#9e9ac8","#bcbddc","#dadaeb","#636363","#969696","#bdbdbd","#d9d9d9"];
-  palettes["Qualitative.LS-SustainZones"] = ["#F66","#6F6","#66F","#EE6","#6FF","#F6F","#B22","#2B2","#22B","#AA2","#2BB","#B2B","#D44","#4D4","#44D","#CC4","#4DD","#D4D","#900","#090","#009","#880","#099","#909"];
-  palettes["Qualitative.LS-RdGnBu"]       = ["#F00","#0F0","#00F"];
-  palettes["Qualitative.LS-SunArc"]       = ["#F84","#FC4","#B12"];
   SEQUENTIAL.forEach(function(name) { palettes["Sequential." + name] = schemeColors(name); });
-  palettes["Sequential.LS-Gy"]            = ["#000","#FFF"];
   return palettes;
 })();
 
-// Resolves a colorPalette name (optionally suffixed ".reversed") + optional colorClasses (a
-// specific colorbrewer class count instead of the largest, ignored for the hardcoded extras
-// above, which aren't classed data) to a plain color array. This is what _build() uses
-// internally for graph.paletteColors, exposed standalone so a caller that isn't building a
-// whole chart (a Leaflet marker layer, a parcoords line color) can still resolve a named
-// palette without one.
+// The colors of a palette name (optionally suffixed ".reversed") as a plain array, with an optional
+// class count (a specific colorbrewer class count instead of the largest, ignored for the
+// hardcoded extras above, which aren't classed data). This is what _build() uses internally for
+// graph.paletteColors, exposed standalone so a caller that isn't building a whole chart (a
+// Leaflet marker layer, a parcoords line color) can still get a named palette's colors.
 //
 // colorPalettes already has every name's *largest* size precomputed, so the common case (no
-// colorClasses) reads straight from that cache - schemeColors only gets called when a specific,
+// class count) reads straight from that cache - schemeColors only gets called when a specific,
 // possibly-non-largest class count is actually requested, the one thing the cache can't answer.
-d3.easygraph.resolvePalette = function(paletteName, colorClasses) {
+d3.easygraph.paletteColors = function(paletteName, colorClasses) {
   var REVERSE_SUFFIX = ".reversed";
   var reversed = paletteName.endsWith(REVERSE_SUFFIX);
   var name = reversed ? paletteName.slice(0, -REVERSE_SUFFIX.length) : paletteName;
   var baseName = name.slice(name.indexOf(".") + 1); // "Diverging.RdYlBu" -> "RdYlBu", for schemeColors
   var colors = colorClasses ? schemeColors(baseName, colorClasses) : null;
   if (!colors) {
-    // Unlike resolvePreset()'s deliberate silent fallback for a falsy/unrecognized preset (a preset
-    // is often legitimately omitted entirely), colorPalette always has a value by the time this
+    // Unlike preset()'s deliberate silent fallback for a falsy preset (a preset is often
+    // legitimately omitted entirely), a palette always has a value by the time this
     // runs - core.js's own default, or an explicit caller string - so an unrecognized name
     // here is always a genuine typo, not a valid "no preference" case. Throwing a clear error
     // beats a cryptic "Cannot read properties of undefined (reading 'slice')" a few lines down.
     if (!d3.easygraph.colorPalettes[name]) {
-      throw new Error('d3.easygraph: unrecognized colorPalette "' + paletteName + '"');
+      throw new Error('d3.easygraph: unrecognized palette "' + paletteName + '"');
     }
     colors = d3.easygraph.colorPalettes[name].slice(0);
   }
@@ -149,7 +135,7 @@ d3.easygraph.resolvePalette = function(paletteName, colorClasses) {
 // options: { classes, quantize }.
 d3.easygraph.colorScale = function(paletteName, domain, options) {
   options = options || {};
-  var colors = d3.easygraph.resolvePalette(paletteName, options.classes);
+  var colors = d3.easygraph.paletteColors(paletteName, options.classes);
   if (options.quantize) return d3.scaleQuantize().range(colors).domain(domain);
   var n = colors.length;
   var stops = d3.range(n).map(function(i) { return domain[0] + i * (domain[1] - domain[0]) / (n - 1); });
@@ -193,7 +179,7 @@ d3.easygraph.hueWheelPalette = function(count) {
 // all (larsi.org's states_visited map and grid pages, which share one hand-written swatch list
 // between two files).
 d3.easygraph.legendItems = function(colors, labels) {
-  var resolved = (typeof colors === 'string') ? d3.easygraph.resolvePalette(colors) : colors;
+  var resolved = (typeof colors === 'string') ? d3.easygraph.paletteColors(colors) : colors;
   labels = labels || [];
   return resolved.map(function(color, i) {
     return { index: i, color: color, label: labels[i] };

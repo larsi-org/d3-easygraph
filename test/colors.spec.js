@@ -3,27 +3,27 @@ const path = require('path');
 
 const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/colors.html');
 
-test('resolvePalette matches colorPalettes for a bare name', async ({ page }) => {
+test('paletteColors matches colorPalettes for a bare name', async ({ page }) => {
   await page.goto(FIXTURE);
   const { resolved, direct } = await page.evaluate(() => ({
-    resolved: d3.easygraph.resolvePalette('Diverging.RdYlBu'),
+    resolved: d3.easygraph.paletteColors('Diverging.RdYlBu'),
     direct:   d3.easygraph.colorPalettes['Diverging.RdYlBu'],
   }));
   expect(resolved).toEqual(direct);
 });
 
-test('resolvePalette ".reversed" suffix reverses the color order without mutating the original', async ({ page }) => {
+test('paletteColors ".reversed" suffix reverses the color order without mutating the original', async ({ page }) => {
   await page.goto(FIXTURE);
   const { forward, reversed } = await page.evaluate(() => ({
-    forward:  d3.easygraph.resolvePalette('Diverging.RdYlBu'),
-    reversed: d3.easygraph.resolvePalette('Diverging.RdYlBu.reversed'),
+    forward:  d3.easygraph.paletteColors('Diverging.RdYlBu'),
+    reversed: d3.easygraph.paletteColors('Diverging.RdYlBu.reversed'),
   }));
   expect(reversed).toEqual(forward.slice().reverse());
 });
 
-test('resolvePalette colorClasses picks a specific class count instead of the largest', async ({ page }) => {
+test('paletteColors colorClasses picks a specific class count instead of the largest', async ({ page }) => {
   await page.goto(FIXTURE);
-  const four = await page.evaluate(() => d3.easygraph.resolvePalette('Sequential.Blues', 4));
+  const four = await page.evaluate(() => d3.easygraph.paletteColors('Sequential.Blues', 4));
   expect(four.length).toBe(4);
 });
 
@@ -42,11 +42,11 @@ test('default colorPalette is Qualitative.Tableau10', async ({ page }) => {
   expect(paletteColors).toEqual(d3Tableau);
 });
 
-test('Qualitative.Category10 was removed - resolvePalette no longer resolves it', async ({ page }) => {
+test('Qualitative.Category10 was removed - paletteColors no longer resolves it', async ({ page }) => {
   await page.goto(FIXTURE);
   const threw = await page.evaluate(() => {
     try {
-      d3.easygraph.resolvePalette('Qualitative.Category10');
+      d3.easygraph.paletteColors('Qualitative.Category10');
       return false;
     } catch (e) {
       return true;
@@ -55,25 +55,25 @@ test('Qualitative.Category10 was removed - resolvePalette no longer resolves it'
   expect(threw).toBe(true);
 });
 
-test('resolvePalette throws a clear, named error for an unrecognized palette - not a cryptic TypeError', async ({ page }) => {
+test('paletteColors throws a clear, named error for an unrecognized palette - not a cryptic TypeError', async ({ page }) => {
   await page.goto(FIXTURE);
   const message = await page.evaluate(() => {
     try {
-      d3.easygraph.resolvePalette('Sequential.NotARealPalette');
+      d3.easygraph.paletteColors('Sequential.NotARealPalette');
       return null;
     } catch (e) {
       return e.message;
     }
   });
-  expect(message).toContain('unrecognized colorPalette');
+  expect(message).toContain('unrecognized palette');
   expect(message).toContain('Sequential.NotARealPalette');
 });
 
 test('Qualitative.Tableau10 and Qualitative.Observable10 resolve to d3-scale-chromatic\'s own schemes', async ({ page }) => {
   await page.goto(FIXTURE);
   const { tableau, observable, d3Tableau, d3Observable } = await page.evaluate(() => ({
-    tableau:    d3.easygraph.resolvePalette('Qualitative.Tableau10'),
-    observable: d3.easygraph.resolvePalette('Qualitative.Observable10'),
+    tableau:    d3.easygraph.paletteColors('Qualitative.Tableau10'),
+    observable: d3.easygraph.paletteColors('Qualitative.Observable10'),
     d3Tableau:    d3.schemeTableau10,
     d3Observable: d3.schemeObservable10,
   }));
@@ -85,7 +85,7 @@ test('colorScale builds a clamped linear scale spanning the palette across the g
   await page.goto(FIXTURE);
   const { first, last, belowMin, aboveMax } = await page.evaluate(() => {
     var scale = d3.easygraph.colorScale('Diverging.RdYlBu.reversed', [0, 100]);
-    var colors = d3.easygraph.resolvePalette('Diverging.RdYlBu.reversed');
+    var colors = d3.easygraph.paletteColors('Diverging.RdYlBu.reversed');
     // d3.scaleLinear's color interpolation normalizes output to an "rgb(...)" string even at an
     // exact stop, so compare parsed color values (d3.rgb) rather than the raw strings.
     return {
@@ -104,7 +104,7 @@ test('colorScale builds a clamped linear scale spanning the palette across the g
 test('colorScale quantize:true builds a quantize scale with paletteColors.length discrete bands', async ({ page }) => {
   await page.goto(FIXTURE);
   const { colorCount, bandCount } = await page.evaluate(() => {
-    var colors = d3.easygraph.resolvePalette('Sequential.Blues', 4);
+    var colors = d3.easygraph.paletteColors('Sequential.Blues', 4);
     var scale  = d3.easygraph.colorScale('Sequential.Blues', [0, 100], { classes: 4, quantize: true });
     return { colorCount: colors.length, bandCount: scale.range().length };
   });
@@ -136,9 +136,9 @@ test('Sequential.Turbo resolves via d3.interpolateTurbo, since d3.schemeTurbo do
   const { hasScheme, hasInterpolate, nine, first, last } = await page.evaluate(() => ({
     hasScheme:      typeof d3.schemeTurbo !== 'undefined',
     hasInterpolate: typeof d3.interpolateTurbo === 'function',
-    nine:  d3.easygraph.resolvePalette('Sequential.Turbo').length,
-    first: d3.rgb(d3.easygraph.resolvePalette('Sequential.Turbo')[0]).toString(),
-    last:  d3.rgb(d3.easygraph.resolvePalette('Sequential.Turbo')[8]).toString(),
+    nine:  d3.easygraph.paletteColors('Sequential.Turbo').length,
+    first: d3.rgb(d3.easygraph.paletteColors('Sequential.Turbo')[0]).toString(),
+    last:  d3.rgb(d3.easygraph.paletteColors('Sequential.Turbo')[8]).toString(),
   }));
   expect(hasScheme).toBe(false);
   expect(hasInterpolate).toBe(true);
@@ -146,9 +146,9 @@ test('Sequential.Turbo resolves via d3.interpolateTurbo, since d3.schemeTurbo do
   expect(first).not.toBe(last);
 });
 
-test('resolvePalette classes picks the sample count for an interpolate-only scheme too', async ({ page }) => {
+test('paletteColors classes picks the sample count for an interpolate-only scheme too', async ({ page }) => {
   await page.goto(FIXTURE);
-  const length = await page.evaluate(() => d3.easygraph.resolvePalette('Sequential.Turbo', 24).length);
+  const length = await page.evaluate(() => d3.easygraph.paletteColors('Sequential.Turbo', 24).length);
   expect(length).toBe(24);
 });
 
@@ -161,37 +161,36 @@ test('hueWheelPalette(count) is deterministic - same count always produces the s
   expect(a).toEqual(b);
 });
 
-test('the six hand-picked palettes carry an LS- marker; external schemes do not', async ({ page }) => {
+test('every shipped palette is an external scheme: no site-specific names, Category20* named like the rest', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
     var names = Object.keys(d3.easygraph.colorPalettes);
     return {
-      marked: names.filter(function (n) { return n.indexOf('.LS-') > -1; }).sort(),
+      siteSpecific: names.filter(function (n) { return n.indexOf('LS-') > -1; }),
       // Category20* are D3's own published schemes, hardcoded only because d3-scale-chromatic
-      // dropped them in v5 - a packaging accident, so they stay named like any other external set
-      category20Unmarked: names.filter(function (n) { return n.indexOf('Category20') > -1; }).sort(),
-      externalsUnmarked: ['Qualitative.Tableau10', 'Qualitative.Observable10', 'Sequential.Turbo', 'Qualitative.Set1']
+      // dropped them in v5, so they stay named like any other external set
+      category20: names.filter(function (n) { return n.indexOf('Category20') > -1; }).sort(),
+      externals: ['Qualitative.Tableau10', 'Qualitative.Observable10', 'Sequential.Turbo', 'Qualitative.Set1']
         .every(function (n) { return names.indexOf(n) > -1; })
     };
   });
-  expect(r.marked).toEqual([
-    'Diverging.LS-BuCyGnYlRd', 'Diverging.LS-BuMaRd', 'Qualitative.LS-RdGnBu',
-    'Qualitative.LS-SunArc', 'Qualitative.LS-SustainZones', 'Sequential.LS-Gy'
-  ]);
-  expect(r.category20Unmarked).toEqual(['Qualitative.Category20', 'Qualitative.Category20b', 'Qualitative.Category20c']);
-  expect(r.externalsUnmarked).toBe(true);
+  expect(r.siteSpecific).toEqual([]);
+  expect(r.category20).toEqual(['Qualitative.Category20', 'Qualitative.Category20b', 'Qualitative.Category20c']);
+  expect(r.externals).toBe(true);
 });
 
-test('an LS- palette resolves, reverses, and drives a color scale like any other', async ({ page }) => {
+test('a palette you add resolves, reverses, and drives a color scale like any shipped one', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
-    var fwd = d3.easygraph.resolvePalette('Qualitative.LS-SunArc');
-    var rev = d3.easygraph.resolvePalette('Qualitative.LS-SunArc.reversed');
-    var scale = d3.easygraph.colorScale('Diverging.LS-BuMaRd', [0, 100]);
+    d3.easygraph.colorPalettes['Qualitative.MyArc'] = ['#F84', '#FC4', '#B12'];
+    d3.easygraph.colorPalettes['Diverging.MyBlueRed'] = ['#00F', '#F0F', '#F00'];
+    var fwd = d3.easygraph.paletteColors('Qualitative.MyArc');
+    var rev = d3.easygraph.paletteColors('Qualitative.MyArc.reversed');
+    var scale = d3.easygraph.colorScale('Diverging.MyBlueRed', [0, 100]);
     return { fwd: fwd, rev: rev, scaleEnds: [d3.rgb(scale(0)).toString(), d3.rgb(scale(100)).toString()] };
   });
   expect(r.fwd).toEqual(['#F84', '#FC4', '#B12']);
-  expect(r.rev).toEqual(['#B12', '#FC4', '#F84']);   // .reversed still parses past the marker
+  expect(r.rev).toEqual(['#B12', '#FC4', '#F84']);
   expect(r.scaleEnds).toEqual(['rgb(0, 0, 255)', 'rgb(255, 0, 0)']);
 });
 
@@ -199,7 +198,8 @@ test('standalone legendItems zips colors and labels, and accepts a palette name'
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => ({
     fromArray:  d3.easygraph.legendItems(['#f00', '#0f0', '#00f'], ['Not Yet', 'Visited', 'Lived']),
-    fromName:   d3.easygraph.legendItems('Qualitative.LS-SunArc', ['Sunrise', 'Noon', 'Sunset']),
+    fromName:   (d3.easygraph.colorPalettes['Qualitative.MyArc'] = ['#F84', '#FC4', '#B12'],
+                 d3.easygraph.legendItems('Qualitative.MyArc', ['Sunrise', 'Noon', 'Sunset'])),
     noLabels:   d3.easygraph.legendItems(['#f00', '#0f0']),
     shortLabels: d3.easygraph.legendItems(['#f00', '#0f0', '#00f'], ['only one'])
   }));

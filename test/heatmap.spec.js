@@ -8,7 +8,7 @@ test('defaults color.palette to Diverging.RdBu.reversed, not the shared Qualitat
   await page.goto(FIXTURE);
   const { paletteColors, expected } = await page.evaluate(() => ({
     paletteColors: window.graph.paletteColors,
-    expected:      d3.easygraph.resolvePalette('Diverging.RdBu.reversed'),
+    expected:      d3.easygraph.paletteColors('Diverging.RdBu.reversed'),
   }));
   expect(paletteColors).toEqual(expected);
 });

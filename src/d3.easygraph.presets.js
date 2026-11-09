@@ -69,43 +69,32 @@ function _windSpeedMs2Mph(v)   { return v * 2.23694; }
 function _rainFallMm2Inches(v) { return v / 25.4; }
 
 // convert(v) is the raw, unrounded value (safe for color-scale interpolation); the rounded form
-// is its own function, convertRounded(v, d) = round(convert(v), d). convert takes exactly one
-// argument: the old convert(v, d) overload throws instead of silently doing something else.
-function _strictConvert(rawConvert) {
-  return function(v) {
-    if (arguments.length > 1)
-      throw new Error("d3.easygraph: convert(v) takes one argument - use convertRounded(v, decimals) to round");
-    return rawConvert(v);
-  };
-}
+// is its own function, convertRounded(v, d) = round(convert(v), d).
 d3.easygraph._roundedFrom = function(convert) {
   return function(v, d) { return d3.easygraph.round(convert(v), d); };
 };
 
-var _withRounding = _strictConvert;
-var _roundedIdentity = _strictConvert(_identity);
-
 // every preset is a complete unit definition - `convert` is always present (identity when a
-// quantity needs no conversion), so resolvePreset() never needs a second fallback merge to fill gaps
+// quantity needs no conversion), so preset() never needs a second fallback merge to fill gaps
 d3.easygraph.presets = {
-  default:              {                             unit: '',          scale: 'linear', convert: _roundedIdentity },
-  batteryStateOfCharge: { label: 'Battery',           unit: '%',         scale: 'linear', convert: _roundedIdentity },
-  clouds:               { label: 'Clouds',            unit: '\xD710th',  scale: 'linear', convert: _roundedIdentity },
-  electricCurrent:      { label: 'Current',           unit: 'A',         scale: 'linear', convert: _roundedIdentity },
-  electricPower:        { label: 'Power',             unit: 'W',         scale: 'linear', convert: _roundedIdentity },
-  electricVoltage:      { label: 'Voltage',           unit: 'V',         scale: 'linear', convert: _roundedIdentity },
-  pressureHpa:          { label: 'Pressure',          unit: 'hPa',       scale: 'linear', convert: _roundedIdentity },
-  pressureInhg:         { label: 'Pressure',          unit: 'inHg',      scale: 'linear', convert: _withRounding(_pressureHpa2Inhg) },
-  rainFallMm:           { label: 'Rain Fall',         unit: 'mm',        scale: 'linear', convert: _roundedIdentity },
-  rainFallInches:       { label: 'Rain Fall',         unit: 'inches',    scale: 'linear', convert: _withRounding(_rainFallMm2Inches) },
-  relativeHumidity:     { label: 'Relative Humidity', unit: '%',         scale: 'linear', convert: _roundedIdentity },
-  solarRadiation:       { label: 'Solar Radiation',   unit: 'W/m\xB2',   scale: 'linear', convert: _roundedIdentity },
-  temperatureC:         { label: 'Temperature',       unit: '\xB0C',     scale: 'linear', convert: _roundedIdentity },
-  temperatureF:         { label: 'Temperature',       unit: '\xB0F',     scale: 'linear', convert: _withRounding(_temperatureC2F) },
-  windSpeed:            { label: 'Wind Speed',        unit: 'm/s',       scale: 'linear', convert: _roundedIdentity },
-  windSpeedKmph:        { label: 'Wind Speed',        unit: 'kmph',      scale: 'linear', convert: _withRounding(_windSpeedMs2Kmph) },
-  windSpeedMph:         { label: 'Wind Speed',        unit: 'mph',       scale: 'linear', convert: _withRounding(_windSpeedMs2Mph) },
-  windDirection:        { label: 'Wind Direction',    unit: '\xB0North', scale: 'linear', convert: _roundedIdentity },
+  default:              {                             unit: '',          scale: 'linear', convert: _identity },
+  batteryStateOfCharge: { label: 'Battery',           unit: '%',         scale: 'linear', convert: _identity },
+  clouds:               { label: 'Clouds',            unit: '\xD710th',  scale: 'linear', convert: _identity },
+  electricCurrent:      { label: 'Current',           unit: 'A',         scale: 'linear', convert: _identity },
+  electricPower:        { label: 'Power',             unit: 'W',         scale: 'linear', convert: _identity },
+  electricVoltage:      { label: 'Voltage',           unit: 'V',         scale: 'linear', convert: _identity },
+  pressureHpa:          { label: 'Pressure',          unit: 'hPa',       scale: 'linear', convert: _identity },
+  pressureInhg:         { label: 'Pressure',          unit: 'inHg',      scale: 'linear', convert: _pressureHpa2Inhg },
+  rainFallMm:           { label: 'Rain Fall',         unit: 'mm',        scale: 'linear', convert: _identity },
+  rainFallInches:       { label: 'Rain Fall',         unit: 'inches',    scale: 'linear', convert: _rainFallMm2Inches },
+  relativeHumidity:     { label: 'Relative Humidity', unit: '%',         scale: 'linear', convert: _identity },
+  solarRadiation:       { label: 'Solar Radiation',   unit: 'W/m\xB2',   scale: 'linear', convert: _identity },
+  temperatureC:         { label: 'Temperature',       unit: '\xB0C',     scale: 'linear', convert: _identity },
+  temperatureF:         { label: 'Temperature',       unit: '\xB0F',     scale: 'linear', convert: _temperatureC2F },
+  windSpeed:            { label: 'Wind Speed',        unit: 'm/s',       scale: 'linear', convert: _identity },
+  windSpeedKmph:        { label: 'Wind Speed',        unit: 'kmph',      scale: 'linear', convert: _windSpeedMs2Kmph },
+  windSpeedMph:         { label: 'Wind Speed',        unit: 'mph',       scale: 'linear', convert: _windSpeedMs2Mph },
+  windDirection:        { label: 'Wind Direction',    unit: '\xB0North', scale: 'linear', convert: _identity },
 };
 
 // Returns the named preset, or presets.default when name is falsy (no preset asked for). An
@@ -116,7 +105,7 @@ Object.keys(d3.easygraph.presets).forEach(function(name) {
   p.convertRounded = d3.easygraph._roundedFrom(p.convert);
 });
 
-d3.easygraph.resolvePreset = function(name) {
+d3.easygraph.preset = function(name) {
   if (!name) return d3.easygraph.presets.default;
   var preset = d3.easygraph.presets[name];
   if (!preset) {

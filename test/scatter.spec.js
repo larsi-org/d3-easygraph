@@ -250,9 +250,9 @@ test('arrows defaults to off - no arrow glyphs rendered', async ({ page }) => {
   await expect(page.locator('path.easygraph-arrow')).toHaveCount(0);
 });
 
-test('arrows: true renders one glyph per point that has both angle and magnitude, skipping the rest', async ({ page }) => {
+test('arrows: true renders one glyph per point that has both bearing and magnitude, skipping the rest', async ({ page }) => {
   await page.goto(ARROWS_FIXTURE);
-  // 3 points in the fixture, only 2 carry angle/magnitude
+  // 3 points in the fixture, only 2 carry bearing/magnitude
   await expect(page.locator('circle.easygraph-point')).toHaveCount(3);
   await expect(page.locator('path.easygraph-arrow')).toHaveCount(2);
 });
@@ -268,7 +268,7 @@ test('arrows render after (on top of, in z-order) points', async ({ page }) => {
   expect(arrowsAfterPoints).toBe(true);
 });
 
-test('an angle=0 arrow points along +x (screen right) from its own point', async ({ page }) => {
+test('a bearing=90 (east) arrow points along +x (screen right) from its own point', async ({ page }) => {
   await page.goto(ARROWS_FIXTURE);
   const shape = await page.evaluate(() => {
     var d = document.querySelectorAll('path.easygraph-arrow')[0].getAttribute('d');
@@ -280,7 +280,7 @@ test('an angle=0 arrow points along +x (screen right) from its own point', async
   expect(shape.tipY).toBeCloseTo(shape.cy, 0);
 });
 
-test('an angle=PI/2 arrow points along +y (screen down) from its own point', async ({ page }) => {
+test('a bearing=180 (south) arrow points along +y (screen down) from its own point', async ({ page }) => {
   await page.goto(ARROWS_FIXTURE);
   const shape = await page.evaluate(() => {
     var d = document.querySelectorAll('path.easygraph-arrow')[1].getAttribute('d');
@@ -438,7 +438,7 @@ test('voronoi accepts { opacity }; plain true keeps the 0.6 default', async ({ p
   expect(custom).toBe('0.2');
 });
 
-test('points join by id first, then label, then position - a dropped point keeps the others\' circles', async ({ page }) => {
+test('points join by id, else position - a dropped point keeps the others\' circles; label is display text only', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
     function run(keyField) {
@@ -463,7 +463,7 @@ test('points join by id first, then label, then position - a dropped point keeps
     return { id: run('id'), label: run('label'), none: run(null) };
   });
   expect(r.id).toBe(true);
-  expect(r.label).toBe(true);
+  expect(r.label).toBe(false);  // label is not an identity: it is only what labels: true draws
   expect(r.none).toBe(false);
 });
 
@@ -501,4 +501,32 @@ test('width must be positive', async ({ page }) => {
     catch (e) { return e.message; }
   });
   expect(msg).toContain('width must be a positive number');
+});
+
+test('arrow bearings are compass degrees: 0 north (up), 90 east (right), 270 west, headAngle is degrees', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var w = document.createElement('div'); document.body.appendChild(w);
+    var g = d3.easygraph.scatter({ container: w, height: 200, duration: 0, arrows: { minLength: 20, maxLength: 20 } });
+    g.update([0, 90, 270].map(function(b, i) { return { x: i, y: 0, value: 1, id: b, bearing: b, magnitude: 1 }; }));
+    return [...w.querySelectorAll('path.easygraph-arrow')].map(function(el) {
+      var m = el.getAttribute('d').match(/^M([\d.e+\-]+),([\d.e+\-]+)L([\d.e+\-]+),([\d.e+\-]+)/);
+      return { dx: Math.round(+m[3] - +m[1]), dy: Math.round(+m[4] - +m[2]) };
+    });
+  });
+  expect(r[0]).toEqual({ dx: 0, dy: -20 });   // north is up the screen
+  expect(r[1]).toEqual({ dx: 20, dy: 0 });    // east is right
+  expect(r[2]).toEqual({ dx: -20, dy: 0 });   // west is left
+});
+
+test('options assigned live are checked too: a typo in points, arrows or labels throws on the next update', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const msg = await page.evaluate(() => {
+    var w = document.createElement('div'); document.body.appendChild(w);
+    var g = d3.easygraph.scatter({ container: w, height: 200 });
+    g.arrows = { colour: 'red' };
+    try { g.update([{ x: 0, y: 0, value: 1 }]); return ''; } catch (e) { return e.message; }
+  });
+  expect(msg).toContain("arrows.colour");
+  expect(msg).toContain("arrows.color");
 });

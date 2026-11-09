@@ -5,6 +5,36 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Changed (last pass before 1.0)
+- **`resolvePalette` is `paletteColors`, `resolvePreset` is `preset`.** The first matches
+  `graph.paletteColors`; the second sits beside the `presets` table. Same behavior.
+- **Nested options are checked like top-level ones.** A typo inside `x`/`y`, `color`, `margin`, `points`,
+  `arrows`, `labels`, `voronoi`, `zoom`, `crosshair`, `bands` or an entry of `series` throws with a
+  did-you-mean (`x.lable` -> `x.label`), and so does an unknown key in `update()`'s domains argument
+  (`color` is for heatmap and scatter only). `zoom: [1, 10]` and `bands: true` are rejected by the same check.
+- **`lines` defaults to on** (off on a stacked chart, where the stacked areas are the picture). A plain
+  `{ container, height }` line chart now draws. Set `lines: false` for a bands-only chart.
+- **The `crosshair` event carries `{ x, pixel }`** (the data value under the pointer, and its x in plot
+  pixels) instead of the pixel alone; still `null` when the pointer leaves. `syncCrosshair` no longer
+  needs the other charts to have zoom.
+- **Scatter arrows use a compass `bearing`** in degrees (0 = north, clockwise) instead of `angle` in
+  screen radians, matching `compassPoint16()`; `arrows.headAngle` is in degrees.
+- **Scatter points join on `id` only** (else array position). `label` is display text and no longer an identity.
+- **`x.timeFormat: 'multi'` is `x.tickFormat`**, which also takes a format string or a function, on `x` and `y`.
+- **`colorPerData` is gone**: a bar datum with a `color` field is drawn in it.
+- **Assigning `x.preset`, `convert`, `tickFormat`, `tickLabels`, `color.quantize`, `color.preset` or
+  `graph.width` throws**, like the other build-time keys.
+- **The six `LS-` palettes are no longer shipped** (they were picked for one site); add your own to
+  `d3.easygraph.colorPalettes`.
+- `convert(v, d)` no longer throws on a second argument (use `convertRounded`), and the migration errors
+  for names that were only ever in internal builds (`ribbons`, `sigmaBand`, `names`, `units`, `clip`,
+  `colorPalette`, `stackedArea`, `mode`, `radius`, `onZoom` ...) are gone: they are plain unknown options now.
+
+### Added
+- **Bars take negative values.** The value axis includes zero and reaches every bar; grouped bars hang
+  from zero, stacked bars pile positives up and negatives down from it. Before, a negative bar was a
+  rectangle with a negative height and was not drawn.
+
 ### Changed (final pre-1.0 API pass)
 - **`color: { palette, classes }`** replaces top-level `colorPalette`/`colorClasses`, on every family
   (heatmap and scatter keep their scale options in the same object). Both are fixed at construction.

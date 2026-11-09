@@ -18,13 +18,12 @@
 // arrows: true draws a directional glyph (shaft + two-line chevron head) on top of a point
 // instead of/alongside its circle, for data where a second, vector-shaped quantity (e.g. wind:
 // speed + direction) needs to overlay a scalar one (e.g. pressure, still driving `value`'s
-// color) at the same position. Only points carrying both `angle` (radians) and `magnitude`
+// color) at the same position. Only points carrying both `bearing` (degrees) and `magnitude`
 // (raw units, mapped to pixel length via arrows.minLength/maxLength) get a glyph - a point
 // missing either just renders its circle with no arrow, same as any other optional field
-// elsewhere in this library. `angle` is plain trigonometric convention (0 = +x/right,
-// increasing counter-clockwise... but SVG y grows downward, so an unrotated glyph in *screen*
-// terms points right and sweeps clockwise as angle increases) - a caller with compass-bearing
-// data (0 = north, clockwise) converts via `angle = (bearingDegrees - 90) * Math.PI / 180`.
+// elsewhere in this library. `bearing` is a compass bearing, like compassPoint16() takes: 0 =
+// north (up on screen), 90 = east, clockwise; the arrow points toward it. arrows.headAngle is
+// degrees too.
 //
 // labels: true draws each point's `label` (a string) offset above-right of its circle - same
 // optional-field pattern as arrows: a point missing `label` just renders without one. Meant for
@@ -56,9 +55,9 @@
 // discrete, equal-width bands over the domain - for data where a handful of clearly separated
 // ranges reads better than a smooth interpolation (e.g. aircraft altitude: low/climbing bands
 // vs. a cruise band, rather than every altitude getting its own subtly different shade). Pair
-// with core.js's colorClasses to pick how many colors come out of a colorbrewer palette (which
-// otherwise always resolves to its largest available class count) - e.g. colorPalette: "Blues",
-// colorClasses: 4 for four bands from light to dark.
+// with color.classes to pick how many colors come out of a colorbrewer palette (which
+// otherwise always resolves to its largest available class count) - e.g. color: { palette:
+// "Sequential.Blues", classes: 4, quantize: true } for four bands from light to dark.
 
 d3.easygraph.scatter = function(config) {
   // Both the config and its color sub-object are cloned rather than resolved in place - the
@@ -77,10 +76,13 @@ d3.easygraph.scatter = function(config) {
     // arrows / labels are false, true, or an options object; the object's keys fall back to
     // these. Resolved on every render so assigning graph.arrows / graph.labels live still works.
     var ARROW_DEFAULTS = { color: '#000', strokeWidth: 1.5, minLength: 6, maxLength: 24,
-                           headLength: 6, headAngle: Math.PI / 7 };
+                           headLength: 6, headAngle: 180 / 7 };
     var POINT_DEFAULTS = { radius: 4, strokeWidth: 0.5 };
     var LABEL_DEFAULTS = { size: 10, offset: 8, minZoom: 1 };
-    function withDefaults(value, defaults) {
+    // `name` is the config key (points, arrows, labels): these are assignable live, so a typo in
+    // one is checked here on every render, not only at construction.
+    function withDefaults(name, value, defaults) {
+      d3.easygraph._checkOption('d3.easygraph.scatter', name, value, { kind: 'flag' }, Object.keys(defaults));
       return Object.assign({}, defaults, (value && typeof value === 'object') ? value : null);
     }
 
@@ -88,10 +90,12 @@ d3.easygraph.scatter = function(config) {
       return function(d) {
         var cx = graph.x.$scale(d.x), cy = graph.y.$scale(d.y);
         var len  = lengthScale(d.magnitude);
-        var tipX = cx + len * Math.cos(d.angle), tipY = cy + len * Math.sin(d.angle);
+        // compass bearing (0 = north, clockwise) to the screen angle SVG's y-down axis wants
+        var angle = (d.bearing - 90) * Math.PI / 180;
+        var tipX = cx + len * Math.cos(angle), tipY = cy + len * Math.sin(angle);
         // barbs splay backward from the tip, straddling the reverse direction by
-        // +-arrowHeadAngle - the classic two-stroke chevron arrowhead
-        var back = d.angle + Math.PI;
+        // +-headAngle - the classic two-stroke chevron arrowhead
+        var back = angle + Math.PI;
         var b1X = tipX + headLength * Math.cos(back - headAngle);
         var b1Y = tipY + headLength * Math.sin(back - headAngle);
         var b2X = tipX + headLength * Math.cos(back + headAngle);
@@ -106,7 +110,8 @@ d3.easygraph.scatter = function(config) {
       // (point radius, arrow length/head) so they stay constant when this render is reached
       // through a caller's own zoom-transform scaling, rather than growing with it.
       var k = (graph._zoomScale || 1) * (graph._viewScale || 1);
-      var P = withDefaults(graph.points, POINT_DEFAULTS);
+      var P = withDefaults('points', graph.points, POINT_DEFAULTS);
+      d3.easygraph._checkOption('d3.easygraph.scatter', 'voronoi', graph.voronoi, { kind: 'flag' }, ['opacity']);
 
       // ranges.color (this render) beats color.domain (fixed at construction) beats the data's
       // own clipped extent - see _colorDomain in core.js, which both color-scale families share.
@@ -156,16 +161,16 @@ d3.easygraph.scatter = function(config) {
       // fighting rescale(). A freshly entered point gets cx/cy/fill set immediately (not
       // faded in) so it doesn't animate in from some arbitrary un-set DOM default.
       //
-      // Keyed by `label` (falling back to index when a point has none, matching the old
-      // always-index join exactly) rather than joined positionally: a caller whose point count
+      // Keyed by `id` (falling back to index when a point has none) rather than joined
+      // positionally: a caller whose point count
       // changes between updates because some entries are conditionally dropped (e.g. weather's
       // Pressure & Wind map filtering out stations with no reading that hour) would otherwise
       // have every point *after* a dropped one shift down an index, so the existing DOM circle
       // at that index - still mid-transition or about to start one - suddenly represents a
       // different station and visibly flies from the old station's position to the new one.
-      // A caller that never sets `id` or `label` keeps the exact index-based identity this always had.
+      // A caller that never sets `id` keeps plain index-based identity. `label` is display text only.
       var points = graph.$pointsGroup.selectAll(".easygraph-point")
-        .data(data, function(d, i) { return d.id != null ? d.id : (d.label != null ? d.label : i); });
+        .data(data, function(d, i) { return d.id != null ? d.id : i; });
       var pointsEnter = points.enter().append("circle").attr("class", "easygraph-point")
         .attr("cx", function(d) { return graph.x.$scale(d.x); })
         .attr("cy", function(d) { return graph.y.$scale(d.y); })
@@ -185,10 +190,10 @@ d3.easygraph.scatter = function(config) {
       // toggled on/off after points already exist - same z-order-stability reasoning as
       // cells vs. points above, just the opposite end (arrows are the topmost layer, cells
       // the bottommost).
-      var A = withDefaults(graph.arrows, ARROW_DEFAULTS);
-      var L = withDefaults(graph.labels, LABEL_DEFAULTS);
+      var A = withDefaults('arrows', graph.arrows, ARROW_DEFAULTS);
+      var L = withDefaults('labels', graph.labels, LABEL_DEFAULTS);
       var vectorData = (graph.arrows && data.length)
-        ? data.filter(function(d) { return d.angle != null && d.magnitude != null; })
+        ? data.filter(function(d) { return d.bearing != null && d.magnitude != null; })
         : [];
       var magnitudes = vectorData.map(function(d) { return d.magnitude; });
       var lengthScale = d3.scaleLinear()
@@ -201,7 +206,7 @@ d3.easygraph.scatter = function(config) {
       arrows.exit().remove();
       arrows = arrowsEnter.merge(arrows);
       arrows
-        .attr("d", arrowPath(lengthScale, A.headLength / k, A.headAngle))
+        .attr("d", arrowPath(lengthScale, A.headLength / k, A.headAngle * Math.PI / 180))
         .style("stroke", A.color)
         .style("stroke-width", (A.strokeWidth / k) + "px");
 

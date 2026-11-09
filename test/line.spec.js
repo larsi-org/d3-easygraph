@@ -344,7 +344,7 @@ test('crosshair accepts { threshold } as well as true', async ({ page }) => {
   expect(ok).toBe(true);
 });
 
-test('bands is an object: {} draws none, either key works alone, unknown keys, arrays and the old keys throw', async ({ page }) => {
+test('bands is an object: {} draws none, either key works alone, unknown keys and arrays throw', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
     var data = [[{ x: 0, y: 1, min: 0, max: 2, sigmaMin: 0.5, sigmaMax: 1.5 }, { x: 1, y: 2, min: 1, max: 3, sigmaMin: 1.5, sigmaMax: 2.5 }]];
@@ -362,7 +362,6 @@ test('bands is an object: {} draws none, either key works alone, unknown keys, a
     both.g.bands = { sigma: true }; out.sigmaOnly = (both.g.update(data), counts(both));
     out.unknown = msg(function() { mk({ bands: { median: true } }); });
     out.array = msg(function() { mk({ bands: ['minmax'] }); });
-    out.old = msg(function() { mk({ ribbons: true }); });
     return out;
   });
   expect(r.both).toEqual([1, 1]);
@@ -370,5 +369,4 @@ test('bands is an object: {} draws none, either key works alone, unknown keys, a
   expect(r.sigmaOnly).toEqual([0, 1]);
   expect(r.unknown).toContain('median');
   expect(r.array).toContain('object');
-  expect(r.old).toContain('bands');
 });

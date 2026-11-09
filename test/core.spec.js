@@ -568,20 +568,23 @@ test('tickLabels: false blanks the tick text but keeps the tick marks', async ({
   expect(r.labelText).toBe('');            // only the text is blanked
 });
 
-test('bars: colorPerData reads each datum\'s own `color` field', async ({ page }) => {
+test('bars: a datum\'s own `color` field colors that bar; bars without one keep the series color', async ({ page }) => {
   await page.goto(FIXTURE);
   const fills = await page.evaluate(() => {
     return new Promise(function (resolve) {
       var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
-      var g = d3.easygraph.bars({ container: w, height: 200, colorPerData: true });
-      g.update([[{ x: 'a', y: 1, color: '#ff0000' }, { x: 'b', y: 2, color: '#00ff00' }]]);
+      var g = d3.easygraph.bars({ container: w, height: 200 });
+      g.update([[{ x: 'a', y: 1, color: '#ff0000' }, { x: 'b', y: 2, color: '#00ff00' }, { x: 'c', y: 3 }]]);
       setTimeout(function () {
         var f = [...w.querySelectorAll('rect.easygraph-bar')].map(function (r) { return r.style.fill; });
-        g.destroy(); w.remove(); resolve(f);
+        var seriesFill = w.querySelector('g.easygraph-bar-group').style.fill;
+        g.destroy(); w.remove(); resolve({ f: f, seriesFill: seriesFill });
       }, 700);
     });
   });
-  expect(fills).toEqual(['rgb(255, 0, 0)', 'rgb(0, 255, 0)']);
+  expect(fills.f.slice(0, 2)).toEqual(['rgb(255, 0, 0)', 'rgb(0, 255, 0)']);
+  expect(fills.f[2]).toBe('');            // no inline fill: it inherits the group's palette color
+  expect(fills.seriesFill).not.toBe('');
 });
 
 test('bars: orientation takes full words and rejects anything else', async ({ page }) => {
@@ -782,22 +785,47 @@ test('x/y scale rejects an unrecognized value instead of silently falling back t
   expect(r.omitted).toBe('built (linear)');   // undefined stays valid, and means linear
 });
 
-test('a line chart with data but no mark type enabled warns instead of silently drawing nothing', async ({ page }) => {
+test('a line chart draws its lines by default; with everything switched off it warns instead of silently drawing nothing', async ({ page }) => {
   await page.goto(FIXTURE);
   const warnings = [];
   page.on('console', (m) => { if (m.type() === 'warning') warnings.push(m.text()); });
   const marks = await page.evaluate(() => {
     var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
-    var g = d3.easygraph.line({ container: w, height: 200 }); // no lines/bands/stacked
-    g.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
-    var withData = w.querySelectorAll('path.easygraph-line, path.easygraph-minmax, path.easygraph-stack').length;
-    g.update([]); // an empty render must stay quiet - nothing was asked for
-    g.destroy(); w.remove();
-    return withData;
+    var data = [[{ x: 0, y: 1 }, { x: 1, y: 2 }]];
+    function count(w) { return w.querySelectorAll('path.easygraph-line, path.easygraph-minmax, path.easygraph-stack').length; }
+    var plain = d3.easygraph.line({ container: w, height: 200 });          // lines left unset
+    plain.update(data);
+    var byDefault = count(w);
+    var w2 = document.createElement('div'); w2.style.width = '400px'; document.body.appendChild(w2);
+    var off = d3.easygraph.line({ container: w2, height: 200, lines: false });
+    off.update(data);
+    var switchedOff = count(w2);
+    off.update([]); // an empty render must stay quiet - nothing was asked for
+    plain.destroy(); off.destroy(); w.remove(); w2.remove();
+    return { byDefault: byDefault, switchedOff: switchedOff };
   });
-  expect(marks).toBe(0);
-  expect(warnings.length).toBe(1); // exactly one: the data render, not the empty one
+  expect(marks.byDefault).toBe(1);
+  expect(marks.switchedOff).toBe(0);
+  expect(warnings.length).toBe(1); // exactly one: the data render with nothing enabled, not the empty one
   expect(warnings[0]).toContain('none of lines/bands/stacked');
+});
+
+test('lines left unset is on, except on a stacked chart where the stacked areas are the picture', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var data = [[{ x: 0, y: 1 }, { x: 1, y: 2 }], [{ x: 0, y: 2 }, { x: 1, y: 1 }]];
+    function counts(cfg) {
+      var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
+      var g = d3.easygraph.line(Object.assign({ container: w, height: 200 }, cfg));
+      g.update(data);
+      var c = { lines: w.querySelectorAll('path.easygraph-line').length, stack: w.querySelectorAll('path.easygraph-stack').length };
+      g.destroy(); w.remove(); return c;
+    }
+    return { plain: counts({}), stacked: counts({ stacked: true }), both: counts({ stacked: true, lines: true }) };
+  });
+  expect(r.plain).toEqual({ lines: 2, stack: 0 });
+  expect(r.stacked).toEqual({ lines: 0, stack: 2 });
+  expect(r.both).toEqual({ lines: 2, stack: 2 });
 });
 
 test('ranges.color pins the color domain, beating both color.domain and the data', async ({ page }) => {
@@ -875,18 +903,18 @@ test('a pinned color domain survives a resize reflow and a scatter rescale()', a
   expect(r.afterResize).toEqual([0, 1000]);
 });
 
-test('top-level label and unit throw with a pointer to title and x/y.label', async ({ page }) => {
+test('title is the chart heading; top-level label and unit are not options', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
     function msg(cfg) { try { d3.easygraph.line(Object.assign({ container: '#graph', height: 200 }, cfg)); return ''; } catch (e) { return e.message; } }
     var g = d3.easygraph.line({ container: '#graph', height: 200, title: 'Given' });
-    var out = { title: g.title, oldLabel: msg({ label: 'x' }), oldUnit: msg({ unit: 'x' }) };
+    var out = { title: g.title, label: msg({ label: 'x' }), unit: msg({ unit: 'x' }) };
     g.destroy();
     return out;
   });
   expect(r.title).toBe('Given');
-  expect(r.oldLabel).toContain('title');
-  expect(r.oldUnit).toContain('x.unit');
+  expect(r.label).toContain("unknown option 'label'");
+  expect(r.unit).toContain("unknown option 'unit'");
 });
 
 test('assigning a build-time key throws; live keys still assign', async ({ page }) => {
@@ -910,48 +938,59 @@ test('assigning a build-time key throws; live keys still assign', async ({ page 
   expect(r.live).toEqual([false, 0]);
 });
 
-test('clip is now trim - the old key throws with a pointer', async ({ page }) => {
+test('x.tickFormat: \'multi\' for a time axis, a function, or a format string; anything else throws', async ({ page }) => {
   await page.goto(FIXTURE);
-  const msg = await page.evaluate(() => {
-    try { d3.easygraph.line({ container: '#graph', height: 200, y: { clip: [0.05, 0.95] } }); return ''; }
-    catch (e) { return e.message; }
+  const r = await page.evaluate(async () => {
+    async function build(cfg, data) {
+      var w = document.createElement('div'); w.style.width = '500px'; document.body.appendChild(w);
+      try {
+        var g = d3.easygraph.line(Object.assign({ container: w, height: 200, duration: 0 }, cfg));
+        g.update(data || [[{ x: 0, y: 0 }, { x: 100, y: 1000 }]]);
+        await new Promise(function(done) { setTimeout(done, 100); });   // ticks are written on the next frame
+        var texts = [...w.querySelectorAll('g.easygraph-axis-x .tick text')].map(function(t) { return t.textContent; });
+        g.destroy(); return texts;
+      } catch (e) { return e.message; } finally { w.remove(); }
+    }
+    var days = [[{ x: new Date(2026, 0, 1), y: 1 }, { x: new Date(2026, 0, 6), y: 2 }]];
+    return {
+      fn:     await build({ x: { tickFormat: function(v) { return '<' + v + '>'; } } }),
+      string: await build({ x: { tickFormat: '.1f' } }),
+      timeStr: await build({ x: { scale: 'time', tickFormat: '%b %d' } }, days),
+      multi:  await build({ x: { scale: 'time', tickFormat: 'multi' } }, days),
+      multiOnLinear: await build({ x: { tickFormat: 'multi' } }),
+      bogus:  await build({ x: { tickFormat: 5 } }),
+      yString: await build({ y: { tickFormat: '.0%' } }),
+      blank:  await build({ x: { tickFormat: '.1f', tickLabels: false } })
+    };
   });
-  expect(msg).toContain("'trim'");
+  expect(r.fn.every(function(t) { return /^<.*>$/.test(t); })).toBe(true);
+  expect(r.string[0]).toMatch(/^\d+\.0$/);
+  expect(r.timeStr.every(function(t) { return /^Jan \d\d$/.test(t); })).toBe(true);
+  expect(r.multi.length).toBeGreaterThan(0);
+  expect(r.multiOnLinear).toContain('time axis');
+  expect(r.bogus).toContain('tickFormat');
+  expect(r.blank.join('')).toBe('');   // tickLabels: false wins
 });
 
-test('zoom as an array is rejected with a pointer to the { min, max } form', async ({ page }) => {
-  await page.goto(FIXTURE);
-  const msg = await page.evaluate(() => {
-    var w = document.createElement('div'); document.body.appendChild(w);
-    try { d3.easygraph.line({ container: w, height: 200, zoom: [1, 10], lines: true }); return ''; }
-    catch (e) { return e.message; }
-  });
-  expect(msg).toContain('{ min, max }');
-});
-
-test('x.timeFormat only accepts \'multi\'', async ({ page }) => {
-  await page.goto(FIXTURE);
-  const msg = await page.evaluate(() => {
-    var w = document.createElement('div'); document.body.appendChild(w);
-    try { d3.easygraph.line({ container: w, height: 200, x: { scale: 'time', timeFormat: 'bogus' }, lines: true }); return ''; }
-    catch (e) { return e.message; }
-  });
-  expect(msg).toContain("timeFormat");
-});
-
-test('names and units are gone: they throw with a pointer to series; series must be an array', async ({ page }) => {
+test('series must be an array of { label, unit } objects; a bar chart\'s entries take label only', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
-    function msg(cfg) { try { var w = document.createElement('div'); document.body.appendChild(w);
-      d3.easygraph.line(Object.assign({ container: w, height: 200 }, cfg)); return ''; } catch (e) { return e.message; } }
-    return { names: msg({ names: ['a'] }), units: msg({ units: ['u'] }), notArray: msg({ series: { label: 'x' } }) };
+    function msg(ctor, cfg) { try { var w = document.createElement('div'); document.body.appendChild(w);
+      d3[ 'easygraph' ][ctor](Object.assign({ container: w, height: 200 }, cfg)); return ''; } catch (e) { return e.message; } }
+    return {
+      notArray: msg('line', { series: { label: 'x' } }),
+      typo:     msg('line', { series: [{ lable: 'x' }] }),
+      lineUnit: msg('line', { series: [{ label: 'x', unit: 'u' }] }),
+      barsUnit: msg('bars', { series: [{ label: 'x', unit: 'u' }] })
+    };
   });
-  expect(r.names).toContain('series');
-  expect(r.units).toContain('series');
   expect(r.notArray).toContain('array');
+  expect(r.typo).toContain("series[0].lable");
+  expect(r.lineUnit).toBe('');
+  expect(r.barsUnit).toContain("series[0].unit");
 });
 
-test('unknown, misspelled, wrong-family and moved config keys throw; meta carries your own fields', async ({ page }) => {
+test('unknown, misspelled and wrong-family config keys throw; meta carries your own fields', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
     function mk(ctor, cfg) { var w = document.createElement('div'); document.body.appendChild(w);
@@ -963,9 +1002,6 @@ test('unknown, misspelled, wrong-family and moved config keys throw; meta carrie
       typo2:   mk('line', { curv: 'linear' }),
       family:  mk('bars', { zoom: { min: 1, max: 5 } }),
       unknown: mk('line', { sensors: [0, 1] }),
-      moved:   mk('line', { colorPalette: 'Sequential.Blues' }),
-      stacked: mk('line', { stackedArea: true }),
-      radius:  mk('scatter', { radius: 5 }),
       meta:    meta.meta
     };
   });
@@ -973,34 +1009,41 @@ test('unknown, misspelled, wrong-family and moved config keys throw; meta carrie
   expect(r.typo2).toContain("'curve'");
   expect(r.family).toContain("line option");
   expect(r.unknown).toContain('meta');
-  expect(r.moved).toContain('color: { palette }');
-  expect(r.stacked).toContain('stacked: true');
-  expect(r.radius).toContain('points: { radius }');
   expect(r.meta.sensors).toEqual([0, 1]);
 });
 
-test('x.scale, y.scale and color.scale throw when assigned after construction; graph.colorPalettes is gone', async ({ page }) => {
+test('what a chart is built around throws when assigned (scale, preset, convert, tick format, palette, width); live keys still assign', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
     var w = document.createElement('div'); document.body.appendChild(w);
-    var g = d3.easygraph.line({ container: w, height: 200, lines: true, x: { scale: 'time' } });
+    var g = d3.easygraph.line({ container: w, height: 200, lines: true, x: { scale: 'time' }, y: { preset: 'temperatureC' } });
     function msg(fn) { try { fn(); return ''; } catch (e) { return e.message; } }
     var w2 = document.createElement('div'); document.body.appendChild(w2);
     var h = d3.easygraph.heatmap({ container: w2, height: 200 });
-    return {
-      x: msg(function() { g.x.scale = 'linear'; }),
-      color: msg(function() { h.color.scale = 'time'; }),
-      readable: g.x.scale,
-      palettes: typeof g.colorPalettes
+    var out = {
+      xScale:   msg(function() { g.x.scale = 'linear'; }),
+      yPreset:  msg(function() { g.y.preset = 'temperatureF'; }),
+      yConvert: msg(function() { g.y.convert = function(v) { return v; }; }),
+      tickFmt:  msg(function() { g.x.tickFormat = 'multi'; }),
+      palette:  msg(function() { h.color.palette = 'Sequential.Blues'; }),
+      width:    msg(function() { g.width = 300; }),
+      readable: [g.x.scale, g.y.preset, typeof g.y.convert, typeof g.width, typeof g.colorPalettes]
     };
+    g.x.label = 'Time'; g.y.unit = 'deg'; g.x.trim = [0.1, 0.9]; g.title = 'T';
+    out.live = [g.x.label, g.y.unit, g.x.trim, g.title];
+    return out;
   });
-  expect(r.x).toContain('x.scale is fixed');
-  expect(r.color).toContain('color.scale is fixed');
-  expect(r.readable).toBe('time');
-  expect(r.palettes).toBe('undefined');
+  expect(r.xScale).toContain('x.scale is fixed');
+  expect(r.yPreset).toContain('y.preset is fixed');
+  expect(r.yConvert).toContain('y.convert is fixed');
+  expect(r.tickFmt).toContain('x.tickFormat is fixed');
+  expect(r.palette).toContain('color.palette is fixed');
+  expect(r.width).toContain("'width'");
+  expect(r.readable).toEqual(['time', 'temperatureC', 'function', 'number', 'undefined']);
+  expect(r.live).toEqual(['Time', 'deg', [0.1, 0.9], 'T']);
 });
 
-test('graph.on / off: several listeners, namespaces replace, off removes, unknown events and the old onZoom throw', async ({ page }) => {
+test('graph.on / off: several listeners, namespaces replace, off removes, unknown events and the old onZoom callback property throw', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
     var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
@@ -1028,6 +1071,6 @@ test('graph.on / off: several listeners, namespaces replace, off removes, unknow
   expect(r.first).toEqual(['f1', 'a2', 'f3']);
   expect(r.second).toEqual(['f3']);
   expect(r.unknown).toContain("no 'click' event");
-  expect(r.old).toContain("graph.on('zoom', fn)");
+  expect(r.old).toContain("unknown option 'onZoom'");
   expect(r.bars).toContain("no 'zoom' event");
 });
