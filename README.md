@@ -57,6 +57,12 @@ subpath there instead of drawing a straight segment through the gap. That is als
 circular quantity such as compass bearing: insert a `null`-y point at each wraparound so the chart
 doesn't draw a false diagonal from 359° to 0°.
 
+**Events.** `graph.on('zoom', fn)` receives the d3 zoom transform and `graph.on('crosshair', fn)` the
+pointer's pixel x (`null` when it leaves). Several listeners per event run in the order added;
+`on('zoom.name', fn)` names a listener so adding it again replaces it, and `off('zoom'[, fn])`
+removes. `syncZoom(graphs)`/`syncCrosshair(graphs)` link several line charts and are themselves
+listeners named `sync`.
+
 ### Bars
 
 A category axis (`d3.scaleBand()`). `orientation` is fixed for a chart's lifetime; `stacked` (default `false`, i.e. grouped) can be
@@ -632,7 +638,7 @@ npm test
 ```
 
 [Playwright](https://playwright.dev) specs in `test/` (one per source module: core, line, bars,
-heatmap, scatter, presets, colors; 154 tests) run against the built `dist/` via static
+heatmap, scatter, presets, colors; 157 tests) run against the built `dist/` via static
 `test/fixtures/*.html` pages loaded over `file://`. They cover rendering, live resize, `destroy()`
 teardown, legends, the standalone unit and palette functions, and the regressions that needed real
 interaction to find: the zoom baseline staying in sync with the container's width after a resize,
