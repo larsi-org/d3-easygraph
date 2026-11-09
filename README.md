@@ -16,7 +16,7 @@ Each chart family has its own constructor, taking only the config that family un
 
 | Family | Constructor | Config |
 | --- | --- | --- |
-| Line / ribbon / stacked area | `d3.easygraph.line(config)` | `lines`, `bands` (`['minmax']`, `['sigma']` or both), `stackedArea`, `zoom`, `crosshair` (`true` or `{ threshold }`, pixels, default 10), `curve`, `names`, `units` |
+| Line / band / stacked area | `d3.easygraph.line(config)` | `lines`, `bands` (`['minmax']`, `['sigma']` or both), `stackedArea`, `zoom`, `crosshair` (`true` or `{ threshold }`, pixels, default 10), `curve`, `names`, `units` |
 | Bars | `d3.easygraph.bars(config)` | `orientation` (`'vertical'`\|`'horizontal'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData`, `names` |
 | Heatmap | `d3.easygraph.heatmap(config)` | `color` |
 | Scatter / bubble | `d3.easygraph.scatter(config)` | `color`, `radius`, `pointStrokeWidth`, `voronoi` (`true` or `{ opacity }`), `arrows` (`true` or `{ color, strokeWidth, minLength, maxLength, headLength, headAngle }`), `labels` (`true` or `{ size, offset, minZoom }`) |
@@ -514,7 +514,7 @@ The `curve` config takes one of `'linear'`, `'monotone'`, `'step-after'`, `'step
 
 | | |
 | --- | --- |
-| every config key you passed | `container`, `height`, `margin`, `duration`, `colorPalette`, `colorClasses`, and the family's own flags - readable, and the family flags (`lines`, `ribbons`, `stackedArea`, `mode`, `voronoi`, `arrows`, `labels`, `units`, …) are re-read on every `update()`, so assigning one and re-rendering is the supported way to toggle a chart live |
+| every config key you passed | `container`, `height`, `margin`, `duration`, `colorPalette`, `colorClasses`, and the family's own flags - readable, and the family flags (`lines`, `bands`, `stackedArea`, `mode`, `voronoi`, `arrows`, `labels`, `units`, …) are re-read on every `update()`, so assigning one and re-rendering is the supported way to toggle a chart live |
 | `x`, `y`, and (heatmap/scatter) `color` | the resolved per-property configs; `$scale` and `$axis` on each are the intended escape hatch into D3 |
 | `width`, `height` | the full `<svg>` box. `height` is exactly what you configured and is never replaced; `width` follows the container |
 | `plotWidth`, `plotHeight` | the plot area, inside the margins |
