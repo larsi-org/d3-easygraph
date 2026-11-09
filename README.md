@@ -543,7 +543,9 @@ code; these pages are the working examples:
   [Sensitivity](https://larsi.org/easygraph/data_sensitivity.php) (`colorPerData`)
 - **Heatmap** - [Hourly Data Heat Map](https://larsi.org/easygraph/data_hourly_heatmap.php)
 - **Scatter** - [Scatter & Voronoi](https://larsi.org/easygraph/scatter_voronoi.php),
-  [Bubble Chart](https://larsi.org/easygraph/bubble_chart.php) (per-point `radius`), and two real
+  [Bubble Chart](https://larsi.org/easygraph/bubble_chart.php) (per-point `radius`),
+  [Arrows & Labels](https://larsi.org/easygraph/scatter_arrows.php) (`arrows`, `labels`, `id` identity,
+  `voronoi: { opacity }`; drop a point and the others stay put), and two real
   map overlays: [Weather](https://larsi.org/weather/)'s "Pressure & Wind" tab (`voronoi: true`,
   `color.trim`, `arrows: true` overlaying wind speed/direction on top of pressure) and
   [Air Traffic](https://larsi.org/air-traffic/) (`color.domain` + `color.quantize`/`colorClasses`
@@ -561,8 +563,8 @@ code; these pages are the working examples:
   handed over: the real global `d3` under a `<script>` tag, a mutable `Object.create(d3)` view
   under CommonJS/AMD, since d3 v7's ESM namespace is frozen and can't take a `.easygraph`
   property.
-- `src/d3.easygraph.core.js` - container sizing/resize, SVG/margin/clip/title scaffolding,
-  number/time axis formatting, x/y/color config resolution, and the shared `_build()` that each
+- `src/d3.easygraph.core.js` - container sizing/resize, SVG/margin/clip-path/title scaffolding,
+  number/time axis formatting, x/y/color config resolution, `bandStats`, and the shared `_build()` that each
   constructor calls with its own defaults and hook set.
 - `src/d3.easygraph.units.js` - just the unit preset table (`d3.easygraph.presets`) and
   `getUnit(name)`, the standalone lookup above. No config merging, no chart concepts - `core.js` is
@@ -598,12 +600,13 @@ npm test
 ```
 
 [Playwright](https://playwright.dev) specs in `test/` (one per source module: core, line, bars,
-heatmap, scatter, units, colors; 138 tests) run against the built `dist/` via static
+heatmap, scatter, units, colors; 149 tests) run against the built `dist/` via static
 `test/fixtures/*.html` pages loaded over `file://`. They cover rendering, live resize, `destroy()`
 teardown, legends, the standalone unit and palette functions, and the regressions that needed real
 interaction to find: the zoom baseline staying in sync with the container's width after a resize,
 resize never producing a negative bar width, one config literal building several charts, a pinned
-color domain surviving a resize, scatter's label-keyed point identity, and line paths not warping
+color domain surviving a resize, scatter's `id`/`label`-keyed point identity, the build-time-key
+assignment errors, the band helpers, and line paths not warping
 when a series' point count changes. CI runs the same suite on every push. **Run `npm run build`
 first** - the tests exercise `dist/`, not `src/`.
 
