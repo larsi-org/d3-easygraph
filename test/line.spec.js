@@ -16,7 +16,7 @@ test('the sigma band renders a path nested between the minmax band and the line 
   const order = await page.evaluate(() => {
     var wrap = document.createElement('div');
     document.body.appendChild(wrap);
-    var g = d3.easygraph.line({ container: wrap, height: 200, lines: true, bands: ['minmax', 'sigma'] });
+    var g = d3.easygraph.line({ container: wrap, height: 200, lines: true, bands: { minmax: true, sigma: true } });
     g.update([[
       { x: 0, y: 10, min: 5, max: 15, sigmaMin: 8, sigmaMax: 12 },
       { x: 1, y: 12, min: 6, max: 18, sigmaMin: 9, sigmaMax: 15 }
@@ -36,7 +36,7 @@ test('a point missing sigmaMin/sigmaMax skips the sigma band there without affec
   const d = await page.evaluate(() => {
     var wrap = document.createElement('div');
     document.body.appendChild(wrap);
-    var g = d3.easygraph.line({ container: wrap, height: 200, lines: true, bands: ['minmax', 'sigma'] });
+    var g = d3.easygraph.line({ container: wrap, height: 200, lines: true, bands: { minmax: true, sigma: true } });
     g.update([[
       { x: 0, y: 10, min: 5, max: 15 }, // no sigma this point
       { x: 1, y: 12, min: 6, max: 18, sigmaMin: 9, sigmaMax: 15 }
@@ -60,7 +60,7 @@ test('the sigma band widens the y domain to its own extent when minmax is off', 
   const yDomain = await page.evaluate(() => {
     var wrap = document.createElement('div');
     document.body.appendChild(wrap);
-    var g = d3.easygraph.line({ container: wrap, height: 200, lines: true, bands: ['sigma'] });
+    var g = d3.easygraph.line({ container: wrap, height: 200, lines: true, bands: { sigma: true } });
     g.update([[
       { x: 0, y: 10, sigmaMin: 2, sigmaMax: 18 }
     ]]);
@@ -344,7 +344,7 @@ test('crosshair accepts { threshold } as well as true', async ({ page }) => {
   expect(ok).toBe(true);
 });
 
-test('bands is a list: [] draws none, a bare string is one band, unknown names and the old keys throw', async ({ page }) => {
+test('bands is an object: {} draws none, either key works alone, unknown keys, arrays and the old keys throw', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
     var data = [[{ x: 0, y: 1, min: 0, max: 2, sigmaMin: 0.5, sigmaMax: 1.5 }, { x: 1, y: 2, min: 1, max: 3, sigmaMin: 1.5, sigmaMax: 2.5 }]];
@@ -355,12 +355,13 @@ test('bands is a list: [] draws none, a bare string is one band, unknown names a
       return { g: g, w: w };
     }
     function msg(fn) { try { fn(); return ''; } catch (e) { return e.message; } }
-    var both = mk({ bands: ['minmax', 'sigma'] });
+    var both = mk({ bands: { minmax: true, sigma: true } });
     var counts = function(o) { return [o.w.querySelectorAll('path.data-minmax').length, o.w.querySelectorAll('path.data-sigma').length]; };
     var out = { both: counts(both) };
-    both.g.bands = [];            out.none = (both.g.update(data), counts(both));
-    both.g.bands = 'sigma';       out.sigmaOnly = (both.g.update(data), counts(both));
-    out.unknown = msg(function() { mk({ bands: ['median'] }); });
+    both.g.bands = {};            out.none = (both.g.update(data), counts(both));
+    both.g.bands = { sigma: true }; out.sigmaOnly = (both.g.update(data), counts(both));
+    out.unknown = msg(function() { mk({ bands: { median: true } }); });
+    out.array = msg(function() { mk({ bands: ['minmax'] }); });
     out.old = msg(function() { mk({ ribbons: true }); });
     return out;
   });
@@ -368,5 +369,6 @@ test('bands is a list: [] draws none, a bare string is one band, unknown names a
   expect(r.none).toEqual([0, 0]);
   expect(r.sigmaOnly).toEqual([0, 1]);
   expect(r.unknown).toContain('median');
+  expect(r.array).toContain('object');
   expect(r.old).toContain('bands');
 });

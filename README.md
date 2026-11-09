@@ -16,7 +16,7 @@ Each chart family has its own constructor, taking only the config that family un
 
 | Family | Constructor | Config |
 | --- | --- | --- |
-| Line / band / stacked area | `d3.easygraph.line(config)` | `lines`, `bands` (`['minmax']`, `['sigma']` or both), `stackedArea`, `zoom`, `crosshair` (`true` or `{ threshold }`, pixels, default 10), `curve`, `names`, `units` |
+| Line / band / stacked area | `d3.easygraph.line(config)` | `lines`, `bands` (`{ minmax, sigma }`, each `true` or `false`), `stackedArea`, `zoom`, `crosshair` (`true` or `{ threshold }`, pixels, default 10), `curve`, `names`, `units` |
 | Bars | `d3.easygraph.bars(config)` | `orientation` (`'vertical'`\|`'horizontal'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData`, `names` |
 | Heatmap | `d3.easygraph.heatmap(config)` | `color` |
 | Scatter / bubble | `d3.easygraph.scatter(config)` | `color`, `radius`, `pointStrokeWidth`, `voronoi` (`true` or `{ opacity }`), `arrows` (`true` or `{ color, strokeWidth, minLength, maxLength, headLength, headAngle }`), `labels` (`true` or `{ size, offset, minZoom }`) |
@@ -27,12 +27,13 @@ A continuous (time or linear) x axis. Four drawing modes, each a flag you can to
 chart (assign it, then call `update()`):
 
 - **`lines`** - one line per series.
-- **`bands`** - a list of shaded bands drawn around each series, nested widest first. `'minmax'` is
-  a filled band from each point's `min`/`max` (e.g. a daily high/low around a mean line); `'sigma'`
-  is a second, more opaque band from each point's `sigmaMin`/`sigmaMax` (typically the mean ±1
-  standard deviation): a faint band for the extreme range and a darker one for the typical
-  spread. `[]` or omitted draws none, and either name works alone. It is re-read on every
-  `update()`, so one assignment toggles both: `graph.bands = hourly ? [] : ['minmax', 'sigma']`.
+- **`bands`** - which shaded bands to draw around each series, nested widest first: `{ minmax: true }`
+  is a filled band from each point's `min`/`max` (e.g. a daily high/low around a mean line);
+  `{ sigma: true }` is a second, more opaque band from each point's `sigmaMin`/`sigmaMax`
+  (typically the mean ±1 standard deviation): a faint band for the extreme range and a darker one
+  for the typical spread. Either key works alone, a missing key is off, and `{}` or omitted draws
+  none. It is re-read on every `update()`, so one assignment toggles both:
+  `graph.bands = hourly ? {} : { minmax: true, sigma: true }`.
   If you convert a
   point's `y` (e.g. °C to °F), convert `min`, `max`, `sigmaMin` and `sigmaMax` too.
 - **`stackedArea`** - a classic stacked area chart: plain `{ x, y }` points like `lines`, each

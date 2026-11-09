@@ -34,14 +34,14 @@ function _nestedValues(data, acc) {
 d3.easygraph.line = function(config) {
   ['ribbons', 'sigmaBand'].forEach(function(old) {
     if (config && config[old] !== undefined)
-      throw new Error("d3.easygraph.line: '" + old + "' is gone - use bands: ['minmax', 'sigma'] " +
+      throw new Error("d3.easygraph.line: '" + old + "' is gone - use bands: { minmax: true, sigma: true } " +
                       "(minmax = the min/max band, sigma = the mean +-1 sigma band)");
   });
   return d3.easygraph._build(config, {
     _chartType:         'line',
     _dataShape:         'series',
     lines:              false,
-    bands:              null, // [] / null = none; 'minmax' and/or 'sigma' - see _bandSet() below
+    bands:              null, // null / {} = none; { minmax, sigma } booleans - see _bandSet() below
     stackedArea:        false,
     zoom:               false,
     crosshair:          false,
@@ -56,20 +56,21 @@ d3.easygraph.line = function(config) {
   }, function(graph) {
     var _cx, _cy, _bisect;
 
-    // bands is a list of the shaded bands to draw around each series, nested widest first:
-    // 'minmax' (each point's min/max) and 'sigma' (sigmaMin/sigmaMax, typically mean +-1 sd).
-    // A bare string is one band; null, false or [] is none. Re-read on every update(), so a
-    // page toggles both with one assignment: graph.bands = hourly ? [] : ['minmax', 'sigma'].
+    // bands says which shaded bands to draw around each series, nested widest first:
+    // { minmax: true } (each point's min/max), { sigma: true } (sigmaMin/sigmaMax, typically
+    // mean +-1 sd), or both. A missing key or false is off; null or {} is none. Re-read on every
+    // update(), so a page toggles both with one assignment:
+    // graph.bands = hourly ? {} : { minmax: true, sigma: true }.
     function _bandSet() {
       var b = graph.bands;
-      if (b == null || b === false) b = [];
-      if (typeof b === 'string') b = [b];
-      if (!Array.isArray(b)) throw new Error("d3.easygraph.line: bands must be an array like ['minmax', 'sigma']");
-      b.forEach(function(name) {
+      if (b == null) b = {};
+      if (typeof b !== 'object' || Array.isArray(b))
+        throw new Error("d3.easygraph.line: bands must be an object like { minmax: true, sigma: true }");
+      Object.keys(b).forEach(function(name) {
         if (name !== 'minmax' && name !== 'sigma')
-          throw new Error("d3.easygraph.line: unknown band " + JSON.stringify(name) + " (use 'minmax' or 'sigma')");
+          throw new Error("d3.easygraph.line: unknown band " + JSON.stringify(name) + " (use minmax or sigma)");
       });
-      return { minmax: b.indexOf('minmax') >= 0, sigma: b.indexOf('sigma') >= 0 };
+      return { minmax: !!b.minmax, sigma: !!b.sigma };
     }
 
     return {
@@ -86,7 +87,7 @@ d3.easygraph.line = function(config) {
         graph.$ribbon  = d3.area().curve(_curve).defined(_definedRibbon).x(_cx)
           .y0(function(d) { return graph.y.$scale(d.min); })
           .y1(function(d) { return graph.y.$scale(d.max); });
-        // bands: ['sigma'] - a second, narrower band (typically mean +-1 standard deviation) nested
+        // bands: { sigma: true } - a second, narrower band (typically mean +-1 standard deviation) nested
         // inside the wider 'minmax' one - same shape/gap convention (a point
         // missing sigmaMin/sigmaMax just isn't drawn there), a separate feature since a caller
         // may have one without the other (min/max always derivable from raw samples; sigma
@@ -275,7 +276,7 @@ d3.easygraph.line = function(config) {
         // A line chart with none of the three mark types enabled draws axes and nothing else -
         // the likeliest first-run mistake, and previously a silent one. A warning rather than an
         // error on purpose: the flags are meant to be toggled on a live chart (larsi.org's own
-        // pages do `graph.bands = hourly ? [] : [...]` between renders), so a caller can legitimately be
+        // pages do `graph.bands = hourly ? {} : {...}` between renders), so a caller can legitimately be
         // mid-flight with all three off, and throwing would break that. Only warns when there's
         // actually data being asked for, so an empty first render stays quiet.
         var B = _bandSet();
