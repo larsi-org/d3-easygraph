@@ -1,9 +1,9 @@
-// d3.easygraph.bars.js
+// d3.easygraph.bar.js
 // MIT License
 // https://opensource.org/licenses/MIT
 // Copyright (c) 2026, Lars Schumann, larsi.org@gmail.com
 //
-// The bars chart-family constructor: vertical/horizontal, stacked/grouped, values of either sign.
+// The bar chart-family constructor: vertical/horizontal, stacked/grouped, values of either sign.
 // `orientation` is fixed for a graph's lifetime, but `stacked` can be toggled live
 // (see data_monthly.php/h.php's dropdown) - domain()/render() always re-read the
 // live config rather than caching a choice made at construction. Stacking itself
@@ -13,7 +13,7 @@
 //
 // A datum's own `color` field, when it has one, colors that bar instead of its series' palette color.
 
-d3.easygraph.bars = function(config) {
+d3.easygraph.bar = function(config) {
   return d3.easygraph._build(config, {
     _chartType:   'bar',
     _dataShape:   'series',
@@ -36,7 +36,7 @@ d3.easygraph.bars = function(config) {
 
     // enter/exit/merge bar group <g> elements
     function _bindGroups(data) {
-      var sel = graph.$group.selectAll("g.easygraph-bar-group").data(data);
+      var sel = graph.$marks.selectAll("g.easygraph-bar-group").data(data);
       var enter = sel.enter().append("g").attr("class", "easygraph-bar-group");
       sel.exit().remove();
       return enter.merge(sel);

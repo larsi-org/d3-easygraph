@@ -3,16 +3,25 @@ const path = require('path');
 
 const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/presets.html');
 
-test('preset returns a preset\'s complete label/unit/scale/convert', async ({ page }) => {
+test('preset returns a preset\'s label/unit/convert; presets carry no scale', async ({ page }) => {
   await page.goto(FIXTURE);
   const resolved = await page.evaluate(() => {
     var u = d3.easygraph.preset('temperatureF');
-    return { label: u.label, unit: u.unit, scale: u.scale, converted: u.convert(0) };
+    return { label: u.label, unit: u.unit, converted: u.convert(0),
+             scales: Object.keys(d3.easygraph.presets).filter((n) => 'scale' in d3.easygraph.presets[n]) };
   });
   expect(resolved.label).toBe('Temperature');
   expect(resolved.unit).toBe('°F');
-  expect(resolved.scale).toBe('linear');
   expect(resolved.converted).toBe(32); // 0°C -> 32°F
+  expect(resolved.scales).toEqual([]);
+});
+
+test('preset names are quantity + unit, and the old names are gone', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const names = await page.evaluate(() => Object.keys(d3.easygraph.presets).sort());
+  expect(names).toEqual(['batteryStateOfCharge', 'clouds', 'electricCurrent', 'electricPower', 'electricVoltage',
+    'pressureHpa', 'pressureInHg', 'rainfallIn', 'rainfallMm', 'relativeHumidity', 'solarRadiation',
+    'temperatureC', 'temperatureF', 'windDirection', 'windSpeedKmh', 'windSpeedMph', 'windSpeedMs']);
 });
 
 test('presets have no range property - a sensible axis range is data-dependent, not a fixed property of the quantity', async ({ page }) => {
@@ -23,15 +32,18 @@ test('presets have no range property - a sensible axis range is data-dependent, 
   expect(ranges.every((r) => r === undefined)).toBe(true);
 });
 
-test('preset falls back to the "default" preset for a falsy name and throws on an unrecognized one', async ({ page }) => {
+test('preset falls back to a no-preset entry for a falsy name and throws on an unrecognized one', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
     var out = [d3.easygraph.preset(undefined), d3.easygraph.preset('')]
-      .map((u) => ({ unit: u.unit, scale: u.scale, converted: u.convert(5) }));
+      .map((u) => ({ label: u.label, unit: u.unit, converted: u.convert(5) }));
     function msg(fn) { try { fn(); return ''; } catch (e) { return e.message; } }
     return {
       out: out,
+      same: d3.easygraph.preset() === d3.easygraph.preset(''),
       unknown: msg(function() { d3.easygraph.preset('temprature'); }),
+      defaultGone: msg(function() { d3.easygraph.preset('default'); }),
+      inherited: msg(function() { d3.easygraph.preset('toString'); }),
       inChart: msg(function() {
         var w = document.createElement('div'); document.body.appendChild(w);
         d3.easygraph.line({ container: w, height: 200, y: { preset: 'temprature' } });
@@ -39,36 +51,23 @@ test('preset falls back to the "default" preset for a falsy name and throws on a
       old: typeof d3.easygraph['get' + 'Unit']
     };
   });
-  const expected = { unit: '', scale: 'linear', converted: 5 };
+  const expected = { label: undefined, unit: '', converted: 5 };
   expect(r.out[0]).toEqual(expected);
   expect(r.out[1]).toEqual(expected);
+  expect(r.same).toBe(true);
   expect(r.unknown).toContain('unrecognized preset "temprature"');
+  expect(r.defaultGone).toContain('unrecognized preset "default"');
+  expect(r.inherited).toContain('unrecognized preset');
   expect(r.inChart).toContain('unrecognized preset');
   expect(r.old).toBe('undefined');
 });
 
-test('preset("default") is the same object as the implicit fallback', async ({ page }) => {
-  await page.goto(FIXTURE);
-  const isSame = await page.evaluate(() => d3.easygraph.preset('default') === d3.easygraph.preset());
-  expect(isSame).toBe(true);
-});
-
-test('every preset (including default) has its own explicit convert function', async ({ page }) => {
+test('every preset has a convert function', async ({ page }) => {
   await page.goto(FIXTURE);
   const missing = await page.evaluate(() =>
     Object.keys(d3.easygraph.presets).filter((name) => typeof d3.easygraph.presets[name].convert !== 'function')
   );
   expect(missing).toEqual([]);
-});
-
-test('every real preset declares its own scale: "linear"', async ({ page }) => {
-  await page.goto(FIXTURE);
-  const scales = await page.evaluate(() =>
-    Object.keys(d3.easygraph.presets)
-      .filter((name) => name !== 'default')
-      .map((name) => d3.easygraph.presets[name].scale)
-  );
-  expect(scales.every((s) => s === 'linear')).toBe(true);
 });
 
 test('convert() applies a preset\'s conversion (°C to °F)', async ({ page }) => {
@@ -92,7 +91,7 @@ test('convertRounded(v, d) rounds the converted result', async ({ page }) => {
   const results = await page.evaluate(() => [
     d3.easygraph.preset('temperatureF').convertRounded(20.5, 0),  // 68.9 -> 69
     d3.easygraph.preset('temperatureF').convertRounded(20.5, 1),  // 68.9 -> 68.9
-    d3.easygraph.preset('pressureInhg').convertRounded(1000, 2)   // 29.53 -> 29.53
+    d3.easygraph.preset('pressureInHg').convertRounded(1000, 2)   // 29.53 -> 29.53
   ]);
   expect(results[0]).toBe(69);
   expect(results[1]).toBe(68.9);
@@ -125,27 +124,27 @@ test('round(x, n) rounds to n decimal places, or the nearest integer when n is o
   expect(results).toEqual([68.5, 69, 69, 29.92]);
 });
 
-test('compassPoint16(direction) returns the nearest 16-point compass label', async ({ page }) => {
+test('compassPoint(direction) returns the nearest 16-point compass label', async ({ page }) => {
   await page.goto(FIXTURE);
   const results = await page.evaluate(() => [
-    d3.easygraph.compassPoint16(0),     // N
-    d3.easygraph.compassPoint16(23),    // NNE
-    d3.easygraph.compassPoint16(45),    // NE
-    d3.easygraph.compassPoint16(68),    // ENE
-    d3.easygraph.compassPoint16(90),    // E
-    d3.easygraph.compassPoint16(113),   // ESE
-    d3.easygraph.compassPoint16(135),   // SE
-    d3.easygraph.compassPoint16(158),   // SSE
-    d3.easygraph.compassPoint16(180),   // S
-    d3.easygraph.compassPoint16(203),   // SSW
-    d3.easygraph.compassPoint16(225),   // SW
-    d3.easygraph.compassPoint16(248),   // WSW
-    d3.easygraph.compassPoint16(270),   // W
-    d3.easygraph.compassPoint16(293),   // WNW
-    d3.easygraph.compassPoint16(315),   // NW
-    d3.easygraph.compassPoint16(338),   // NNW
-    d3.easygraph.compassPoint16(360),   // wraps back to N
-    d3.easygraph.compassPoint16(-1)     // negative input reads as 359, still N
+    d3.easygraph.compassPoint(0),     // N
+    d3.easygraph.compassPoint(23),    // NNE
+    d3.easygraph.compassPoint(45),    // NE
+    d3.easygraph.compassPoint(68),    // ENE
+    d3.easygraph.compassPoint(90),    // E
+    d3.easygraph.compassPoint(113),   // ESE
+    d3.easygraph.compassPoint(135),   // SE
+    d3.easygraph.compassPoint(158),   // SSE
+    d3.easygraph.compassPoint(180),   // S
+    d3.easygraph.compassPoint(203),   // SSW
+    d3.easygraph.compassPoint(225),   // SW
+    d3.easygraph.compassPoint(248),   // WSW
+    d3.easygraph.compassPoint(270),   // W
+    d3.easygraph.compassPoint(293),   // WNW
+    d3.easygraph.compassPoint(315),   // NW
+    d3.easygraph.compassPoint(338),   // NNW
+    d3.easygraph.compassPoint(360),   // wraps back to N
+    d3.easygraph.compassPoint(-1)     // negative input reads as 359, still N
   ]);
   expect(results).toEqual([
     'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
@@ -153,55 +152,67 @@ test('compassPoint16(direction) returns the nearest 16-point compass label', asy
   ]);
 });
 
-test('compassPoint8(direction) returns the nearest 8-point compass label', async ({ page }) => {
+test('compassPoint(direction, 8) returns the nearest 8-point compass label', async ({ page }) => {
   await page.goto(FIXTURE);
   const results = await page.evaluate(() => [
-    d3.easygraph.compassPoint8(0),     // N
-    d3.easygraph.compassPoint8(22),    // still N, just under the N/NE boundary
-    d3.easygraph.compassPoint8(23),    // NE, just over it
-    d3.easygraph.compassPoint8(45),    // NE
-    d3.easygraph.compassPoint8(90),    // E
-    d3.easygraph.compassPoint8(135),   // SE
-    d3.easygraph.compassPoint8(180),   // S
-    d3.easygraph.compassPoint8(225),   // SW
-    d3.easygraph.compassPoint8(270),   // W
-    d3.easygraph.compassPoint8(315),   // NW
-    d3.easygraph.compassPoint8(337),   // still NW, just under the NW/N wraparound boundary
-    d3.easygraph.compassPoint8(360),   // wraps back to N
-    d3.easygraph.compassPoint8(-1)     // negative input reads as 359, still N
+    d3.easygraph.compassPoint(0, 8),     // N
+    d3.easygraph.compassPoint(22, 8),    // still N, just under the N/NE boundary
+    d3.easygraph.compassPoint(23, 8),    // NE, just over it
+    d3.easygraph.compassPoint(45, 8),    // NE
+    d3.easygraph.compassPoint(90, 8),    // E
+    d3.easygraph.compassPoint(135, 8),   // SE
+    d3.easygraph.compassPoint(180, 8),   // S
+    d3.easygraph.compassPoint(225, 8),   // SW
+    d3.easygraph.compassPoint(270, 8),   // W
+    d3.easygraph.compassPoint(315, 8),   // NW
+    d3.easygraph.compassPoint(337, 8),   // still NW, just under the NW/N wraparound boundary
+    d3.easygraph.compassPoint(360, 8),   // wraps back to N
+    d3.easygraph.compassPoint(-1, 8)     // negative input reads as 359, still N
   ]);
   expect(results).toEqual(['N', 'N', 'NE', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'NW', 'N', 'N']);
 });
 
-test('compassPoint4(direction) returns the nearest 4-point compass label', async ({ page }) => {
+test('compassPoint(direction, 4) returns the nearest 4-point compass label', async ({ page }) => {
   await page.goto(FIXTURE);
   const results = await page.evaluate(() => [
-    d3.easygraph.compassPoint4(0),     // N
-    d3.easygraph.compassPoint4(44),    // still N, just under the N/E boundary
-    d3.easygraph.compassPoint4(46),    // E, just over it
-    d3.easygraph.compassPoint4(90),    // E
-    d3.easygraph.compassPoint4(134),   // still E, just under the E/S boundary
-    d3.easygraph.compassPoint4(135),   // S, exactly on the boundary
-    d3.easygraph.compassPoint4(180),   // S
-    d3.easygraph.compassPoint4(225),   // W, exactly on the S/W boundary
-    d3.easygraph.compassPoint4(270),   // W
-    d3.easygraph.compassPoint4(315),   // N, exactly on the W/N wraparound boundary
-    d3.easygraph.compassPoint4(360),   // wraps back to N
-    d3.easygraph.compassPoint4(-1)     // negative input reads as 359, still N
+    d3.easygraph.compassPoint(0, 4),     // N
+    d3.easygraph.compassPoint(44, 4),    // still N, just under the N/E boundary
+    d3.easygraph.compassPoint(46, 4),    // E, just over it
+    d3.easygraph.compassPoint(90, 4),    // E
+    d3.easygraph.compassPoint(134, 4),   // still E, just under the E/S boundary
+    d3.easygraph.compassPoint(135, 4),   // S, exactly on the boundary
+    d3.easygraph.compassPoint(180, 4),   // S
+    d3.easygraph.compassPoint(225, 4),   // W, exactly on the S/W boundary
+    d3.easygraph.compassPoint(270, 4),   // W
+    d3.easygraph.compassPoint(315, 4),   // N, exactly on the W/N wraparound boundary
+    d3.easygraph.compassPoint(360, 4),   // wraps back to N
+    d3.easygraph.compassPoint(-1, 4)     // negative input reads as 359, still N
   ]);
   expect(results).toEqual(['N', 'N', 'E', 'E', 'E', 'S', 'S', 'W', 'W', 'N', 'N', 'N']);
 });
 
-test('presets and colorPalettes are extensible - the documented way to add your own', async ({ page }) => {
+test('compassPoint takes only 16, 8 or 4 points; the three old functions are gone', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    function msg(fn) { try { fn(); return ''; } catch (e) { return e.message; } }
+    return { bad: msg(() => d3.easygraph.compassPoint(10, 32)),
+             old: ['compassPoint16', 'compassPoint8', 'compassPoint4'].map((n) => typeof d3.easygraph[n]) };
+  });
+  expect(r.bad).toContain('points must be 16, 8 or 4');
+  expect(r.old).toEqual(['undefined', 'undefined', 'undefined']);
+});
+
+test('presets and palettes are extensible - the documented way to add your own', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
     d3.easygraph.presets.soilMoisture =
-      { label: 'Soil Moisture', unit: '%', scale: 'linear', convert: function (v) { return v; } };
-    d3.easygraph.colorPalettes['Sequential.MyBrand'] = ['#eef', '#88a', '#114'];
+      { label: 'Soil Moisture', unit: '%' };   // convert is optional
+    d3.easygraph.palettes['Sequential.MyBrand'] = ['#eef', '#88a', '#114'];
 
     var unit = d3.easygraph.preset('soilMoisture');
-    var palette = d3.easygraph.paletteColors('Sequential.MyBrand');
-    var reversed = d3.easygraph.paletteColors('Sequential.MyBrand.reversed');
+    var filled = [unit.convert(7), unit.convertRounded(7.26, 1)];
+    var palette = d3.easygraph.palette('Sequential.MyBrand');
+    var reversed = d3.easygraph.palette('Sequential.MyBrand', { reverse: true });
 
     var wrap = document.createElement('div');
     wrap.style.width = '400px';
@@ -216,13 +227,14 @@ test('presets and colorPalettes are extensible - the documented way to add your 
     g.destroy(); wrap.remove();
 
     delete d3.easygraph.presets.soilMoisture;
-    delete d3.easygraph.colorPalettes['Sequential.MyBrand'];
-    return { unitLabel: unit.label, unitSymbol: unit.unit, palette, reversed, title, strokeUsesCustomPalette };
+    delete d3.easygraph.palettes['Sequential.MyBrand'];
+    return { unitLabel: unit.label, unitSymbol: unit.unit, filled, palette, reversed, title, strokeUsesCustomPalette };
   });
   expect(r.unitLabel).toBe('Soil Moisture');
   expect(r.unitSymbol).toBe('%');
+  expect(r.filled).toEqual([7, 7.3]);              // preset() fills in convert and convertRounded
   expect(r.palette).toEqual(['#eef', '#88a', '#114']);
-  expect(r.reversed).toEqual(['#114', '#88a', '#eef']); // .reversed works on a caller-added name
+  expect(r.reversed).toEqual(['#114', '#88a', '#eef']); // reverse works on a caller-added name
   expect(r.title).toBe('Soil Moisture [%]');            // a custom preset drives the y axis title
   expect(r.strokeUsesCustomPalette).toBe(true);
 });

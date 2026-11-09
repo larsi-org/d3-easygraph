@@ -92,7 +92,7 @@ test('a shared x/y config object is cloned, not mutated, across two chart instan
 test('a shared color config object is cloned, not mutated, across two chart instances (heatmap)', async ({ page }) => {
   await page.goto(FIXTURE);
   const result = await page.evaluate(() => {
-    var sharedColor = { preset: 'temperatureC' };
+    var sharedColor = { palette: 'Sequential.Blues', domain: [0, 10] };
     var wrap2 = document.createElement('div');
     document.body.appendChild(wrap2);
 
@@ -298,7 +298,7 @@ test('horizontal bars: x is the horizontal (value) axis, y the vertical (categor
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
     var w = document.createElement('div'); document.body.appendChild(w);
-    var g = d3.easygraph.bars({ container: w, height: 200, orientation: 'horizontal',
+    var g = d3.easygraph.bar({ container: w, height: 200, orientation: 'horizontal',
                                 x: { label: 'Count' }, y: { label: 'Day' } });
     g.update([[{ x: 'Mon', y: 3 }, { x: 'Tue', y: 7 }]], { x: [0, 10] });
     return { bottom: g.$xTitle.text(), left: g.$yTitle.text(), xDomain: g.x.$scale.domain(), yDomain: g.y.$scale.domain() };
@@ -422,7 +422,7 @@ test('every family still accepts its own correct shape, and an empty array', asy
     try {
       var l = d3.easygraph.line({ container: w, height: 200, lines: true });
       l.update([[{ x: 0, y: 1 }]]); l.update([]); built.push(l);
-      var b = d3.easygraph.bars({ container: w, height: 200 });
+      var b = d3.easygraph.bar({ container: w, height: 200 });
       b.update([[{ x: 'a', y: 1 }]]); b.update([]); built.push(b);
       var s = d3.easygraph.scatter({ container: w, height: 200 });
       s.update([{ x: 0, y: 1, value: 1 }]); s.update([]); built.push(s);
@@ -573,7 +573,7 @@ test('bars: a datum\'s own `color` field colors that bar; bars without one keep 
   const fills = await page.evaluate(() => {
     return new Promise(function (resolve) {
       var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
-      var g = d3.easygraph.bars({ container: w, height: 200 });
+      var g = d3.easygraph.bar({ container: w, height: 200 });
       g.update([[{ x: 'a', y: 1, color: '#ff0000' }, { x: 'b', y: 2, color: '#00ff00' }, { x: 'c', y: 3 }]]);
       setTimeout(function () {
         var f = [...w.querySelectorAll('rect.easygraph-bar')].map(function (r) { return r.style.fill; });
@@ -593,7 +593,7 @@ test('bars: orientation takes full words and rejects anything else', async ({ pa
     function build(orientation) {
       var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
       try {
-        var g = d3.easygraph.bars({ container: w, height: 200, orientation: orientation });
+        var g = d3.easygraph.bar({ container: w, height: 200, orientation: orientation });
         g.update([[{ x: 'a', y: 1 }]]);
         var banded = g.x.$scale.bandwidth ? 'x' : 'y';
         g.destroy(); return 'ok, category axis on ' + banded;
@@ -631,8 +631,8 @@ test('every family re-renders its axes on resize, not just line (regression)', a
       line: await lastTickX(function (w) {
         return d3.easygraph.line({ container: w, height: 200, lines: true, x: { scale: 'linear' } });
       }, [[{ x: 0, y: 1 }, { x: 10, y: 2 }]]),
-      bars: await lastTickX(function (w) {
-        return d3.easygraph.bars({ container: w, height: 200 });
+      bar: await lastTickX(function (w) {
+        return d3.easygraph.bar({ container: w, height: 200 });
       }, [[{ x: 'a', y: 1 }, { x: 'b', y: 2 }, { x: 'c', y: 3 }]]),
       scatter: await lastTickX(function (w) {
         return d3.easygraph.scatter({ container: w, height: 200 });
@@ -644,7 +644,7 @@ test('every family re-renders its axes on resize, not just line (regression)', a
   });
   // after shrinking, the furthest-right tick must sit inside the new plot area - before this
   // fix bars/scatter/heatmap left theirs frozen hundreds of px outside it
-  for (const family of ['line', 'bars', 'scatter', 'heatmap']) {
+  for (const family of ['line', 'bar', 'scatter', 'heatmap']) {
     expect(r[family].tickX).toBeLessThanOrEqual(r[family].plotWidth + 1);
   }
 });
@@ -656,7 +656,7 @@ test('draw() is no longer part of the public surface', async ({ page }) => {
     g.update([[{ x: 0, y: 1 }]]);
     var out = { publicDraw: typeof g.draw, hasInternalRedraw: typeof g._redraw };
     g.destroy();
-    var b = d3.easygraph.bars({ container: '#graph', height: 200 });
+    var b = d3.easygraph.bar({ container: '#graph', height: 200 });
     out.barsHasNoRedraw = b._redraw === undefined; // only line needs the zoom fast path
     b.destroy();
     return out;
@@ -682,7 +682,7 @@ test('graph.legendItems(): line/bars give one row per series, labelled from `ser
     bare.destroy();
 
     // before any update(), `series` alone is enough to draw a legend
-    var early = d3.easygraph.bars({ container: w, height: 200, series: [{ label: 'A' }, { label: 'B' }, { label: 'C' }] });
+    var early = d3.easygraph.bar({ container: w, height: 200, series: [{ label: 'A' }, { label: 'B' }, { label: 'C' }] });
     var beforeData = early.legendItems();
     early.destroy();
 
@@ -717,7 +717,7 @@ test('graph.legendItems(): a quantized color scale gives bands with from/to edge
   expect(items[0].to).toBe(10000);
   expect(items[3].from).toBe(30000);
   expect(items[3].to).toBe(40000);
-  // labels read in the same notation as the axis ticks (graph.numberFormat)
+  // labels read in the same notation as the axis ticks (d3.easygraph.formatNumber)
   expect(items[0].label).toBe('0–10.0k');
   expect(new Set(items.map(i => i.color)).size).toBe(4);
 });
@@ -981,7 +981,7 @@ test('series must be an array of { label, unit } objects; a bar chart\'s entries
       notArray: msg('line', { series: { label: 'x' } }),
       typo:     msg('line', { series: [{ lable: 'x' }] }),
       lineUnit: msg('line', { series: [{ label: 'x', unit: 'u' }] }),
-      barsUnit: msg('bars', { series: [{ label: 'x', unit: 'u' }] })
+      barsUnit: msg('bar', { series: [{ label: 'x', unit: 'u' }] })
     };
   });
   expect(r.notArray).toContain('array');
@@ -1000,7 +1000,7 @@ test('unknown, misspelled and wrong-family config keys throw; meta carries your 
     return {
       typo:    mk('line', { lines: true, titel: 'x' }),
       typo2:   mk('line', { curv: 'linear' }),
-      family:  mk('bars', { zoom: { min: 1, max: 5 } }),
+      family:  mk('bar', { zoom: { min: 1, max: 5 } }),
       unknown: mk('line', { sensors: [0, 1] }),
       meta:    meta.meta
     };
@@ -1027,7 +1027,7 @@ test('what a chart is built around throws when assigned (scale, preset, convert,
       tickFmt:  msg(function() { g.x.tickFormat = 'multi'; }),
       palette:  msg(function() { h.color.palette = 'Sequential.Blues'; }),
       width:    msg(function() { g.width = 300; }),
-      readable: [g.x.scale, g.y.preset, typeof g.y.convert, typeof g.width, typeof g.colorPalettes]
+      readable: [g.x.scale, g.y.preset, typeof g.y.convert, typeof g.width, typeof g.palettes]
     };
     g.x.label = 'Time'; g.y.unit = 'deg'; g.x.trim = [0.1, 0.9]; g.title = 'T';
     out.live = [g.x.label, g.y.unit, g.x.trim, g.title];
@@ -1063,7 +1063,7 @@ test('graph.on / off: several listeners, namespaces replace, off removes, unknow
     function msg(fn) { try { fn(); return ''; } catch (e) { return e.message; } }
     var unknown = msg(function() { g.on('click', function() {}); });
     var old = msg(function() { d3.easygraph.line({ container: w, height: 200, onZoom: function() {} }); });
-    var bars = msg(function() { d3.easygraph.bars({ container: w, height: 200 }).on('zoom', function() {}); });
+    var bars = msg(function() { d3.easygraph.bar({ container: w, height: 200 }).on('zoom', function() {}); });
     g.destroy(); w.remove();
     return { chained, first, second, unknown, old, bars };
   });

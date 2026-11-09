@@ -5,7 +5,36 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
-### Changed (last pass before 1.0)
+### Changed (the 1.0 API audit; every item breaks 0.9.0 code)
+- **`graph.set(options)` changes live keys**, checked exactly like the config (a typo throws with a
+  did-you-mean; a build-time key throws before anything is changed); `x`, `y` and `color` are merged
+  key by key; returns the graph: `graph.set({ stacked: true }).update(data)`. The `x`, `y` and `color`
+  objects can no longer be replaced (`graph.y = {...}` used to crash the next `update()`). Own state goes
+  in `graph.meta`; the README no longer promises that extra properties on the graph are fine.
+- **DOM handles renamed:** `$svg` is now the chart's `<svg>` (was the margin-shifted `<g>`), that `<g>`
+  is `$plot`, and the marks layer `$group` is `$marks` (class `easygraph-marks`). The docs no longer
+  call it clipped: it never was.
+- **Palettes:** `paletteColors(name, classes)` is `palette(name, { classes, reverse })` and
+  `colorPalettes` is `palettes`, beside `preset(name)` / `presets`. The `.reversed` name suffix is gone:
+  `color: { reverse: true }` (the heatmap default stays reversed RdBu; `reverse: false` undoes it).
+  `colorScale(name, domain, options)` is `colorScale({ palette, domain, classes, reverse, quantize })`,
+  the keys of a chart's `color`. `classes` is now really ignored for a Qualitative palette (it used to
+  cut it short). `graph.paletteColors` (the resolved array) is unchanged.
+- **Presets renamed** to quantity + unit: `pressureInhg` -> `pressureInHg`, `rainFallMm` -> `rainfallMm`,
+  `rainFallInches` -> `rainfallIn`, `windSpeed` -> `windSpeedMs`, `windSpeedKmph` -> `windSpeedKmh`.
+  Units `km/h`, `in`, `°` (wind direction), `tenths` (clouds); label `Rainfall`. Presets carry no
+  `scale` (an axis is linear unless it says time), `default` is no longer a table entry, and a preset
+  you add needs only `label` and `unit` (`preset()` fills in `convert` and `convertRounded`).
+- **`convert`/`convertRounded` are no longer config keys** of `x`/`y` (a function the chart never
+  applied); a preset still puts them on `graph.y`. **`color.preset`** (and `color.label`, `unit`,
+  `scale`, `convert`) on heatmap and scatter is gone: none of it changed the chart.
+- **`d3.easygraph.bars` is `d3.easygraph.bar`**, matching `line` and the chart's own type name.
+- **Scatter `points: false` draws no circles** (it was ignored); arrows, labels and voronoi still draw.
+- **The `zoom` event passes `{ transform, x }`** (the transform and the x domain in view) instead of the
+  bare transform, so it can grow like the crosshair's `{ x, pixel }`.
+- **`compassPoint(deg, points)`** replaces `compassPoint16/8/4` (`points` 16, 8 or 4, default 16).
+  **`hueWheelPalette` is removed** (it returned `[r, g, b]` triples for one site's canvas code).
+  **`graph.numberFormat` is `d3.easygraph.formatNumber`**, module-level, as it depends on no chart.
 
 ## [0.9.0] - 2026-11-09
 

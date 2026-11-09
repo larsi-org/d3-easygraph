@@ -181,7 +181,7 @@ test('resize updates graph.width and the svg width attribute', async ({ page }) 
   await page.evaluate(() => { document.querySelector('#wrap').style.width = '300px'; });
   await page.waitForFunction((w) => window.graph.width < w, initialWidth);
 
-  const svgWidth = await page.evaluate(() => Number(window.graph.$svgRoot.attr('width')));
+  const svgWidth = await page.evaluate(() => Number(window.graph.$svg.attr('width')));
   const [width, plotWidth] = await page.evaluate(() => [window.graph.width, window.graph.plotWidth]);
   expect(plotWidth).toBeGreaterThan(0);
   expect(svgWidth).toBe(width);

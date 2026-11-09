@@ -16,7 +16,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "cat src/_intro.js src/d3.easygraph.core.js src/d3.easygraph.presets.js src/d3.easygraph.colors.js src/d3.easygraph.line.js src/d3.easygraph.bars.js src/d3.easygraph.heatmap.js src/d3.easygraph.scatter.js src/_outro.js | terser -c -m --comments false -o dist/d3.easygraph.min.js && cp src/d3.easygraph.css dist/d3.easygraph.css",
+    "build": "cat src/_intro.js src/d3.easygraph.core.js src/d3.easygraph.presets.js src/d3.easygraph.colors.js src/d3.easygraph.line.js src/d3.easygraph.bar.js src/d3.easygraph.heatmap.js src/d3.easygraph.scatter.js src/_outro.js | terser -c -m --comments false -o dist/d3.easygraph.min.js && cp src/d3.easygraph.css dist/d3.easygraph.css",
     "test": "playwright test"
   },
   "keywords": [

@@ -7,26 +7,19 @@
 // continuous x/y axes (no band scale), colored via its own graph.color.$scale.
 
 d3.easygraph.heatmap = function(config) {
-  // Both the config and its color sub-object are cloned rather than resolved in place - the
-  // caller's own object is never written to (core.js's _build() clones again for the same
-  // reason; see its comment for what went wrong when it didn't).
-  config = Object.assign({}, config);
-  config.color = d3.easygraph._resolveProperty(Object.assign({}, config.color));
-
-  // Overrides _build()'s shared Qualitative.Tableau10 default - a set of unrelated categorical
-  // hues makes no sense spread across a heatmap's continuous scaleLinear gradient the way it
-  // does as line/bars/scatter's per-series colors. A caller's own color.palette in config still
-  // wins (config is folded onto graph before familyDefaults is even consulted).
+  // Overrides _build()'s shared Qualitative.Tableau10 default with a reversed RdBu (blue low, red
+  // high): a set of unrelated categorical hues makes no sense spread across a heatmap's continuous
+  // gradient. A caller's color.palette wins, and color.reverse decides the order either way.
   return d3.easygraph._build(config, {
     _chartType:   'heatmap',
     _dataShape:   'grid',
-    _palette:     'Diverging.RdBu.reversed'
+    _palette:     { palette: 'Diverging.RdBu', reverse: true }
   }, function(graph) {
     function render(data) {
       // Empty data (a page whose first fetch hasn't resolved yet) used to reach data[0].length
       // and throw; there's simply nothing to draw, so clear any previous grid and stop.
       if (!data.length || !data[0].length) {
-        graph.$group.selectAll(".easygraph-heatmap-row").remove();
+        graph.$marks.selectAll(".easygraph-heatmap-row").remove();
         return;
       }
 
@@ -43,7 +36,7 @@ d3.easygraph.heatmap = function(config) {
 
       graph.color.$scale.domain(d3.range(n).map(function(i) { return dataMin + i * dataDlt / (n - 1); }));
 
-      var heatmapRow = graph.$group.selectAll(".easygraph-heatmap-row").data(data);
+      var heatmapRow = graph.$marks.selectAll(".easygraph-heatmap-row").data(data);
       var heatmapRowEnter = heatmapRow.enter().append("g").attr("class", "easygraph-heatmap-row");
       heatmapRow.exit().remove();
       heatmapRow = heatmapRowEnter.merge(heatmapRow);
@@ -62,7 +55,7 @@ d3.easygraph.heatmap = function(config) {
       // x/y/width/height are pure layout (a function of the grid's row/col count, not of any
       // cell's own value), so they're set immediately, never animated - only fill (the
       // actual value-driven attribute) transitions, same "structural now, animate the
-      // value" split bars.js's colorPerData transition already uses.
+      // value" split bar.js's color transition already uses.
       heatmapCells
         .attr('x', function(d, i) { return i * heatmapCellW; })
         .attr('y', 0)

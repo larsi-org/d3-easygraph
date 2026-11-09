@@ -5,10 +5,10 @@
 //
 // Shared scaffolding for every chart family: container sizing/resize, SVG/margin/
 // clip-path/title DOM, number/time formatting, x/y/color config resolution, and the
-// shared _build() that d3.easygraph.line/.bars/.heatmap call into with their own hooks.
+// shared _build() that d3.easygraph.line/.bar/.heatmap/.scatter call into with their own hooks.
 // Two standalone lookups live in their own files, loaded right after this one - unit presets
 // (d3.easygraph.presets / preset()) in d3.easygraph.presets.js, color palettes
-// (colorPalettes / paletteColors / colorScale) in d3.easygraph.colors.js - neither has
+// (palettes / palette() / colorScale) in d3.easygraph.colors.js - neither has
 // any chart concepts of its own; this file is the only thing that folds either onto a graph's
 // config.
 
@@ -23,13 +23,11 @@ d3.easygraph._extend = function(dst, src) {
 };
 
 // resolves a preset (via presets.js's preset(), which always returns a complete unit
-// definition) onto an x/y/color config object. label/unit are genuinely optional - if
+// definition) onto an x or y config object. label/unit are genuinely optional - if
 // neither the caller nor a preset supplies one, they stay undefined, and the title text
 // (see near the bottom of _build()) renders blank rather than some generic placeholder.
 d3.easygraph._resolveProperty = function(prop) {
   d3.easygraph._extend(prop, d3.easygraph.preset(prop.preset));
-  // a caller's own convert (no preset, or overriding one) gets its rounded sibling too
-  if (prop.convert && prop.convertRounded === undefined) prop.convertRounded = d3.easygraph._roundedFrom(prop.convert);
   return prop;
 };
 
@@ -43,6 +41,16 @@ d3.easygraph._clippedExtent = function(values, trim) {
   if (!trim) return d3.extent(values);
   var sorted = values.slice().sort(function(a, b) { return a - b; });
   return [d3.quantileSorted(sorted, trim[0]), d3.quantileSorted(sorted, trim[1])];
+};
+
+// The number format the linear axes and the legend labels use: plain digits (at most 6 significant)
+// between 0.01 and 1000, SI-prefixed ('12.3k', '4.56m') outside that. It depends on no chart, so it is
+// module-level: a tooltip or a table can use it to read like the axes.
+d3.easygraph.formatNumber = function(d) {
+  var d_abs = Math.abs(d);
+  if (d_abs === 0) return '0';
+  if (d_abs >= 0.01 && d_abs < 1000) return String(parseFloat(d.toPrecision(6)));
+  return d3.format('.3s')(d);
 };
 
 // Optional helpers for the numbers a line chart's bands are drawn from. The chart never calls
@@ -85,7 +93,7 @@ d3.easygraph.bandStats = function(values, k) {
   return d3.easygraph.bandStatsFromSums(totals, k);
 };
 
-// Stacks layered series, accumulating y0 offsets bottom-up - shared by bars.js's stacked
+// Stacks layered series, accumulating y0 offsets bottom-up - shared by bar.js's stacked
 // mode and line.js's stackedArea, the same accumulation either way regardless of what shape
 // gets drawn from the result. Assumes series are index-aligned (each series' j-th point
 // corresponds to the same category/x position across every series) - fine for bars'
@@ -182,13 +190,13 @@ d3.easygraph._seriesLegendItems = function(graph) {
 // edges - rebuilt from the scale's interior thresholds() plus the domain's two ends, which is
 // exactly the fiddly reconstruction callers were hand-rolling. A continuous scale has no bands,
 // so its rows are the evenly spaced stops the gradient is built from, each with its own value.
-// Labels use graph.numberFormat, so a legend reads in the same notation as the axis ticks.
+// Labels use d3.easygraph.formatNumber, so a legend reads in the same notation as the axis ticks.
 // Returns [] before the first update(): the scale's domain is only meaningful once data has
 // been through it.
 d3.easygraph._colorScaleLegendItems = function(graph) {
   var scale = graph.color && graph.color.$scale;
   if (!scale || !graph._lastData) return [];
-  var colors = scale.range(), fmt = graph.numberFormat;
+  var colors = scale.range(), fmt = d3.easygraph.formatNumber;
 
   if (scale.thresholds) { // d3.scaleQuantize - discrete bands
     var domain = scale.domain();
@@ -229,12 +237,12 @@ var _FAMILY_KEYS = {
   heatmap: [],
   scatter: ['points', 'voronoi', 'arrows', 'labels']
 };
-var _FAMILY_CTOR = { line: 'line', bar: 'bars', heatmap: 'heatmap', scatter: 'scatter' };
+var _FAMILY_CTOR = { line: 'line', bar: 'bar', heatmap: 'heatmap', scatter: 'scatter' };
 
 // The keys each nested option object accepts. 'object' options must be an object; 'flag' options
-// may also be true/false (true = all defaults).
-var _AXIS_KEYS = ['scale', 'unit', 'label', 'tickLabels', 'tickFormat', 'preset', 'convert', 'convertRounded', 'trim'];
-var _PRESET_KEYS = ['preset', 'label', 'unit', 'scale', 'convert', 'convertRounded'];
+// may also be true/false (true = all defaults). An axis's convert/convertRounded are not config: they
+// come from its preset and are only read back (graph.y.convert), since the chart never applies them.
+var _AXIS_KEYS = ['scale', 'unit', 'label', 'tickLabels', 'tickFormat', 'preset', 'trim'];
 var _NESTED = {
   margin: { kind: 'object', keys: ['top', 'right', 'bottom', 'left'] },
   x:      { kind: 'object', keys: _AXIS_KEYS },
@@ -248,10 +256,10 @@ var _NESTED = {
   labels: { kind: 'flag',   keys: ['size', 'offset', 'minZoom'] }
 };
 var _COLOR_KEYS = {
-  line:    ['palette', 'classes'],
-  bar:     ['palette', 'classes'],
-  heatmap: ['palette', 'classes', 'domain', 'trim'].concat(_PRESET_KEYS),
-  scatter: ['palette', 'classes', 'domain', 'trim', 'quantize'].concat(_PRESET_KEYS)
+  line:    ['palette', 'classes', 'reverse'],
+  bar:     ['palette', 'classes', 'reverse'],
+  heatmap: ['palette', 'classes', 'reverse', 'domain', 'trim'],
+  scatter: ['palette', 'classes', 'reverse', 'domain', 'trim', 'quantize']
 };
 var _SERIES_KEYS = { line: ['label', 'unit'], bar: ['label'] };
 
@@ -439,21 +447,14 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     }
   };
 
-  graph.numberFormat = function(d) {
-    var d_abs = Math.abs(d);
-    if (d_abs === 0) return '0';
-    if (d_abs >= 0.01 && d_abs < 1000) return String(parseFloat(d.toPrecision(6)));
-    return d3.format('.3s')(d);
-  };
-
   // Re-applies both axes to whatever the scales currently say, with no transition. Every family
   // needs this after a resize, because _layout() changes the scales' pixel ranges but doesn't
   // re-render the tick DOM. It used to live inside line.js's draw() - so line charts got correct
   // axes on resize and bars/heatmap/scatter silently kept their ticks frozen at pre-resize
   // positions, ending up outside the plot area entirely on a shrink.
   graph._drawAxes = function() {
-    graph.$svg.select("g.easygraph-axis-x").call(graph.x.$axis);
-    graph.$svg.select("g.easygraph-axis-y").call(graph.y.$axis);
+    graph.$plot.select("g.easygraph-axis-x").call(graph.x.$axis);
+    graph.$plot.select("g.easygraph-axis-y").call(graph.y.$axis);
   };
 
   graph._clipId = "d3-easygraph-clip-" + (_nextClipId++);
@@ -481,12 +482,17 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     duration:        500
   });
 
-  // color: { palette, classes } on every family (heatmap and scatter keep their scale options in
-  // the same object). palette is a "Kind.Name[.reversed]" name; classes asks a Sequential/Diverging
-  // palette for a specific class count instead of its largest (ignored for Qualitative).
+  // color: { palette, classes, reverse } on every family (heatmap and scatter keep their scale options
+  // in the same object). palette is a "Kind.Name" name; classes asks a Sequential/Diverging palette for
+  // a specific class count instead of its largest (ignored for Qualitative); reverse flips the order.
+  // The family's default palette (Tableau10, or the heatmap's reversed RdBu) brings its own reverse,
+  // which a caller's reverse overrides; a palette the caller names is reversed only when asked.
   graph.color = Object.assign({}, graph.color);
-  graph.paletteColors = d3.easygraph.paletteColors(
-    graph.color.palette || familyDefaults._palette || 'Qualitative.Tableau10', graph.color.classes || null);
+  var _defaultPalette = familyDefaults._palette || { palette: 'Qualitative.Tableau10', reverse: false };
+  graph.paletteColors = d3.easygraph.palette(graph.color.palette || _defaultPalette.palette, {
+    classes: graph.color.classes,
+    reverse: (graph.color.reverse != null) ? graph.color.reverse : (!graph.color.palette && _defaultPalette.reverse)
+  });
   graph.meta = graph.meta || {};
 
   d3.easygraph._resolveProperty(graph.x);
@@ -496,8 +502,9 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // fall through to a linear scale silently - a mistyped 'time' produced a chart that looked
   // plausible and plotted Dates as numbers. Undefined is fine and means linear.
   ['x', 'y'].forEach(function(axis) {
+    if (graph[axis].scale === undefined) graph[axis].scale = 'linear';
     var scale = graph[axis].scale;
-    if (scale !== undefined && scale !== 'linear' && scale !== 'time') {
+    if (scale !== 'linear' && scale !== 'time') {
       throw new Error('d3.easygraph: ' + axis + '.scale must be "linear" or "time", got ' +
                       JSON.stringify(scale));
     }
@@ -580,14 +587,14 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
 
   // x.tickFormat / y.tickFormat: 'multi' (a time axis: minute, hour, day or month format picked per
   // tick), a function (value => text), or a format string (d3.timeFormat on a time axis, d3.format on
-  // a linear one). Left out, a linear axis uses numberFormat and a time axis d3's own multi-format.
+  // a linear one). Left out, a linear axis uses formatNumber and a time axis d3's own multi-format.
   // tickLabels: false blanks the tick *text* and keeps the tick marks and gridlines, and wins over
   // tickFormat.
   function _applyTickFormat(name, axis) {
     var prop = graph[name], fmt = prop.tickFormat, band = !!prop.$scale.bandwidth;
     if (prop.tickLabels === false) { axis.tickFormat(function() { return ''; }); return; }
     if (fmt === undefined) {
-      if (prop.scale === 'linear' && !band) axis.tickFormat(graph.numberFormat);
+      if (prop.scale === 'linear' && !band) axis.tickFormat(d3.easygraph.formatNumber);
       return;
     }
     if (fmt === 'multi') {
@@ -615,24 +622,24 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // page element that happened to share those names. role/aria-label give assistive tech
   // something better than the axis tick numbers read out as one run-on string; the <title>
   // child is the SVG-native equivalent, kept in sync by update().
-  graph.$svgRoot = d3.select(containerEl)
+  graph.$svg = d3.select(containerEl)
     .append("svg")
       .attr("class", "easygraph")
       .attr("role", "img")
       .attr("width", _fixedW ? "100%" : graph.width)
       .attr("height", _fixedW ? null : graph.height);
   if (_fixedW) {
-    graph.$svgRoot.attr("viewBox", "0 0 " + graph.width + " " + graph.height)
+    graph.$svg.attr("viewBox", "0 0 " + graph.width + " " + graph.height)
       .attr("preserveAspectRatio", "xMidYMid meet")
       .style("display", "block").style("height", "auto");
     graph._viewScale = (containerEl.getBoundingClientRect().width / _fixedW) || 1;
   }
-  graph.$a11yTitle = graph.$svgRoot.append("title");
-  graph.$svg = graph.$svgRoot
+  graph.$a11yTitle = graph.$svg.append("title");
+  graph.$plot = graph.$svg
     .append("g")
       .attr("transform", "translate(" + graph._margin.left + "," + graph._margin.top + ")");
 
-  graph.$svg
+  graph.$plot
     .append("g")
       .attr("class", "easygraph-axis easygraph-axis-x")
       .attr("transform", "translate(0," + graph.plotHeight + ")")
@@ -642,7 +649,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // N duplicate ids, and the stylesheet's matching bare #title rule reached into the host page
   // and restyled its own #title element (an <h1 id="title"> visibly shrank to the chart
   // title's 16px). Nothing needs to look this up by id - graph.$title holds the selection.
-  graph.$title = graph.$svg
+  graph.$title = graph.$plot
     .append("g")
       .attr("class", "easygraph-axis easygraph-axis-y")
       .call(graph.y.$axis)
@@ -653,10 +660,10 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
 
   // Axis titles follow the screen axes: x is the bottom one, y the left one, in every chart
   // (a horizontal bar chart's values are on x).
-  graph.$xTitle = graph.$svg.append("text")
+  graph.$xTitle = graph.$plot.append("text")
     .attr("class", "easygraph-axis-title easygraph-axis-title-x")
     .attr("text-anchor", "middle");
-  graph.$yTitle = graph.$svg.append("text")
+  graph.$yTitle = graph.$plot.append("text")
     .attr("class", "easygraph-axis-title easygraph-axis-title-y")
     .attr("text-anchor", "middle")
     .attr("transform", "rotate(-90)");
@@ -666,14 +673,19 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   };
   graph._placeAxisTitles();
 
-  graph.$clipRect = graph.$svg
+  graph.$clipRect = graph.$plot
     .append("clipPath")
       .attr("id", graph._clipId)
     .append("rect")
       .attr("x", 0).attr("y", 0)
       .attr("width", graph.plotWidth).attr("height", graph.plotHeight);
 
-  graph.$group = graph.$svg.append("g");
+  // The three public handles: $svg is the chart's <svg>; $plot is the <g> shifted by the margins, holding
+  // the axes, titles and everything else, its (0, 0) the plot area's top left; $marks is the <g> inside
+  // $plot that the chart's marks are drawn into, and the place for marks of your own. $marks itself is
+  // not clipped (a caller may transform it, as a zoomable map does, and a clip would move along): the
+  // line chart clips its paths one by one, heatmap and scatter marks are not clipped.
+  graph.$marks = graph.$plot.append("g").attr("class", "easygraph-marks");
 
   graph.paletteColor = function(index) {
     return graph.paletteColors[index % graph.paletteColors.length];
@@ -689,7 +701,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
 
   // module init() runs after core scaffolding above (scales/axes/svg/margin/clip/
   // group all exist) so e.g. line.js's zoom pane can be appended right after
-  // graph.$group, and crosshair after that - same DOM order as before
+  // graph.$marks, and crosshair after that - same DOM order as before
   if (graph._module.init) graph._module.init();
 
   // re-applies everything that depends on the container's rendered width;
@@ -705,7 +717,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     }
     graph.y.$axis.tickSize(-graph.plotWidth);
 
-    graph.$svgRoot.attr("width", graph.width);
+    graph.$svg.attr("width", graph.width);
     graph.$clipRect.attr("width", graph.plotWidth);
     graph.$title.attr("x", graph.plotWidth / 2);
     graph._placeAxisTitles();
@@ -730,12 +742,12 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   resizeObserver.observe(containerEl);
 
   // disconnects the resize observer and tears down anything a module created
-  // outside graph.$svgRoot (e.g. line.js's crosshair tooltip); removing
-  // $svgRoot takes care of everything inside it (paths, listeners, the pane)
+  // outside graph.$svg (e.g. line.js's crosshair tooltip); removing
+  // $svg takes care of everything inside it (paths, listeners, the pane)
   graph.destroy = function() {
     resizeObserver.disconnect();
     if (graph._module.destroy) graph._module.destroy();
-    graph.$svgRoot.remove();
+    graph.$svg.remove();
     graph._destroyed = true;
     // Drop the reference to the caller's data. A destroyed chart holding a year of hourly
     // readings is memory the caller reasonably believes it just released.
@@ -784,7 +796,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     // than as its axis tick numbers.
     var accessibleName = titleText || yTitleText || xTitleText || graph._chartType + " chart";
     graph.$a11yTitle.text(accessibleName);
-    graph.$svgRoot.attr("aria-label", accessibleName);
+    graph.$svg.attr("aria-label", accessibleName);
 
     var domains = graph._module.domain(data, ranges.x, ranges.y) || { x: [0, 1], y: [0, 1] };
     graph.x.$scale.domain(domains.x);
@@ -792,8 +804,8 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
 
     graph._module.render(data);
 
-    graph.$svg.select("g.easygraph-axis-x").transition().duration(graph.duration).call(graph.x.$axis);
-    graph.$svg.select("g.easygraph-axis-y").transition().duration(graph.duration).call(graph.y.$axis);
+    graph.$plot.select("g.easygraph-axis-x").transition().duration(graph.duration).call(graph.x.$axis);
+    graph.$plot.select("g.easygraph-axis-y").transition().duration(graph.duration).call(graph.y.$axis);
 
     return graph; // chainable, matching d3's own convention
   };
@@ -814,12 +826,27 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     });
   });
 
+  // x, y and color hold the chart's scales and axes, so the objects themselves are never replaced:
+  // their live keys are changed one by one (graph.set({ y: { label: 'T' } })).
+  ['x', 'y', 'color'].forEach(function(key) {
+    var fixed = graph[key];
+    Object.defineProperty(graph, key, {
+      enumerable: true, configurable: true,
+      get: function() { return fixed; },
+      set: function() {
+        throw new Error("d3.easygraph: '" + key + "' holds the chart's scales and cannot be replaced - " +
+                        "change its keys instead, e.g. graph.set({ " + key + ": { ... } })");
+      }
+    });
+  });
+
   // One level down, the same: an axis's scale, preset, conversion and tick format are resolved once
-  // while the axis is built, and the color palette, class count and quantize flag when the color scale is.
+  // while the axis is built, and the color palette, class count, order and quantize flag when the
+  // color scale is.
   [['x', 'scale'], ['y', 'scale'], ['x', 'preset'], ['y', 'preset'], ['x', 'convert'], ['y', 'convert'],
    ['x', 'convertRounded'], ['y', 'convertRounded'], ['x', 'tickFormat'], ['y', 'tickFormat'],
    ['x', 'tickLabels'], ['y', 'tickLabels'],
-   ['color', 'palette'], ['color', 'classes'], ['color', 'quantize'], ['color', 'preset']].forEach(function(pair) {
+   ['color', 'palette'], ['color', 'classes'], ['color', 'reverse'], ['color', 'quantize']].forEach(function(pair) {
     var axis = pair[0], key = pair[1], prop = graph[axis];
     if (!prop || typeof prop !== 'object') return;
     var fixedValue = prop[key];
@@ -832,6 +859,41 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
       }
     });
   });
+
+  // set(options): the checked way to change live keys. options is checked exactly like the config
+  // (an unknown key throws with a did-you-mean), every build-time key in it throws before anything is
+  // changed, and x/y/color are merged key by key. Draws nothing: call update() next.
+  // graph.set({ stacked: true, y: { label: 'Load' } }).update(data)
+  function _isFixed(obj, key) {
+    var d = Object.getOwnPropertyDescriptor(obj, key);
+    return !!(d && d.set);
+  }
+  graph.set = function(options) {
+    var ctor = 'd3.easygraph.' + _FAMILY_CTOR[graph._chartType];
+    if (graph._destroyed) throw new Error('d3.easygraph: set() called on a destroyed chart');
+    if (options === null || typeof options !== 'object' || Array.isArray(options))
+      throw new Error(ctor + ".set() takes an object of options, like { stacked: true }");
+    d3.easygraph._checkConfig(options, graph._chartType);
+    var nested = ['x', 'y', 'color'];
+    // first pass: a build-time key throws its own message (its setter does) before anything changed
+    Object.keys(options).forEach(function(key) {
+      if (nested.indexOf(key) >= 0 && options[key] != null) {
+        Object.keys(options[key]).forEach(function(sub) {
+          if (_isFixed(graph[key], sub)) graph[key][sub] = options[key][sub];
+        });
+      } else if (_isFixed(graph, key)) {
+        graph[key] = options[key];
+      }
+    });
+    Object.keys(options).forEach(function(key) {
+      if (nested.indexOf(key) >= 0) {
+        if (options[key] != null) Object.assign(graph[key], options[key]);
+      } else {
+        graph[key] = options[key];
+      }
+    });
+    return graph;
+  };
 
   return graph;
 };

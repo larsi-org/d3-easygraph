@@ -119,10 +119,10 @@ d3.easygraph.line = function(config) {
         // optional module hooks rather than promises every family has to keep.
         graph._redraw = function() {
           graph._drawAxes();
-          graph.$group.selectAll("path.easygraph-minmax").attr("d", graph.$ribbon);
-          graph.$group.selectAll("path.easygraph-sigma").attr("d", graph.$sigma);
-          graph.$group.selectAll("path.easygraph-stack").attr("d", graph.$stack);
-          graph.$group.selectAll("path.easygraph-line").attr("d", graph.$line);
+          graph.$marks.selectAll("path.easygraph-minmax").attr("d", graph.$ribbon);
+          graph.$marks.selectAll("path.easygraph-sigma").attr("d", graph.$sigma);
+          graph.$marks.selectAll("path.easygraph-stack").attr("d", graph.$stack);
+          graph.$marks.selectAll("path.easygraph-line").attr("d", graph.$line);
         };
 
         if (graph.zoom) {
@@ -130,10 +130,12 @@ d3.easygraph.line = function(config) {
           graph.$zoom = d3.zoom().scaleExtent([z.min != null ? z.min : 1, z.max != null ? z.max : 10]).on("zoom", function(event) {
             graph.x.$scale.domain(event.transform.rescaleX(graph.$xScaleRef).domain());
             graph._redraw();
-            graph._emit('zoom', event.transform);
+            // { transform, x }: the d3 zoom transform, and the x domain now in view (Dates on a time
+            // axis) - what most listeners want, without redoing rescaleX themselves.
+            graph._emit('zoom', { transform: event.transform, x: graph.x.$scale.domain() });
           });
 
-          graph.$pane = graph.$svg
+          graph.$pane = graph.$plot
             .append("rect")
               .attr("class", "easygraph-pane")
               .attr("width", graph.plotWidth)
@@ -154,7 +156,7 @@ d3.easygraph.line = function(config) {
           // verifying it would cost a full scan of every series on every construction.
           _bisect = d3.bisector(function(d) { return d.x; }).left;
 
-          graph.$crosshairLine = graph.$svg
+          graph.$crosshairLine = graph.$plot
             .append("line")
             .attr("class", "easygraph-crosshair-line")
             .attr("clip-path", "url(#" + graph._clipId + ")")
@@ -174,7 +176,7 @@ d3.easygraph.line = function(config) {
             var x0 = graph.x.$scale.invert(mouseX);
             var xLabel = (graph.x.scale === 'time')
               ? d3.timeFormat('%Y-%m-%d %H:%M')(x0)
-              : (graph.numberFormat(x0) + (graph.x.unit || ''));
+              : (d3.easygraph.formatNumber(x0) + (graph.x.unit || ''));
 
             var html = '<strong>' + xLabel + '</strong>';
             graph._crosshairData.forEach(function(series, i) {
@@ -196,7 +198,7 @@ d3.easygraph.line = function(config) {
 
             graph.$crosshairTip.html(html).style("display", null);
 
-            var svgRect = graph.$svg.node().ownerSVGElement.getBoundingClientRect();
+            var svgRect = graph.$svg.node().getBoundingClientRect();
             var tipX = svgRect.left + window.scrollX + graph._margin.left + mouseX + 12;
             var tipY = svgRect.top  + window.scrollY + graph._margin.top;
             var tipW = graph.$crosshairTip.node().offsetWidth;
@@ -211,8 +213,8 @@ d3.easygraph.line = function(config) {
             graph.$crosshairTip.style("display", "none");
           };
 
-          graph.$svg.on("mousemove.crosshair", function(event) {
-            var mouseX = d3.pointer(event, graph.$svg.node())[0];
+          graph.$plot.on("mousemove.crosshair", function(event) {
+            var mouseX = d3.pointer(event, graph.$plot.node())[0];
             if (mouseX >= 0 && mouseX <= graph.plotWidth) {
               graph._moveCrosshair(mouseX);
               graph._emit('crosshair', { x: graph.x.$scale.invert(mouseX), pixel: mouseX });
@@ -228,7 +230,7 @@ d3.easygraph.line = function(config) {
       },
 
       domain: function(data, xRange, yRange) {
-        // Guards against empty data (no series, or every series empty) the same way bars.js
+        // Guards against empty data (no series, or every series empty) the same way bar.js
         // already does - d3.extent/min/max on an empty array return undefined, which would
         // otherwise become the scale's domain and break axis rendering. "No data yet" (e.g.
         // page loaded, first fetch hasn't resolved) is a common real state, not an edge case.
@@ -287,7 +289,7 @@ d3.easygraph.line = function(config) {
         if (graph.zoom) {
           // baseline for zoom rescaling; reset transform so new domain is "home"
           graph.$xScaleRef = graph.x.$scale.copy();
-          graph.$svg.select("rect.easygraph-pane").call(graph.$zoom.transform, d3.zoomIdentity);
+          graph.$plot.select("rect.easygraph-pane").call(graph.$zoom.transform, d3.zoomIdentity);
         }
 
         if (graph.crosshair) graph._crosshairData = data;
@@ -296,7 +298,7 @@ d3.easygraph.line = function(config) {
         // toggle, `weather/report.php` and `sensors/report.php`'s bucketSeries()/data_hourly.php's
         // dailyFromHourly() re-aggregating the same time range into far fewer points) is a
         // structural change, not a continuously interpolatable one - same "structural now,
-        // animate the value" split bars.js's layout attrs and heatmap.js's cell geometry
+        // animate the value" split bar.js's layout attrs and heatmap.js's cell geometry
         // already use. d3's default string interpolator for the `d` attribute pairs the old
         // and new path's numeric tokens positionally, so transitioning between two paths with
         // sharply different vertex counts produces a warped, "melting" intermediate shape
@@ -315,7 +317,7 @@ d3.easygraph.line = function(config) {
         graph._prevSeriesLengths = data.map(function(series) { return series.length; });
 
         if (B.minmax) {
-          var dataRibbons = graph.$group.selectAll(".easygraph-minmax").data(data);
+          var dataRibbons = graph.$marks.selectAll(".easygraph-minmax").data(data);
           var ribbonsEntered = dataRibbons.enter().append("path")
             .attr("class",      "easygraph-minmax")
             .attr("clip-path",  "url(#" + graph._clipId + ")")
@@ -329,7 +331,7 @@ d3.easygraph.line = function(config) {
             .style("fill",    function(d, i) { return graph.paletteColor(i); })
             .style("opacity", 0.4);
         } else {
-          graph.$group.selectAll(".easygraph-minmax").remove();
+          graph.$marks.selectAll(".easygraph-minmax").remove();
         }
 
         // Appended right after the minmax band (before stack/lines) so a sigma band always draws on
@@ -341,7 +343,7 @@ d3.easygraph.line = function(config) {
         // = 0.7. Setting this to the visually-intended 0.7 directly would compound with the
         // ribbon underneath into ~0.82, reading darker than intended.
         if (B.sigma) {
-          var dataSigma = graph.$group.selectAll(".easygraph-sigma").data(data);
+          var dataSigma = graph.$marks.selectAll(".easygraph-sigma").data(data);
           var sigmaEntered = dataSigma.enter().append("path")
             .attr("class",      "easygraph-sigma")
             .attr("clip-path",  "url(#" + graph._clipId + ")")
@@ -355,12 +357,12 @@ d3.easygraph.line = function(config) {
             .style("fill",    function(d, i) { return graph.paletteColor(i); })
             .style("opacity", 0.5);
         } else {
-          graph.$group.selectAll(".easygraph-sigma").remove();
+          graph.$marks.selectAll(".easygraph-sigma").remove();
         }
 
         if (graph.stacked) {
           var stackedData = d3.easygraph._computeStacked(data);
-          var dataStack = graph.$group.selectAll(".easygraph-stack").data(stackedData);
+          var dataStack = graph.$marks.selectAll(".easygraph-stack").data(stackedData);
           var stackEntered = dataStack.enter().append("path")
             .attr("class",      "easygraph-stack")
             .attr("clip-path",  "url(#" + graph._clipId + ")")
@@ -374,11 +376,11 @@ d3.easygraph.line = function(config) {
             .style("fill",    function(d, i) { return graph.paletteColor(i); })
             .style("opacity", 1);
         } else {
-          graph.$group.selectAll(".easygraph-stack").remove();
+          graph.$marks.selectAll(".easygraph-stack").remove();
         }
 
         if (_linesOn()) {
-          var dataLines = graph.$group.selectAll(".easygraph-line").data(data);
+          var dataLines = graph.$marks.selectAll(".easygraph-line").data(data);
           var linesEntered = dataLines.enter().append("path")
             .attr("class",     "easygraph-line")
             .attr("clip-path", "url(#" + graph._clipId + ")")
@@ -392,7 +394,7 @@ d3.easygraph.line = function(config) {
             .style("stroke",  function(d, i) { return graph.paletteColor(i); })
             .style("opacity", 1);
         } else {
-          graph.$group.selectAll(".easygraph-line").remove();
+          graph.$marks.selectAll(".easygraph-line").remove();
         }
       },
 
@@ -415,12 +417,12 @@ d3.easygraph.line = function(config) {
 d3.easygraph.syncZoom = function(graphs) {
   graphs.forEach(function(g) {
     if (!g.$pane) return;
-    g.on('zoom.sync', function(transform) {
+    g.on('zoom.sync', function(event) {
       graphs.forEach(function(other) {
         if (other === g || !other.$pane || !other.$xScaleRef) return;
-        other.x.$scale.domain(transform.rescaleX(other.$xScaleRef).domain());
+        other.x.$scale.domain(event.transform.rescaleX(other.$xScaleRef).domain());
         other._redraw();
-        other.$pane.node().__zoom = transform;
+        other.$pane.node().__zoom = event.transform;
       });
     });
   });

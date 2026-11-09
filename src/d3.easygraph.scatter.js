@@ -21,7 +21,7 @@
 // color) at the same position. Only points carrying both `bearing` (degrees) and `magnitude`
 // (raw units, mapped to pixel length via arrows.minLength/maxLength) get a glyph - a point
 // missing either just renders its circle with no arrow, same as any other optional field
-// elsewhere in this library. `bearing` is a compass bearing, like compassPoint16() takes: 0 =
+// elsewhere in this library. `bearing` is a compass bearing, like compassPoint() takes: 0 =
 // north (up on screen), 90 = east, clockwise; the arrow points toward it. arrows.headAngle is
 // degrees too.
 //
@@ -60,12 +60,6 @@
 // "Sequential.Blues", classes: 4, quantize: true } for four bands from light to dark.
 
 d3.easygraph.scatter = function(config) {
-  // Both the config and its color sub-object are cloned rather than resolved in place - the
-  // caller's own object is never written to (core.js's _build() clones again for the same
-  // reason; see its comment for what went wrong when it didn't).
-  config = Object.assign({}, config);
-  config.color = d3.easygraph._resolveProperty(Object.assign({}, config.color));
-
   return d3.easygraph._build(config, {
     _chartType: 'scatter',
     _dataShape: 'points',
@@ -169,8 +163,9 @@ d3.easygraph.scatter = function(config) {
       // at that index - still mid-transition or about to start one - suddenly represents a
       // different station and visibly flies from the old station's position to the new one.
       // A caller that never sets `id` keeps plain index-based identity. `label` is display text only.
+      // points: false draws no circles (an arrows-only or voronoi-only picture); the other layers stay.
       var points = graph.$pointsGroup.selectAll(".easygraph-point")
-        .data(data, function(d, i) { return d.id != null ? d.id : i; });
+        .data(graph.points ? data : [], function(d, i) { return d.id != null ? d.id : i; });
       var pointsEnter = points.enter().append("circle").attr("class", "easygraph-point")
         .attr("cx", function(d) { return graph.x.$scale(d.x); })
         .attr("cy", function(d) { return graph.y.$scale(d.y); })
@@ -250,10 +245,10 @@ d3.easygraph.scatter = function(config) {
         graph.color.$scale = graph.color.quantize
           ? d3.scaleQuantize().range(graph.paletteColors)
           : d3.scaleLinear().range(graph.paletteColors).clamp(true);
-        graph.$cellsGroup  = graph.$group.append("g").attr("class", "easygraph-voronoi-cells");
-        graph.$pointsGroup = graph.$group.append("g").attr("class", "easygraph-points");
-        graph.$arrowsGroup = graph.$group.append("g").attr("class", "easygraph-arrows");
-        graph.$labelsGroup = graph.$group.append("g").attr("class", "easygraph-labels");
+        graph.$cellsGroup  = graph.$marks.append("g").attr("class", "easygraph-voronoi-cells");
+        graph.$pointsGroup = graph.$marks.append("g").attr("class", "easygraph-points");
+        graph.$arrowsGroup = graph.$marks.append("g").attr("class", "easygraph-arrows");
+        graph.$labelsGroup = graph.$marks.append("g").attr("class", "easygraph-labels");
       },
 
       // a caller plotting pre-projected pixel coordinates (e.g. a map overlay) always passes
@@ -261,7 +256,7 @@ d3.easygraph.scatter = function(config) {
       // color, x/y are never clamped - a trim here means "zoom the axis to this range", and
       // a point outside it should draw past the edge (or get clipped by the chart's own
       // clip-path), not get dragged back onto it.
-      // Guards against empty data the same way bars.js already does - d3.extent on an empty
+      // Guards against empty data the same way bar.js already does - d3.extent on an empty
       // array returns [undefined, undefined], which would otherwise become the scale's domain.
       domain: function(data, xRange, yRange) {
         return {

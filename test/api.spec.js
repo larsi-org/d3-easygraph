@@ -90,7 +90,7 @@ test('bars with negative values run below the zero line and the axis reaches the
   const r = await page.evaluate(async (settleSrc) => {
     var settle = eval(settleSrc);
     var w = document.createElement('div'); w.style.width = '500px'; document.body.appendChild(w);
-    var g = d3.easygraph.bars({ container: w, height: 300, duration: 0 });
+    var g = d3.easygraph.bar({ container: w, height: 300, duration: 0 });
     g.update([[{ x: 'a', y: -30 }, { x: 'b', y: 10 }]]);
     await settle();
     var S = g.y.$scale, zero = S(0);
@@ -112,7 +112,7 @@ test('stacked bars pile positives up and negatives down, each from zero; horizon
     var settle = eval(settleSrc);
     function run(orientation) {
       var w = document.createElement('div'); w.style.width = '500px'; document.body.appendChild(w);
-      var g = d3.easygraph.bars({ container: w, height: 300, duration: 0, stacked: true, orientation: orientation });
+      var g = d3.easygraph.bar({ container: w, height: 300, duration: 0, stacked: true, orientation: orientation });
       g.update([[{ x: 'a', y: 10 }], [{ x: 'a', y: -5 }], [{ x: 'a', y: 20 }], [{ x: 'a', y: -15 }]]);
       return settle().then(function() {
         var V = orientation === 'horizontal' ? g.x.$scale : g.y.$scale;
@@ -138,7 +138,7 @@ test('all-positive bars are unchanged: the value axis still starts at zero, grou
   const r = await page.evaluate(() => {
     function dom(stacked) {
       var w = document.createElement('div'); document.body.appendChild(w);
-      var g = d3.easygraph.bars({ container: w, height: 200, stacked: stacked, duration: 0 });
+      var g = d3.easygraph.bar({ container: w, height: 200, stacked: stacked, duration: 0 });
       g.update([[{ x: 'a', y: 3 }, { x: 'b', y: 5 }], [{ x: 'a', y: 4 }, { x: 'b', y: 1 }]]);
       return g.y.$scale.domain();
     }
