@@ -6,6 +6,10 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Changed (last pass before 1.0)
+
+## [0.9.0] - 2026-11-09
+
+### Changed (last pass before 1.0)
 - **`resolvePalette` is `paletteColors`, `resolvePreset` is `preset`.** The first matches
   `graph.paletteColors`; the second sits beside the `presets` table. Same behavior.
 - **Nested options are checked like top-level ones.** A typo inside `x`/`y`, `color`, `margin`, `points`,
