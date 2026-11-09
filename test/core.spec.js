@@ -623,12 +623,12 @@ test('draw() is no longer part of the public surface', async ({ page }) => {
   expect(r.barsHasNoRedraw).toBe(true);
 });
 
-test('graph.legendItems(): line/bars give one row per series, labelled from `names`', async ({ page }) => {
+test('graph.legendItems(): line/bars give one row per series, labelled from `series`', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
     var w = document.createElement('div'); w.style.width = '500px'; document.body.appendChild(w);
 
-    var line = d3.easygraph.line({ container: w, height: 200, lines: true, names: ['HVAC', 'Lighting'] });
+    var line = d3.easygraph.line({ container: w, height: 200, lines: true, series: [{ label: 'HVAC' }, { label: 'Lighting' }] });
     line.update([[{ x: 0, y: 1 }], [{ x: 0, y: 2 }]]);
     var withNames = line.legendItems();
     line.destroy();
@@ -638,8 +638,8 @@ test('graph.legendItems(): line/bars give one row per series, labelled from `nam
     var withoutNames = bare.legendItems();
     bare.destroy();
 
-    // before any update(), `names` alone is enough to draw a legend
-    var early = d3.easygraph.bars({ container: w, height: 200, names: ['A', 'B', 'C'] });
+    // before any update(), `series` alone is enough to draw a legend
+    var early = d3.easygraph.bars({ container: w, height: 200, series: [{ label: 'A' }, { label: 'B' }, { label: 'C' }] });
     var beforeData = early.legendItems();
     early.destroy();
 
@@ -650,7 +650,7 @@ test('graph.legendItems(): line/bars give one row per series, labelled from `nam
   expect(r.withNames[0].color).toBe('#4e79a7');            // Tableau10's first
   expect(r.withNames[1].color).toBe('#f28e2c');
   expect(r.withNames.map(i => i.index)).toEqual([0, 1]);
-  // no names -> still one row per series, but no invented "Series 1" placeholder
+  // no series labels -> still one row per series, but no invented "Series 1" placeholder
   expect(r.withoutNames.length).toBe(2);
   expect(r.withoutNames[0].label).toBeUndefined();
   expect(r.beforeData.map(i => i.label)).toEqual(['A', 'B', 'C']);
@@ -698,13 +698,13 @@ test('graph.legendItems(): a continuous color scale gives one stop per palette c
   expect(r.items[0].label).toBe('0');
 });
 
-test('`names` also labels each crosshair row', async ({ page }) => {
+test('`series` labels also label each crosshair row', async ({ page }) => {
   await page.goto(FIXTURE);
   const html = await page.evaluate(() => {
     var w = document.createElement('div'); w.style.width = '500px'; document.body.appendChild(w);
     var g = d3.easygraph.line({
       container: w, height: 200, lines: true, crosshair: true,
-      x: { scale: 'linear' }, y: { preset: 'temperatureC' }, names: ['Indoor', 'Outdoor']
+      x: { scale: 'linear' }, y: { preset: 'temperatureC' }, series: [{ label: 'Indoor' }, { label: 'Outdoor' }]
     });
     g.update([[{ x: 0, y: 21 }, { x: 1, y: 22 }], [{ x: 0, y: 5 }, { x: 1, y: 6 }]]);
     g._moveCrosshair(g.x.$scale(0));
@@ -912,4 +912,16 @@ test('x.timeFormat only accepts \'multi\'', async ({ page }) => {
     catch (e) { return e.message; }
   });
   expect(msg).toContain("timeFormat");
+});
+
+test('names and units are gone: they throw with a pointer to series; series must be an array', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    function msg(cfg) { try { var w = document.createElement('div'); document.body.appendChild(w);
+      d3.easygraph.line(Object.assign({ container: w, height: 200 }, cfg)); return ''; } catch (e) { return e.message; } }
+    return { names: msg({ names: ['a'] }), units: msg({ units: ['u'] }), notArray: msg({ series: { label: 'x' } }) };
+  });
+  expect(r.names).toContain('series');
+  expect(r.units).toContain('series');
+  expect(r.notArray).toContain('array');
 });

@@ -1,4 +1,4 @@
-// d3.easygraph.units.js
+// d3.easygraph.presets.js
 // MIT License
 // https://opensource.org/licenses/MIT
 // Copyright (c) 2026, Lars Schumann, larsi.org@gmail.com
@@ -82,7 +82,7 @@ function _withRounding(rawConvert) {
 var _roundedIdentity = _withRounding(_identity);
 
 // every preset is a complete unit definition - `convert` is always present (identity when a
-// quantity needs no conversion), so getUnit() never needs a second fallback merge to fill gaps
+// quantity needs no conversion), so resolvePreset() never needs a second fallback merge to fill gaps
 d3.easygraph.presets = {
   default:              {                             unit: '',          scale: 'linear', convert: _roundedIdentity },
   batteryStateOfCharge: { label: 'Battery',           unit: '%',         scale: 'linear', convert: _roundedIdentity },
@@ -104,7 +104,15 @@ d3.easygraph.presets = {
   windDirection:        { label: 'Wind Direction',    unit: '\xB0North', scale: 'linear', convert: _roundedIdentity },
 };
 
-// returns the named preset, or presets.default if name is falsy or unrecognized
-d3.easygraph.getUnit = function(name) {
-  return d3.easygraph.presets[name] || d3.easygraph.presets.default;
+// Returns the named preset, or presets.default when name is falsy (no preset asked for). An
+// unrecognized non-empty name throws: a typo like 'temprature' used to fall back to the blank
+// default silently, giving a chart with no label, unit or conversion and no hint why.
+d3.easygraph.resolvePreset = function(name) {
+  if (!name) return d3.easygraph.presets.default;
+  var preset = d3.easygraph.presets[name];
+  if (!preset) {
+    throw new Error('d3.easygraph: unrecognized preset ' + JSON.stringify(name) +
+                    ' (see Object.keys(d3.easygraph.presets))');
+  }
+  return preset;
 };

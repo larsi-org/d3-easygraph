@@ -6,13 +6,13 @@
 // A small, easygraph-agnostic palette lookup: colorPalettes/resolvePalette/colorScale/
 // hueWheelPalette have no chart concepts of their own - no graph, no container, no SVG - so
 // they're reusable well beyond charting (e.g. coloring a Leaflet marker, a parcoords line, or a
-// canvas point cloud). Same shape as d3.easygraph.units.js's standalone preset table, just not
-// quite as dependency-free: units.js needs nothing but its own data, while this file expects `d3`
+// canvas point cloud). Same shape as d3.easygraph.presets.js's standalone preset table, just not
+// quite as dependency-free: presets.js needs nothing but its own data, while this file expects `d3`
 // (scaleLinear/scaleQuantize/range/hsl/rgb, and - as of 2026-08 - its bundled d3-scale-chromatic
 // schemes), same as core.js does.
 // Chart config resolution (folding colorPalette/colorClasses onto graph.paletteColors) lives in
-// core.js, the only actual chart consumer that needs it - same division of labor as units.js's
-// getUnit() vs. core.js's _resolveProperty().
+// core.js, the only actual chart consumer that needs it - same division of labor as presets.js's
+// resolvePreset() vs. core.js's _resolveProperty().
 
 // Every palette name is "Kind.Name" - Sequential (a plain value gradient), Diverging (a gradient
 // with a meaningful midpoint), or Qualitative (unordered, mutually distinct categories) - the
@@ -127,7 +127,7 @@ d3.easygraph.resolvePalette = function(paletteName, colorClasses) {
   var baseName = name.slice(name.indexOf(".") + 1); // "Diverging.RdYlBu" -> "RdYlBu", for schemeColors
   var colors = colorClasses ? schemeColors(baseName, colorClasses) : null;
   if (!colors) {
-    // Unlike getUnit()'s deliberate silent fallback for a falsy/unrecognized preset (a preset
+    // Unlike resolvePreset()'s deliberate silent fallback for a falsy/unrecognized preset (a preset
     // is often legitimately omitted entirely), colorPalette always has a value by the time this
     // runs - core.js's own default, or an explicit caller string - so an unrecognized name
     // here is always a genuine typo, not a valid "no preference" case. Throwing a clear error

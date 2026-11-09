@@ -46,13 +46,10 @@ d3.easygraph.line = function(config) {
     zoom:               false,
     crosshair:          false,
     curve:              'linear',
-    names:              null, // optional per-series names, index-matched to the series arrays
-                              // passed to update() - what legendItems() labels each entry with,
-                              // and what the crosshair tooltip names each row by. Same shape as
-                              // `units` below.
-    units:              null // optional per-series unit strings for the crosshair tooltip -
-                             // see _moveCrosshair() below; graph.y.unit (, from the
-                             // shared y preset) is the fallback when a series has no entry
+    series:             null  // optional [{ label, unit }, ...], one per series passed to update(), in the
+                              // same order: label is what legendItems() and the crosshair tooltip call
+                              // each series, unit replaces the shared y.unit in the tooltip. A series
+                              // with no entry, or no label/unit, just uses the defaults.
   }, function(graph) {
     var _cx, _cy, _bisect;
 
@@ -187,11 +184,12 @@ d3.easygraph.line = function(config) {
               if (!d) return;
               var crosshairThreshold = (graph.crosshair && graph.crosshair.threshold != null) ? graph.crosshair.threshold : 10;
               var near = Math.abs(graph.x.$scale(d.x) - mouseX) <= crosshairThreshold;
-              var unit = (graph.units && graph.units[i] != null) ? graph.units[i] : (graph.y.unit || '');
-              // the series' own name, when `names` supplies one - otherwise the row is just the
+              var meta = (graph.series && graph.series[i]) || {};
+              var unit = (meta.unit != null) ? meta.unit : (graph.y.unit || '');
+              // the series' own label, when `series` supplies one - otherwise the row is just the
               // swatch and the value, exactly as before
-              var name = (graph.names && graph.names[i] != null) ? graph.names[i] + ' ' : '';
-              html += '<br><span style="color:' + graph.getPaletteColor(i) + '">&#9632;</span> ' +
+              var name = (meta.label != null) ? meta.label + ' ' : '';
+              html += '<br><span style="color:' + graph.paletteColor(i) + '">&#9632;</span> ' +
                       name + (near ? d.y : '?') + unit;
             });
 
@@ -321,13 +319,13 @@ d3.easygraph.line = function(config) {
             .attr("class",      "data-minmax")
             .attr("clip-path",  "url(#" + graph._clipId + ")")
             .attr("d",          graph.$ribbon0)
-            .style("fill",      function(d, i) { return graph.getPaletteColor(i); })
+            .style("fill",      function(d, i) { return graph.paletteColor(i); })
             .style("opacity",   1e-6);
           dataRibbons.exit().remove();
           dataRibbons = ribbonsEntered.merge(dataRibbons);
           dataRibbons.transition().duration(_duration).ease(d3.easeCubicInOut)
             .attr("d",        graph.$ribbon)
-            .style("fill",    function(d, i) { return graph.getPaletteColor(i); })
+            .style("fill",    function(d, i) { return graph.paletteColor(i); })
             .style("opacity", 0.4);
         } else {
           graph.$group.selectAll(".data-minmax").remove();
@@ -347,13 +345,13 @@ d3.easygraph.line = function(config) {
             .attr("class",      "data-sigma")
             .attr("clip-path",  "url(#" + graph._clipId + ")")
             .attr("d",          graph.$sigma0)
-            .style("fill",      function(d, i) { return graph.getPaletteColor(i); })
+            .style("fill",      function(d, i) { return graph.paletteColor(i); })
             .style("opacity",   1e-6);
           dataSigma.exit().remove();
           dataSigma = sigmaEntered.merge(dataSigma);
           dataSigma.transition().duration(_duration).ease(d3.easeCubicInOut)
             .attr("d",        graph.$sigma)
-            .style("fill",    function(d, i) { return graph.getPaletteColor(i); })
+            .style("fill",    function(d, i) { return graph.paletteColor(i); })
             .style("opacity", 0.5);
         } else {
           graph.$group.selectAll(".data-sigma").remove();
@@ -366,13 +364,13 @@ d3.easygraph.line = function(config) {
             .attr("class",      "data-stack")
             .attr("clip-path",  "url(#" + graph._clipId + ")")
             .attr("d",          graph.$stack0)
-            .style("fill",      function(d, i) { return graph.getPaletteColor(i); })
+            .style("fill",      function(d, i) { return graph.paletteColor(i); })
             .style("opacity",   1e-6);
           dataStack.exit().remove();
           dataStack = stackEntered.merge(dataStack);
           dataStack.transition().duration(_duration).ease(d3.easeCubicInOut)
             .attr("d",        graph.$stack)
-            .style("fill",    function(d, i) { return graph.getPaletteColor(i); })
+            .style("fill",    function(d, i) { return graph.paletteColor(i); })
             .style("opacity", 1);
         } else {
           graph.$group.selectAll(".data-stack").remove();
@@ -384,13 +382,13 @@ d3.easygraph.line = function(config) {
             .attr("class",     "data-lines")
             .attr("clip-path", "url(#" + graph._clipId + ")")
             .attr("d",         graph.$line0)
-            .style("stroke",   function(d, i) { return graph.getPaletteColor(i); })
+            .style("stroke",   function(d, i) { return graph.paletteColor(i); })
             .style("opacity",  1e-6);
           dataLines.exit().remove();
           dataLines = linesEntered.merge(dataLines);
           dataLines.transition().duration(_duration).ease(d3.easeCubicInOut)
             .attr("d",        graph.$line)
-            .style("stroke",  function(d, i) { return graph.getPaletteColor(i); })
+            .style("stroke",  function(d, i) { return graph.paletteColor(i); })
             .style("opacity", 1);
         } else {
           graph.$group.selectAll(".data-lines").remove();

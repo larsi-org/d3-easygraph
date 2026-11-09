@@ -231,7 +231,7 @@ test('y clip narrows the data-driven domain away from a single outlier point', a
   expect(yMax).toBeLessThan(500);
 });
 
-test('units[i] gives the crosshair tooltip a per-series unit string, falling back to y.unit', async ({ page }) => {
+test('series[i].unit gives the crosshair tooltip a per-series unit string, falling back to y.unit', async ({ page }) => {
   await page.goto(FIXTURE);
   const html = await page.evaluate(() => {
     var wrap = document.createElement('div');
@@ -243,7 +243,7 @@ test('units[i] gives the crosshair tooltip a per-series unit string, falling bac
       height: 200,
       crosshair: true,
       lines: true,
-      units: ['°F', null] // series 0 overrides, series 1 has no entry - falls back to y.unit
+      series: [{ unit: '°F' }] // series 0 overrides, series 1 has no entry - falls back to y.unit
     });
     var t0 = new Date('2026-01-01T00:00:00');
     g.update([

@@ -7,7 +7,7 @@
 // clip-path/title DOM, number/time formatting, x/y/color config resolution, and the
 // shared _build() that d3.easygraph.line/.bars/.heatmap call into with their own hooks.
 // Two standalone lookups live in their own files, loaded right after this one - unit presets
-// (d3.easygraph.presets / getUnit()) in d3.easygraph.units.js, color palettes
+// (d3.easygraph.presets / resolvePreset()) in d3.easygraph.presets.js, color palettes
 // (colorPalettes / resolvePalette / colorScale) in d3.easygraph.colors.js - neither has
 // any chart concepts of its own; this file is the only thing that folds either onto a graph's
 // config.
@@ -22,14 +22,14 @@ d3.easygraph._extend = function(dst, src) {
   return dst;
 };
 
-// resolves a preset (via units.js's getUnit(), which always returns a complete unit
+// resolves a preset (via presets.js's resolvePreset(), which always returns a complete unit
 // definition) onto an x/y/color config object. label/unit are genuinely optional - if
 // neither the caller nor a preset supplies one, they stay undefined, and the title text
 // (see near the bottom of _build()) renders blank rather than some generic placeholder.
 d3.easygraph._resolveProperty = function(prop) {
   if (prop.clip !== undefined)
     throw new Error("d3.easygraph: 'clip' is now 'trim' (same [loQuantile, hiQuantile] value)");
-  d3.easygraph._extend(prop, d3.easygraph.getUnit(prop.preset));
+  d3.easygraph._extend(prop, d3.easygraph.resolvePreset(prop.preset));
   return prop;
 };
 
@@ -149,17 +149,17 @@ d3.easygraph._colorDomain = function(graph, values) {
   return perRender || graph.color.domain || d3.easygraph._clippedExtent(values, graph.color.trim);
 };
 
-// One legend row per series - color from the palette, label from the graph's `names` config.
+// One legend row per series - color from the palette, label from the graph's `series` config.
 // Shared by line and bars, the two families whose data is an array of series. Falls back to the
-// length of `names` when nothing has been rendered yet, so a legend can be drawn before the first
+// length of `series` when nothing has been rendered yet, so a legend can be drawn before the first
 // update() resolves. A series with no name comes back with `label: undefined` rather than a
 // generated "Series 3", the same no-generic-placeholder rule the chart title follows.
 d3.easygraph._seriesLegendItems = function(graph) {
-  var names = graph.names || [];
-  var count = graph._lastData ? graph._lastData.length : names.length;
+  var series = graph.series || [];
+  var count = graph._lastData ? graph._lastData.length : series.length;
   var items = [];
   for (var i = 0; i < count; i++) {
-    items.push({ index: i, color: graph.getPaletteColor(i), label: names[i] });
+    items.push({ index: i, color: graph.paletteColor(i), label: series[i] ? series[i].label : undefined });
   }
   return items;
 };
@@ -218,6 +218,13 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   // un-destroyable (its SVG orphaned, its ResizeObserver never disconnected). The nested
   // x/y/color/margin objects get their own clones further down for the same reason.
   var graph = Object.assign({}, config);
+
+  ['names', 'units'].forEach(function(old) {
+    if (config[old] !== undefined)
+      throw new Error("d3.easygraph: '" + old + "' is gone - use series: [{ label, unit }, ...], one entry per series");
+  });
+  if (config.series != null && !Array.isArray(config.series))
+    throw new Error("d3.easygraph: series must be an array like [{ label, unit }, ...]");
 
   ['label', 'unit'].forEach(function(old) {
     if (config[old] !== undefined)
@@ -430,7 +437,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
 
   graph.$group = graph.$svg.append("g");
 
-  graph.getPaletteColor = function(index) {
+  graph.paletteColor = function(index) {
     return graph.paletteColors[index % graph.paletteColors.length];
   };
 

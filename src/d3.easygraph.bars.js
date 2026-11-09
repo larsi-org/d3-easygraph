@@ -17,8 +17,8 @@ d3.easygraph.bars = function(config) {
     orientation:  'vertical',
     mode:         'grouped',
     colorPerData: false,
-    names:        null // optional per-series names, index-matched to the series arrays passed to
-                       // update() - what legendItems() labels each entry with
+    series:       null // optional [{ label }, ...], one per series passed to update(): what legendItems()
+                       // labels each entry with
   }, function(graph) {
     // `mode`, unlike `orientation`, is meant to be toggled on a live chart, so it's re-checked on
     // every update() rather than only at construction - a bad value assigned afterwards would
@@ -53,7 +53,7 @@ d3.easygraph.bars = function(config) {
       var groups = _bindGroups(data);
       groups
         .attr("transform", null)
-        .style("fill", function(d, i) { return graph.getPaletteColor(i); });
+        .style("fill", function(d, i) { return graph.paletteColor(i); });
 
       var dataBars = groups.selectAll(".data-bars").data(function(d) { return d; }, function(d) { return d.x; });
       var entered = dataBars.enter().append("rect")
@@ -82,7 +82,7 @@ d3.easygraph.bars = function(config) {
       var groups = _bindGroups(data);
       groups
         .attr("transform", function(d, i) { return "translate(" + x1(i) + ",0)"; })
-        .style("fill",     function(d, i) { return graph.getPaletteColor(i); });
+        .style("fill",     function(d, i) { return graph.paletteColor(i); });
 
       var dataBars = groups.selectAll(".data-bars").data(function(d) { return d; }, function(d) { return d.x; });
       var entered = dataBars.enter().append("rect")
@@ -106,7 +106,7 @@ d3.easygraph.bars = function(config) {
       var groups = _bindGroups(data);
       groups
         .attr("transform", null)
-        .style("fill", function(d, i) { return graph.getPaletteColor(i); });
+        .style("fill", function(d, i) { return graph.paletteColor(i); });
 
       var dataBars = groups.selectAll(".data-bars").data(function(d) { return d; }, function(d) { return d.x; });
       var entered = dataBars.enter().append("rect")
@@ -135,7 +135,7 @@ d3.easygraph.bars = function(config) {
       var groups = _bindGroups(data);
       groups
         .attr("transform", function(d, i) { return "translate(0," + y1(i) + ")"; })
-        .style("fill",     function(d, i) { return graph.getPaletteColor(i); });
+        .style("fill",     function(d, i) { return graph.paletteColor(i); });
 
       var dataBars = groups.selectAll(".data-bars").data(function(d) { return d; }, function(d) { return d.x; });
       var entered = dataBars.enter().append("rect")

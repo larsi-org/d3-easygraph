@@ -16,8 +16,8 @@ Each chart family has its own constructor, taking only the config that family un
 
 | Family | Constructor | Config |
 | --- | --- | --- |
-| Line / band / stacked area | `d3.easygraph.line(config)` | `lines`, `bands` (`{ minmax, sigma }`, each `true` or `false`), `stackedArea`, `zoom`, `crosshair` (`true` or `{ threshold }`, pixels, default 10), `curve`, `names`, `units` |
-| Bars | `d3.easygraph.bars(config)` | `orientation` (`'vertical'`\|`'horizontal'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData`, `names` |
+| Line / band / stacked area | `d3.easygraph.line(config)` | `lines`, `bands` (`{ minmax, sigma }`, each `true` or `false`), `stackedArea`, `zoom`, `crosshair` (`true` or `{ threshold }`, pixels, default 10), `curve`, `series` |
+| Bars | `d3.easygraph.bars(config)` | `orientation` (`'vertical'`\|`'horizontal'`), `mode` (`'stacked'`\|`'grouped'`), `colorPerData`, `series` |
 | Heatmap | `d3.easygraph.heatmap(config)` | `color` |
 | Scatter / bubble | `d3.easygraph.scatter(config)` | `color`, `radius`, `pointStrokeWidth`, `voronoi` (`true` or `{ opacity }`), `arrows` (`true` or `{ color, strokeWidth, minLength, maxLength, headLength, headAngle }`), `labels` (`true` or `{ size, offset, minZoom }`) |
 
@@ -45,10 +45,11 @@ chart (assign it, then call `update()`):
 
 `zoom: { min, max }` (scale extent, defaults 1 and 10) enables scroll-to-zoom and drag-to-pan; `crosshair: true` (or `{ threshold }`, how close in pixels the cursor must be to show a point) adds a hover
 crosshair with a tooltip. `d3.easygraph.syncZoom(graphs)` and `syncCrosshair(graphs)` link several
-line charts together. `units: ["°F", "%"]` gives the tooltip a different unit string per series
-(index-matched to the series passed to `update()`), for a chart mixing quantities where the single
-shared `y` preset's unit isn't right for all of them; a series past the end of `units`, or with a
-falsy entry, falls back to the shared `y.unit`.
+line charts together. `series: [{ label, unit }, ...]` describes each series passed to `update()`, in
+the same order: `label` names it in the legend and the crosshair tooltip, and `unit` gives the
+tooltip a different unit string for a chart mixing quantities where the single shared `y` preset's
+unit isn't right for all of them. A series with no entry, or with no `label` or `unit`, uses the
+defaults (no name, the shared `y.unit`).
 
 A point with `y: null` (or, for the bands, `min`/`max: null` or
 `sigmaMin`/`sigmaMax: null`) breaks the line, band or stacked area into a separate
@@ -161,16 +162,17 @@ The same preset table a chart's `x`/`y`/`color` config resolves a `preset` name 
 available standalone - no container, no chart construction:
 
 ```js
-d3.easygraph.getUnit("temperatureF");
+d3.easygraph.resolvePreset("temperatureF");
 // => { label: "Temperature", unit: "°F", scale: "linear", convert: f(v, d) }
 
-d3.easygraph.getUnit("temperatureF").convert(20);      // => 68        (20°C to °F)
-d3.easygraph.getUnit("temperatureF").convert(20.44, 1); // => 68.8 (68.792, rounded to 1 decimal)
+d3.easygraph.resolvePreset("temperatureF").convert(20);      // => 68        (20°C to °F)
+d3.easygraph.resolvePreset("temperatureF").convert(20.44, 1); // => 68.8 (68.792, rounded to 1 decimal)
 ```
 
-`getUnit(name)` returns the named preset - a complete, ready-to-use `{ label, unit, scale,
+`resolvePreset(name)` returns the named preset - a complete, ready-to-use `{ label, unit, scale,
 convert }` - or the generic `default` entry (empty unit, linear scale, identity `convert`)
-for a falsy or unrecognized name. Every preset declares its own `convert(v)`; presets with no real
+for a falsy name. An unrecognized name throws, so a typo such as `"temprature"` can't quietly
+produce a chart with no label, unit or conversion. Every preset declares its own `convert(v)`; presets with no real
 conversion (most of them - e.g. `relativeHumidity`, `windDirection`) just use the identity
 function. Handy for e.g. converting a raw value before coloring or labeling a map marker. No
 preset declares a `range` either - a sensible axis range is data-dependent (what a station or
@@ -261,15 +263,15 @@ d3.select("#legend").selectAll("span").data(graph.legendItems()).join("span")
   .html(d => `<span style="color:${d.color}">■</span> ${d.label}`);
 ```
 
-For `line` and `bars` there's one row per series, labelled from the **`names`** config - a
-per-series array, the same shape as `units`:
+For `line` and `bars` there's one row per series, labelled from the **`series`** config - one
+`{ label, unit }` entry per series, in the order you pass them to `update()`:
 
 ```js
 d3.easygraph.line({ container: "#g", height: 320, lines: true,
-                    names: ["HVAC", "Lighting", "Electronics"] });
+                    series: [{ label: "HVAC" }, { label: "Lighting" }, { label: "Electronics" }] });
 ```
 
-`names` also labels each row of the crosshair tooltip. A series with no name comes back with
+`series[i].label` also labels each row of the crosshair tooltip. A series with no label comes back with
 `label: undefined` rather than an invented "Series 3" - the same rule the chart title follows.
 
 For `heatmap` and `scatter` the rows come from the color scale instead. A `color.quantize` scale
@@ -306,7 +308,7 @@ d3.easygraph.line({ container: "#g", height: 320, y: { preset: "soilMoisture" },
                     colorPalette: "Sequential.MyBrand" });
 ```
 
-A preset needs all four of `label`, `unit`, `scale`, and `convert` - `getUnit()` returns whatever
+A preset needs all four of `label`, `unit`, `scale`, and `convert` - `resolvePreset()` returns whatever
 you put there directly, with no second merge to fill gaps. A palette is just an array of CSS
 colors; the `Kind.` prefix is a naming convention, not something the resolver parses, so any
 string works as a key (`.reversed` is the one suffix it does interpret).
@@ -481,7 +483,7 @@ properties to a graph is fine and supported; the library only ever writes the na
 | --- | --- |
 | `line`, `bars`, `heatmap`, `scatter` | the four chart constructors |
 | `syncZoom(graphs)`, `syncCrosshair(graphs)` | link zoom / crosshair across line charts |
-| `getUnit(name)`, `presets` | unit-preset lookup and the table behind it |
+| `resolvePreset(name)`, `presets` | preset lookup (throws on an unrecognized name) and the table behind it |
 | `round(x, n)` | round to `n` decimal places |
 | `compassPoint16(deg)`, `compassPoint8(deg)`, `compassPoint4(deg)` | nearest compass label for a bearing |
 | `colorPalettes`, `resolvePalette(name, classes)` | named palette map and lookup |
@@ -496,7 +498,7 @@ properties to a graph is fine and supported; the library only ever writes the na
 | --- | --- |
 | `update(data, ranges)` | re-render; returns the graph, so calls chain |
 | `destroy()` | disconnect the resize observer and tear down the DOM |
-| `getPaletteColor(i)` | the i-th palette color, wrapping past the end |
+| `paletteColor(i)` | the i-th palette color, wrapping past the end |
 | `legendItems()` | the `{ index, color, label }` rows a legend is drawn from - see below |
 | `rescale(k)` | scatter only - divide on-screen marker sizes by `k` (see the table above) |
 | `numberFormat(v)`, `timeFormatShort(date)` | the formatters the axes use, exposed so a tooltip or legend can match them |
@@ -505,7 +507,7 @@ properties to a graph is fine and supported; the library only ever writes the na
 
 | Re-read on every `update()` (toggle live) | Fixed when the chart is built |
 |---|---|
-| `lines`, `bands`, `stackedArea` (line), `mode` (bars), `voronoi`, `arrows`, `labels` (scatter), `duration`, `names`, `units`, `title`, `radius`, `pointStrokeWidth` | `container`, `height`, `margin`, `orientation`, `curve`, `zoom`, `crosshair`, `colorPalette`, `colorClasses`, `x.scale`, `y.scale`, and the `x`/`y`/`color` presets |
+| `lines`, `bands`, `stackedArea` (line), `mode` (bars), `voronoi`, `arrows`, `labels` (scatter), `duration`, `series`, `title`, `radius`, `pointStrokeWidth` | `container`, `height`, `margin`, `orientation`, `curve`, `zoom`, `crosshair`, `colorPalette`, `colorClasses`, `x.scale`, `y.scale`, and the `x`/`y`/`color` presets |
 
 The right-hand column is what a chart is built around; to change one, `destroy()` it and build a
 new chart. This split, plus the names in this README, is the API that 1.0.0 freezes.
@@ -566,12 +568,12 @@ code; these pages are the working examples:
 - `src/d3.easygraph.core.js` - container sizing/resize, SVG/margin/clip-path/title scaffolding,
   number/time axis formatting, x/y/color config resolution, `bandStats`, and the shared `_build()` that each
   constructor calls with its own defaults and hook set.
-- `src/d3.easygraph.units.js` - just the unit preset table (`d3.easygraph.presets`) and
-  `getUnit(name)`, the standalone lookup above. No config merging, no chart concepts - `core.js` is
-  the only thing that folds a resolved preset onto a graph's config, via `getUnit()`.
+- `src/d3.easygraph.presets.js` - just the preset table (`d3.easygraph.presets`) and
+  `resolvePreset(name)`, the standalone lookup above. No config merging, no chart concepts - `core.js` is
+  the only thing that folds a resolved preset onto a graph's config, via `resolvePreset()`.
 - `src/d3.easygraph.colors.js` - `colorPalettes`/`resolvePalette`/`colorScale` (named lookup)
   and `hueWheelPalette` (generated), the standalone palette functions above. Same division of
-  labor as units.js: no chart concepts here, `core.js` is the only thing that folds a resolved
+  labor as presets.js: no chart concepts here, `core.js` is the only thing that folds a resolved
   palette onto `graph.paletteColors`.
 - `src/d3.easygraph.line.js`, `.bars.js`, `.heatmap.js`, `.scatter.js` - one constructor per chart
   family above, each implementing a small `prepareScales?`/`init?`/`domain`/`render`/`resize?`/
@@ -600,7 +602,7 @@ npm test
 ```
 
 [Playwright](https://playwright.dev) specs in `test/` (one per source module: core, line, bars,
-heatmap, scatter, units, colors; 149 tests) run against the built `dist/` via static
+heatmap, scatter, presets, colors; 150 tests) run against the built `dist/` via static
 `test/fixtures/*.html` pages loaded over `file://`. They cover rendering, live resize, `destroy()`
 teardown, legends, the standalone unit and palette functions, and the regressions that needed real
 interaction to find: the zoom baseline staying in sync with the container's width after a resize,

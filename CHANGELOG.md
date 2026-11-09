@@ -44,6 +44,15 @@ All notable changes to this project are documented here. Format loosely follows
   `{ count, mean, min, max, sigmaMin, sigmaMax }` for a line chart's bands (mean +- k population
   standard deviations, clamped into `[min, max]`). The chart itself still only draws the
   `min`/`max`/`sigmaMin`/`sigmaMax` you give it.
+- **`names` and `units` are merged into `series`**: `series: [{ label, unit }, ...]`, one entry per
+  series in the order you pass them to `update()`, on `line` and `bars` (`bars` reads `label`). The
+  old keys throw with a pointer to the new one. `label`, not `name`, to match presets and the
+  `{ index, color, label }` rows `legendItems()` returns.
+- **`getUnit(name)` is now `resolvePreset(name)`** (it returns a whole preset, not a unit), and the
+  source file `units.js` is `presets.js`. An unrecognized non-empty name now throws instead of
+  silently falling back to the blank `default`; a falsy name still returns `default`.
+- **`graph.getPaletteColor(i)` is now `graph.paletteColor(i)`**; no name in the API carries a
+  `get` prefix any more.
 
 ## [0.8.0] - 2026-11-08
 
