@@ -104,3 +104,41 @@ test('with no explicit ranges the axes span the grid dimensions, not a meaningle
   expect(domains.x).toEqual([0, 6]);
   expect(domains.y).toEqual([0, 4]);
 });
+
+test('a null or undefined cell is drawn empty (no fill, the missing class), not black or a real color', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var d = document.createElement('div'); d.style.width = '400px'; document.body.appendChild(d);
+    var g = d3.easygraph.heatmap({ container: d, height: 200, duration: 0 });
+    function cells() {
+      return Array.prototype.map.call(g.$marks.selectAll('.easygraph-heatmap-cell').nodes(), function (n) {
+        return { fill: getComputedStyle(n).fill, missing: n.classList.contains('easygraph-heatmap-cell-missing') };
+      });
+    }
+    g.update([[0, null, 10], [undefined, 5, 10]]);
+    var first = cells();
+    g.update([[0, 3, 10], [7, 5, null]]);          // the gaps fill in, a colored cell becomes a gap
+    return { first: first, second: cells() };
+  });
+  // grid order: row 0 cells, then row 1 cells
+  expect(r.first.map(c => c.missing)).toEqual([false, true, false, true, false, false]);
+  expect(r.first[1].fill).toBe('none');
+  expect(r.first[3].fill).toBe('none');
+  expect(r.first[0].fill).not.toBe('none');
+  expect(r.first[0].fill).not.toBe('rgb(0, 0, 0)');
+  expect(r.second.map(c => c.missing)).toEqual([false, false, false, false, false, true]);
+  expect(r.second[5].fill).toBe('none');
+  expect(r.second[1].fill).not.toBe('none');
+});
+
+test('color.trim ignores missing cells instead of counting them as 0', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const domain = await page.evaluate(() => {
+    var d = document.createElement('div'); d.style.width = '400px'; document.body.appendChild(d);
+    var g = d3.easygraph.heatmap({ container: d, height: 200, duration: 0, color: { trim: [0, 1] } });
+    g.update([[null, null, 10], [20, null, 30]]);
+    var dom = g.color.$scale.domain();
+    return [dom[0], dom[dom.length - 1]];
+  });
+  expect(domain).toEqual([10, 30]);
+});

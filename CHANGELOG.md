@@ -40,6 +40,9 @@ All notable changes to this project are documented here. Format loosely follows
 
 - **The crosshair tooltip formats its values** with `formatNumber`, like the axes and legends
   (`21.3333`, `12.3k`), instead of printing the raw number; a gap under the cursor reads `?`, not `null`.
+- **A heatmap `null` or `undefined` cell is drawn empty** (no fill, class `easygraph-heatmap-cell-missing`,
+  `fill: none` in the stylesheet) instead of black or the color of 0; `update()` accepts a row that starts
+  with one, and `color.trim` leaves missing cells out of the quantiles instead of counting them as 0.
 
 ## [0.9.0] - 2026-11-09
 

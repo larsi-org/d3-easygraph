@@ -38,8 +38,8 @@ d3.easygraph._resolveProperty = function(prop) {
 // omitting it (the default everywhere) keeps the exact same true-min/max behavior as
 // before this existed.
 d3.easygraph._clippedExtent = function(values, trim) {
-  if (!trim) return d3.extent(values);
-  var sorted = values.slice().sort(function(a, b) { return a - b; });
+  if (!trim) return d3.extent(values);   // d3.extent skips null and undefined itself
+  var sorted = values.filter(function(v) { return v != null; }).sort(function(a, b) { return a - b; });
   return [d3.quantileSorted(sorted, trim[0]), d3.quantileSorted(sorted, trim[1])];
 };
 
@@ -126,13 +126,11 @@ d3.easygraph._computeStacked = function(data, signed) {
 };
 
 // Validates update()'s `data` at the boundary, the same way the constructor already validates
-// `container` and `height` - this was the one input with no guard, and the one newcomers get
-// wrong first. Each family declares its expected shape (_dataShape):
-//   'series' - an array of series, each an array of points   (line, bars)
+// `container` and `height`, so a wrong shape throws here with the fix in the message instead of
+// deep inside d3 (or rendering a chart full of NaN). Each family declares its shape (_dataShape):
+//   'series' - an array of series, each an array of points   (line, bar)
 //   'points' - one flat array of point objects               (scatter)
-//   'grid'   - an array of rows, each an array of numbers    (heatmap)
-// Getting it wrong used to either throw from deep inside d3 with a minified variable name, or
-// - worse, for scatter and heatmap - silently render a chart full of NaN with no complaint.
+//   'grid'   - an array of rows, each an array of numbers    (heatmap; null/undefined = no data)
 // An empty array is always allowed: "no data yet" is a normal state while a fetch is in flight.
 var _shapeHelp = {
   series: "an array of series, each an array of points - e.g. [[{x, y}, {x, y}]]",
@@ -153,8 +151,11 @@ d3.easygraph._checkData = function(data, shape, family) {
   if (shape !== 'points' && !firstIsArray) {
     throw new Error(prefix + 'a flat array. Wrap a single series as [yourArray].');
   }
-  if (shape === 'grid' && first.length && typeof first[0] !== 'number') {
-    throw new Error(prefix + 'rows of ' + typeof first[0] + '. Heatmap cells are plain numbers.');
+  // the first cell that holds a value decides: a missing (null/undefined) cell is allowed anywhere
+  var cell = (shape === 'grid') ? first.find(function(v) { return v != null; }) : undefined;
+  if (cell !== undefined && typeof cell !== 'number') {
+    throw new Error(prefix + 'rows of ' + typeof cell + '. Heatmap cells are plain numbers ' +
+                    '(null or undefined for a cell with no data).');
   }
 };
 

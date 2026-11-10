@@ -20,6 +20,7 @@
 .easygraph .easygraph-line{fill:none;stroke-width:1.5px}
 .easygraph .easygraph-bar{stroke:none;stroke:#333;stroke-width:1.5px}
 .easygraph .easygraph-heatmap-cell{shape-rendering:crispEdges}
+.easygraph .easygraph-heatmap-cell-missing{fill:none}
 .easygraph .easygraph-point{stroke:#333}
 .easygraph .easygraph-voronoi-cell{stroke:none}
 .easygraph .easygraph-arrow{fill:none;stroke-linecap:round}

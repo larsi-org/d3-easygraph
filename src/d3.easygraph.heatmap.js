@@ -44,14 +44,21 @@ d3.easygraph.heatmap = function(config) {
         return "translate(0," + ((heatmapRows - 1 - i) * heatmapCellH) + ")";
       });
 
+      // A null or undefined cell has no data: it gets no fill of its own, only the class
+      // easygraph-heatmap-cell-missing (fill: none in the stylesheet, so the background shows;
+      // a page may restyle it). Passing it to the color scale would color it like a real value.
+      function missing(d) { return d == null; }
+      function fill(d) { return missing(d) ? null : graph.color.$scale(d); }
+
       var heatmapCells = heatmapRow.selectAll(".easygraph-heatmap-cell").data(function(d) { return d; });
       // fill set immediately at enter - a freshly entered cell should show its real color
       // right away, not fade in from nothing; the transition below only matters for a cell
       // that already existed and is changing color on a data update.
       var heatmapCellsEnter = heatmapCells.enter().append("rect").attr("class", "easygraph-heatmap-cell")
-        .style('fill', function(d) { return graph.color.$scale(d); });
+        .style('fill', fill);
       heatmapCells.exit().remove();
       heatmapCells = heatmapCellsEnter.merge(heatmapCells);
+      heatmapCells.classed('easygraph-heatmap-cell-missing', missing);
       // x/y/width/height are pure layout (a function of the grid's row/col count, not of any
       // cell's own value), so they're set immediately, never animated - only fill (the
       // actual value-driven attribute) transitions, same "structural now, animate the
@@ -61,8 +68,11 @@ d3.easygraph.heatmap = function(config) {
         .attr('y', 0)
         .attr('width',  heatmapCellW)
         .attr('height', heatmapCellH);
-      heatmapCells.transition().duration(graph.duration).ease(d3.easeCubicInOut)
-        .style('fill', function(d) { return graph.color.$scale(d); });
+      // a cell that became missing drops its color at once (stopping any running transition)
+      heatmapCells.filter(missing).interrupt().style('fill', null);
+      heatmapCells.filter(function(d) { return !missing(d); })
+        .transition().duration(graph.duration).ease(d3.easeCubicInOut)
+        .style('fill', fill);
     }
 
     return {

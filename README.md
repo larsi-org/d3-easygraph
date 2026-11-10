@@ -230,7 +230,9 @@ it, each on its own pile. Because the value axis always includes zero, `trim` ha
 ### Heatmap
 
 A grid of colored cells over plain continuous x/y axes. `update()` takes an array of rows of numbers,
-and row 0 is drawn at the **bottom** (the y axis runs upward). With no ranges given the axes span the
+and row 0 is drawn at the **bottom** (the y axis runs upward). A `null` or `undefined` cell has no data: it gets
+no fill and the class `easygraph-heatmap-cell-missing` (`fill: none` in the stylesheet, so the background
+shows; restyle that class for a "no data" color), and it is left out of the color domain. With no ranges given the axes span the
 grid's own size (`x: [0, columns]`, `y: [0, rows]`), so ticks line up with cell edges. `color` takes a
 fixed `domain: [min, max]` or a `trim`. The default palette is `Diverging.RdBu` reversed (blue low, red
 high), since a qualitative palette makes no sense spread across a gradient; `color: { reverse: false }`
@@ -328,7 +330,7 @@ type.
 into a separate subpath there rather than drawing a straight segment through the hole (for the bands,
 `min`/`max: null` or `sigmaMin`/`sigmaMax: null`). That is also how to chart a circular quantity such
 as compass bearing: insert a `null`-y point at each wraparound so the chart does not draw a false
-diagonal from 359° to 0°.
+diagonal from 359° to 0°. In a heatmap a `null` or `undefined` cell is drawn empty.
 
 ```js
 graph.update([[ { x: 0, y: 1 }, { x: 1, y: null }, { x: 2, y: 3 } ]]);   // one gap, two subpaths
@@ -565,7 +567,7 @@ are stable API for styling and for tests:
 | all | `easygraph` (the svg), `easygraph-marks` (the marks layer, `$marks`), `easygraph-title`, `easygraph-axis` with `easygraph-axis-x` / `easygraph-axis-y`, `easygraph-axis-title` with `easygraph-axis-title-x` / `easygraph-axis-title-y` |
 | line | `easygraph-line`, `easygraph-minmax`, `easygraph-sigma`, `easygraph-stack` (one `<path>` per series), `easygraph-pane` (the zoom/pointer rect), `easygraph-crosshair-line`, `easygraph-crosshair-tip` (the tooltip, a child of `<body>`) |
 | bar | `easygraph-bar`, `easygraph-bar-group` |
-| heatmap | `easygraph-heatmap-row`, `easygraph-heatmap-cell` |
+| heatmap | `easygraph-heatmap-row`, `easygraph-heatmap-cell`, `easygraph-heatmap-cell-missing` (a cell with no data) |
 | scatter | `easygraph-point`, `easygraph-arrow`, `easygraph-label`, `easygraph-voronoi-cell`, and their `<g>` groups `easygraph-points`, `easygraph-arrows`, `easygraph-labels`, `easygraph-voronoi-cells` |
 
 Anything else in the DOM (the clip path, the `.tick` classes d3 puts on axis ticks) is an
@@ -645,7 +647,7 @@ npm test
 
 [Playwright](https://playwright.dev) specs in `test/` (one per source module - core, line, bar,
 heatmap, scatter, presets, colors - plus `api.spec.js` and `api-1.0.spec.js` for cross-cutting checks;
-175 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
+177 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
 live resize, `destroy()` teardown, config and `ranges` validation, the live/build-time key split,
 legends, the standalone unit and palette functions, and behavior that needs real interaction to
 verify: `set()`, zoom and crosshair events, pinned color domains surviving a resize, `id`-keyed point identity,
