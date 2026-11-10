@@ -86,7 +86,7 @@ d3.easygraph.heatmap = function(config) {
       // With no explicit range, the axes span the grid's own dimensions - a 6x4 grid gets
       // x: [0, 6], y: [0, 4], so the tick values line up with cell boundaries. The previous
       // [0, 1] fallback drew a 0-1 axis underneath a grid of any size, which was meaningless
-      // for every caller that didn't pass ranges of its own.
+      // for every caller that didn't pass domains of its own.
       domain: function(data, xRange, yRange) {
         var cols = (data.length && data[0].length) ? data[0].length : 1;
         var rows = data.length || 1;

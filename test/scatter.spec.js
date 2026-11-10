@@ -417,7 +417,7 @@ test('rescale(k) shrinks arrow stroke-width by 1/k too, not just shaft length', 
 test('arrows and labels accept an options object; unset keys keep their defaults', async ({ page }) => {
   await page.goto(ARROWS_FIXTURE);
   const stroke = await page.evaluate(() => {
-    window.graph.arrows = { color: '#f00', strokeWidth: 3 };
+    window.graph.set({ arrows: { color: '#f00', strokeWidth: 3 } });
     window.graph.update(window.testData, { x: [0, 10], y: [0, 10] });
     var el = document.querySelector('path.easygraph-arrow');
     return [el.style.stroke, el.style.strokeWidth];
@@ -431,7 +431,7 @@ test('voronoi accepts { opacity }; plain true keeps the 0.6 default', async ({ p
   const dflt = await page.evaluate(() => document.querySelector('path.easygraph-voronoi-cell').style.fillOpacity);
   expect(dflt).toBe('0.6');
   const custom = await page.evaluate(() => {
-    window.graph.voronoi = { opacity: 0.2 };
+    window.graph.set({ voronoi: { opacity: 0.2 } });
     window.graph.update(window.testData, { x: [0, 10], y: [0, 10] });
     return document.querySelector('path.easygraph-voronoi-cell').style.fillOpacity;
   });
@@ -443,7 +443,7 @@ test('points join by id, else position - a dropped point keeps the others\' circ
   const r = await page.evaluate(() => {
     function run(keyField) {
       var w = document.createElement('div'); document.body.appendChild(w);
-      var g = d3.easygraph.scatter({ container: w, height: 200, x: { scale: 'linear' }, y: { scale: 'linear' } });
+      var g = d3.easygraph.scatter({ container: w, height: 200, x: { type: 'linear' }, y: { type: 'linear' } });
       function pts(names) {
         return names.map(function(n, i) {
           var p = { x: i, y: i, value: i };
@@ -519,13 +519,12 @@ test('arrow bearings are compass degrees: 0 north (up), 90 east (right), 270 wes
   expect(r[2]).toEqual({ dx: -20, dy: 0 });   // west is left
 });
 
-test('options assigned live are checked too: a typo in points, arrows or labels throws on the next update', async ({ page }) => {
+test('options changed live are checked too: a typo in points, arrows or labels throws in set()', async ({ page }) => {
   await page.goto(FIXTURE);
   const msg = await page.evaluate(() => {
     var w = document.createElement('div'); document.body.appendChild(w);
     var g = d3.easygraph.scatter({ container: w, height: 200 });
-    g.arrows = { colour: 'red' };
-    try { g.update([{ x: 0, y: 0, value: 1 }]); return ''; } catch (e) { return e.message; }
+    try { g.set({ arrows: { colour: 'red' } }); return ''; } catch (e) { return e.message; }
   });
   expect(msg).toContain("arrows.colour");
   expect(msg).toContain("arrows.color");

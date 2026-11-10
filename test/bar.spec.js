@@ -13,7 +13,7 @@ test('live graph.stacked toggle to true re-renders in place, no reconstruction',
   await page.goto(FIXTURE);
 
   await page.evaluate(() => {
-    window.graph.stacked = true;
+    window.graph.set({ stacked: true });
     window.graph.update(window.testData);
   });
 

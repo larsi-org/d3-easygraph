@@ -37,7 +37,7 @@ come from `d3`'s own bundled `d3-scale-chromatic` schemes, so nothing else is ne
 <script>
 var graph = d3.easygraph.line({
   container: "#graph",
-  x:         { scale: "time" },
+  x:         { type: "time" },
   y:         { preset: "temperatureC" },
   height:    320,
   margin:    { top: 20, right: 20, bottom: 30, left: 50 }
@@ -70,14 +70,16 @@ easygraph.line({ /* ... */ });
 The same handful of ideas hold for every chart family. Learn them once.
 
 **1. Build once, update many.** A constructor takes one config object and returns the chart;
-`graph.update(data, ranges)` draws (and redraws) and returns the graph, so calls chain. Your config
+`graph.update(data, domains)` draws (and redraws) and returns the graph, so calls chain. Your config
 object is never modified - it is cloned on the way in, along with its `x`/`y`/`color`/`margin`
 sub-objects, so one literal can safely construct several charts. Read state back off the returned
 graph, not off the literal. `graph.destroy()` disconnects the resize observer, removes the DOM and
 drops the last data; `update()` afterwards throws.
 
 **2. Live keys and build-time keys.** Flags that choose what is drawn are re-read on every
-`update()`: change them with `graph.set(options)`, then update again.
+`update()`: change them with `graph.set(options)`, then update again. `set()` is the only way to
+change anything: assigning a key of the graph (`graph.stacked = true`, `graph.y.label = 'T'`) throws
+with a message naming the `set()` call to use.
 
 ```js
 graph.set({ bands: hourly ? {} : { minmax: true, sigma: true }, stacked: true }).update(data);
@@ -86,7 +88,7 @@ graph.set({ y: { label: 'Load' } });    // x, y and color are merged key by key
 
 `set()` checks its object exactly like the config (a typo throws with a did-you-mean) and draws
 nothing itself. Keys the chart is *built around* (scales, axes, DOM) are fixed at construction:
-naming one in `set()`, or assigning it, throws with a message saying so, before anything is changed;
+naming one in `set()` throws with a message saying so, before anything is changed;
 to change it, `destroy()` the chart and build a new one. The `x`, `y` and `color` objects hold the
 chart's scales, so they are never replaced, only their keys changed. The split is part of the API
 ([table below](#public-api)).
@@ -97,12 +99,14 @@ options: `zoom: { min, max }`, `crosshair: { threshold }`, `voronoi: { opacity }
 `bands` is the one object-only option (`{ minmax, sigma }`, each `true` or `false`).
 
 **4. The config is strict.** An unknown key throws, at any depth: `titel`, `x: { lable }`,
-`points: { radus }`, `zoom: { mn }`, an entry of `series`, a key of `update()`'s `ranges`. The message
+`points: { radus }`, `zoom: { mn }`, an entry of `series`, a key of `update()`'s `domains`. The message
 names the closest real key (`did you mean 'x.label'?`) or says the option belongs to another family
 (`zoom` on a bar chart). `set()` checks the same way. Your own fields go under **`meta`**, an open-ended object copied to
-`graph.meta` untouched (`meta: { sensors: [0, 1] }`) - the place to hang page state off a chart.
+`graph.meta` untouched (`meta: { sensors: [0, 1] }`) - the place to hang page state off a chart. The graph
+object itself is sealed: no property can be added to it (in strict-mode code that throws; in sloppy-mode
+code the assignment is ignored).
 
-**5. `x` and `y` are the screen axes everywhere** - in the `x`/`y` config, in `ranges`, in axis titles.
+**5. `x` and `y` are the screen axes everywhere** - in the `x`/`y` config, in `domains`, in axis titles.
 A bar chart's *data* keeps `x` = category and `y` = value in either orientation, so in a horizontal
 chart the values run across on the `x` axis: that is where you pin and title them.
 
@@ -130,9 +134,10 @@ on by a flag you must also remember.
 are yours. The library offers optional helpers that return plain data (`bandStats`, `convert`,
 `legendItems`) and never calls them behind your back.
 
-**9. Pinning a domain.** `update(data, { x, y })` pins the axis domains for that render instead of
-fitting the data (`{ color }` on heatmap and scatter pins the color scale). Precedence for the color
-scale, most specific first: `ranges.color` (this render), then `color.domain` (fixed at construction),
+**9. Pinning a domain.** `update(data, domains)` with `domains = { x, y }` pins the axis domains for
+that render instead of fitting the data (`{ color }` on heatmap and scatter pins the color scale). These
+are domains in d3's sense, data values; the ranges (pixels) are the chart's. Precedence for the color
+scale, most specific first: `domains.color` (this render), then `color.domain` (fixed at construction),
 then the data's own extent. `trim: [lo, hi]` (quantiles) shapes only that last, data-driven extent.
 A pinned domain survives a resize and `rescale()`, which re-render from stored state.
 
@@ -157,14 +162,15 @@ heatmap and scatter), `graph.$svg` (the chart's `<svg>`), `graph.$plot` (the `<g
 margins, holding the axes and titles; its origin is the plot area's top left) and `graph.$marks` (the
 `<g>` inside `$plot` the chart draws its marks into, and the place for marks of your own) are stable.
 `$marks` is not clipped, so a caller may transform it (a zoomable map); the line chart clips each of
-its paths, heatmap and scatter marks are not clipped. Every other `$`- or `_`-prefixed name is private
-and may change.
+its paths, heatmap and scatter marks are not clipped. A `$` name on the graph is always one of these
+public handles. Everything the chart keeps for itself is on `graph._`, which is not enumerable and not
+API.
 
 **13. Lookup tables are global and extensible.** `d3.easygraph.presets` and `d3.easygraph.palettes`
 are plain objects you add to ([below](#adding-your-own-presets-and-palettes)).
 
 **14. Resize is automatic, errors are early.** Width follows the container with no calls on your end.
-Bad `container`, `height`, `orientation`, `scale`, `tickFormat`, `series`, palette, preset or data shapes throw at the
+Bad `container`, `height`, `orientation`, axis `type`, `tickFormat`, `series`, palette, preset or data shapes throw at the
 boundary with a message that says how to fix it, rather than rendering the wrong chart.
 
 ## Chart families
@@ -223,6 +229,11 @@ A category axis (`d3.scaleBand()`). `orientation` is fixed for a chart's lifetim
 `false`, i.e. grouped) can be toggled live. A datum with its own `color` field is drawn in it instead
 of its series' palette color.
 
+The categories are every series' `x` values, in the order they first appear (series 0 first, then
+whatever a later series adds). A series may leave a category out or list them in another order: bars
+are matched by category, not by position, both side by side and when stacked. To fix the order or show
+an empty category, pin the category axis (`update(data, { x: ['Mon', 'Tue', ...] })`).
+
 Values may be negative. The value axis always includes zero and reaches every bar: grouped bars hang
 from the zero line, and stacked bars pile positive values up from zero and negative values down from
 it, each on its own pile. Because the value axis always includes zero, `trim` has no effect there.
@@ -232,7 +243,7 @@ it, each on its own pile. Because the value axis always includes zero, `trim` ha
 A grid of colored cells over plain continuous x/y axes. `update()` takes an array of rows of numbers,
 and row 0 is drawn at the **bottom** (the y axis runs upward). A `null` or `undefined` cell has no data: it gets
 no fill and the class `easygraph-heatmap-cell-missing` (`fill: none` in the stylesheet, so the background
-shows; restyle that class for a "no data" color), and it is left out of the color domain. With no ranges given the axes span the
+shows; restyle that class for a "no data" color), and it is left out of the color domain. With no domains given the axes span the
 grid's own size (`x: [0, columns]`, `y: [0, rows]`), so ticks line up with cell edges. `color` takes a
 fixed `domain: [min, max]` or a `trim`. The default palette is `Diverging.RdBu` reversed (blue low, red
 high), since a qualitative palette makes no sense spread across a gradient; `color: { reverse: false }`
@@ -281,7 +292,7 @@ overlay points on a map you draw yourself.
 | `duration` | transition length in ms, default 500; live |
 | `meta` | your own fields, copied to `graph.meta` |
 
-**`x` / `y`:** `scale` (`'linear'`, the default, or `'time'`), `label`, `unit`, `preset`, `tickFormat`,
+**`x` / `y`:** `type` (`'linear'`, the default, or `'time'`), `label`, `unit`, `preset`, `tickFormat`,
 `tickLabels`, `trim`.
 
 - `label` and `unit` title the axis: `x.label` goes under the horizontal axis, `y.label` rotated beside
@@ -504,9 +515,9 @@ future version of this library that ships the same name - so prefix your own (`M
 
 ## Public API
 
-This is the supported surface - what semantic versioning covers. **Everything else reachable on a graph
-object, including every `$`- and `_`-prefixed property, is internal and may change in any release.**
-Your own state goes in `graph.meta`; a property you add to the graph object itself is not supported.
+This is the supported surface - what semantic versioning covers. **`graph._`, where the chart keeps
+its internals, may change in any release.** Your own state goes in `graph.meta`; the graph object is
+sealed, so a property of your own cannot be added to it.
 
 **Module-level:**
 
@@ -527,7 +538,7 @@ Your own state goes in `graph.meta`; a property you add to the graph object itse
 
 | | |
 | --- | --- |
-| `update(data, ranges)` | re-render; returns the graph, so calls chain |
+| `update(data, domains)` | re-render, `domains` pinning `{ x, y }` (and `color`) for this render; returns the graph, so calls chain |
 | `set(options)` | change live keys, checked like the config; returns the graph |
 | `destroy()` | disconnect the resize observer and tear down the DOM |
 | `on(event, fn)`, `off(event[, fn])` | listeners, chainable ([Patterns](#patterns) 10) |
@@ -539,19 +550,22 @@ Your own state goes in `graph.meta`; a property you add to the graph object itse
 
 | | |
 | --- | --- |
-| every config key you passed | readable; the live ones are re-read on every `update()` |
+| every config key of the family | readable (`undefined` when not given and without a default); the live ones are re-read on every `update()` and change through `set()` |
 | `x`, `y`, `color` | the resolved per-property configs, with `$scale` and `$axis` on `x`/`y` and `$scale` on a heatmap's or scatter's `color`; `x.convert`/`convertRounded` (and `y`) from a preset |
 | `$svg`, `$plot`, `$marks` | the chart's `<svg>`; the margin-shifted `<g>` with the axes; the `<g>` the marks are drawn into |
-| `width`, `height` | the full `<svg>` box; assigning either throws |
+| `width`, `height` | the full `<svg>` box |
 | `plotWidth`, `plotHeight` | the plot area inside the margins |
 | `paletteColors` | the resolved color array |
 | `meta` | your own fields |
 
-**Which keys can change after construction.** `graph.set({ ... })`, then call `update()`.
+**Which keys can change after construction.** `graph.set({ ... })`, then call `update()`. Assigning
+any property of the graph or of its `x`, `y` and `color` objects throws, whichever column it is in;
+the properties the chart computes (`width`, `plotWidth`, `paletteColors`, `x.$scale`, `x.convert`, the
+handles and methods) are read-only too.
 
-| Re-read on every `update()` (live) | Fixed when the chart is built (assigning throws) |
+| Re-read on every `update()` (live, through `set()`) | Fixed when the chart is built |
 |---|---|
-| `lines`, `bands`, `stacked`, `voronoi`, `arrows`, `labels`, `points`, `duration`, `series`, `title`, `meta`; on `x`/`y`: `label`, `unit`, `trim`; on `color`: `domain`, `trim` | `container`, `height`, `width`, `margin`, `orientation`, `curve`, `zoom`, `crosshair`; on `x`/`y`: `scale`, `preset`, `tickFormat`, `tickLabels`; on `color`: `palette`, `classes`, `reverse`, `quantize`; the `x`, `y` and `color` objects themselves |
+| `lines`, `bands`, `stacked`, `voronoi`, `arrows`, `labels`, `points`, `duration`, `series`, `title`, `meta`; on `x`/`y`: `label`, `unit`, `trim`; on `color`: `domain`, `trim` | `container`, `height`, `width`, `margin`, `orientation`, `curve`, `zoom`, `crosshair`; on `x`/`y`: `type`, `preset`, `tickFormat`, `tickLabels`; on `color`: `palette`, `classes`, `reverse`, `quantize`; the `x`, `y` and `color` objects themselves |
 
 The right-hand column is what a chart is built around. This split, plus the names in this README, is
 the API that 1.0.0 freezes.
@@ -606,7 +620,7 @@ across its weather, sensors, EnergyPlus and graphics sections (not included in t
   the real global `d3` under a `<script>` tag, a mutable `Object.create(d3)` view under CommonJS/AMD
   (d3 v7's ESM namespace is frozen and cannot take a `.easygraph` property).
 - `src/d3.easygraph.core.js` - container sizing and resize, the SVG/margin/clip-path/title
-  scaffolding, axis formatting and `formatNumber`, x/y/color config resolution, config and `ranges`
+  scaffolding, axis formatting and `formatNumber`, x/y/color config resolution, config and `domains`
   validation, `set()`, events, `bandStats`, and the shared `_build()` that each constructor calls with
   its own defaults and hooks.
 - `src/d3.easygraph.presets.js` - the preset table and `preset(name)`, plus `round` and `compassPoint`.
@@ -617,13 +631,14 @@ across its weather, sensors, EnergyPlus and graphics sections (not included in t
 - `src/d3.easygraph.line.js`, `.bar.js`, `.heatmap.js`, `.scatter.js` - one constructor per family,
   each handing `_build()` a small hook object: `domain` and `render` are required; `prepareScales`
   (bar, for its band scale), `init`, `resize`, `legendItems` and `destroy` (line, to remove its
-  `document.body` crosshair tooltip) are optional.
+  `document.body` crosshair tooltip) are optional. A module keeps its own state and d3 objects on
+  `graph._`, never on the graph object itself (which is sealed once built).
 
 **Adding an option** follows the same path every time: add the key to `_FAMILY_KEYS` (or `_SHARED_KEYS`)
 and, if it is an object, to `_NESTED` in `core.js` so it is validated (by the constructor and by
-`set()`); read it live in `render()`, or freeze it in the build-time list at the bottom of `_build()` if
-the chart is built around it; document it
-here; add a spec.
+`set()`); read it live in `render()`, or, if the chart is built around it, add it to `_FIXED_TOP` (or
+`_FIXED_SUB` for a key of `x`, `y` or `color`) at the bottom of `_build()`; a key is live unless listed
+there. Document it here; add a spec.
 
 ## Building
 
@@ -647,8 +662,8 @@ npm test
 
 [Playwright](https://playwright.dev) specs in `test/` (one per source module - core, line, bar,
 heatmap, scatter, presets, colors - plus `api.spec.js` and `api-1.0.spec.js` for cross-cutting checks;
-177 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
-live resize, `destroy()` teardown, config and `ranges` validation, the live/build-time key split,
+179 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
+live resize, `destroy()` teardown, config and `domains` validation, the live/build-time key split,
 legends, the standalone unit and palette functions, and behavior that needs real interaction to
 verify: `set()`, zoom and crosshair events, pinned color domains surviving a resize, `id`-keyed point identity,
 and line paths not warping when a series' point count changes. CI runs the same suite on every push.

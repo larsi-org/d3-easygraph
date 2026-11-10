@@ -78,7 +78,7 @@ test('update() checks its domains argument: x and y everywhere, color only on he
   expect(r.lineColor).toContain('only heatmap and scatter have a color scale');
   expect(r.scatterOk).toBe('');
   expect(r.heatmapOk).toBe('');
-  expect(r.notObject).toContain('second argument is an object');
+  expect(r.notObject).toContain('second argument, domains, is an object');
   expect(r.omitted).toBe('');
 });
 
@@ -157,7 +157,7 @@ test('the crosshair event carries the data x and the plot pixel, and null when t
     var got = [];
     g.on('crosshair', function(p) { got.push(p); });
     var svg = w.querySelector('svg'), box = svg.getBoundingClientRect();
-    var px = g._margin.left + g.plotWidth / 2;
+    var px = g._.margin.left + g.plotWidth / 2;
     svg.querySelector('g').dispatchEvent(new MouseEvent('mousemove', { clientX: box.left + px, clientY: box.top + 60, bubbles: true }));
     svg.querySelector('g').dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
     return { got: got, plotWidth: g.plotWidth };
@@ -179,10 +179,10 @@ test('syncCrosshair links charts that have no zoom, and drops back to null with 
     var a = mk(), b = mk();
     d3.easygraph.syncCrosshair([a.g, b.g]);
     var svg = a.w.querySelector('svg'), box = svg.getBoundingClientRect();
-    svg.querySelector('g').dispatchEvent(new MouseEvent('mousemove', { clientX: box.left + a.g._margin.left + 100, clientY: box.top + 60, bubbles: true }));
-    var shown = b.g.$crosshairLine.style('display');
+    svg.querySelector('g').dispatchEvent(new MouseEvent('mousemove', { clientX: box.left + a.g._.margin.left + 100, clientY: box.top + 60, bubbles: true }));
+    var shown = b.g._.$crosshairLine.style('display');
     svg.querySelector('g').dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
-    return { shown: shown, hidden: b.g.$crosshairLine.style('display') };
+    return { shown: shown, hidden: b.g._.$crosshairLine.style('display') };
   });
   expect(r.shown).not.toBe('none');
   expect(r.hidden).toBe('none');

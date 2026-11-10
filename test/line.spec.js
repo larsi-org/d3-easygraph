@@ -87,7 +87,7 @@ test('a series whose point count changes snaps its path instantly instead of mor
       window.graph.update(reduced);
       var path = document.querySelector('path.easygraph-line');
       setTimeout(function() {
-        resolve({ dSoonAfter: path.getAttribute('d'), finalD: window.graph.$line(reduced[0]) });
+        resolve({ dSoonAfter: path.getAttribute('d'), finalD: window.graph._.$line(reduced[0]) });
       }, 50);
     });
   });
@@ -110,7 +110,7 @@ test('a series whose point count stays the same still transitions smoothly (regr
       var path = document.querySelector('path.easygraph-line');
       var immediateD = path.getAttribute('d');
       setTimeout(function() {
-        resolve({ immediateD: immediateD, settledD: path.getAttribute('d'), finalD: window.graph.$line(moved[0]) });
+        resolve({ immediateD: immediateD, settledD: path.getAttribute('d'), finalD: window.graph._.$line(moved[0]) });
       }, 700); // graph.duration defaults to 500ms
     });
   });
@@ -123,7 +123,7 @@ test('stacked stacks series cumulatively, each layer riding on top of the previo
   const result = await page.evaluate(() => {
     var wrap = document.createElement('div');
     document.body.appendChild(wrap);
-    var g = d3.easygraph.line({ container: wrap, x: { scale: 'linear' }, height: 200, stacked: true });
+    var g = d3.easygraph.line({ container: wrap, x: { type: 'linear' }, height: 200, stacked: true });
     g.update([
       [ { x: 0, y: 10 }, { x: 1, y: 10 } ],
       [ { x: 0, y: 5 },  { x: 1, y: 5 } ]
@@ -163,7 +163,7 @@ test('toggling stacked off and re-rendering removes its paths', async ({ page })
     var data = [[ { x: 0, y: 10 }, { x: 1, y: 10 } ]];
     g.update(data);
     var before = wrap.querySelectorAll('path.easygraph-stack').length;
-    g.stacked = false;
+    g.set({ stacked: false });
     g.update(data);
     var after = wrap.querySelectorAll('path.easygraph-stack').length;
     g.destroy();
@@ -193,7 +193,7 @@ test('zoom then resize keeps $xScaleRef range in sync (regression)', async ({ pa
 
   // simulate a zoom so $xScaleRef is established as the pre-resize baseline
   await page.evaluate(() => {
-    d3.select(window.graph.$pane.node()).call(window.graph.$zoom.transform, d3.zoomIdentity.scale(2));
+    d3.select(window.graph._.$pane.node()).call(window.graph._.$zoom.transform, d3.zoomIdentity.scale(2));
   });
 
   const widthBefore = await page.evaluate(() => window.graph.width);
@@ -201,7 +201,7 @@ test('zoom then resize keeps $xScaleRef range in sync (regression)', async ({ pa
   await page.waitForFunction((w) => window.graph.width < w, widthBefore);
 
   const [xScaleRefMax, graphWidth] = await page.evaluate(() => [
-    window.graph.$xScaleRef.range()[1],
+    window.graph._.$xScaleRef.range()[1],
     window.graph.plotWidth
   ]);
   expect(xScaleRefMax).toBe(graphWidth);
@@ -209,7 +209,7 @@ test('zoom then resize keeps $xScaleRef range in sync (regression)', async ({ pa
 
 test('zoom pane has touch-action: none so iOS cannot hijack the gesture to zoom the whole page', async ({ page }) => {
   await page.goto(FIXTURE);
-  const touchAction = await page.evaluate(() => getComputedStyle(window.graph.$pane.node()).touchAction);
+  const touchAction = await page.evaluate(() => getComputedStyle(window.graph._.$pane.node()).touchAction);
   expect(touchAction).toBe('none');
 });
 
@@ -238,7 +238,7 @@ test('series[i].unit gives the crosshair tooltip a per-series unit string, falli
     document.body.appendChild(wrap);
     var g = d3.easygraph.line({
       container: wrap,
-      x: { scale: 'time' },
+      x: { type: 'time' },
       y: { preset: 'temperatureC' },
       height: 200,
       crosshair: true,
@@ -250,8 +250,8 @@ test('series[i].unit gives the crosshair tooltip a per-series unit string, falli
       [ { x: t0, y: 1 }, { x: new Date('2026-01-01T01:00:00'), y: 2 } ],
       [ { x: t0, y: 3 }, { x: new Date('2026-01-01T01:00:00'), y: 4 } ]
     ]);
-    g._moveCrosshair(g.x.$scale(t0));
-    var html = g.$crosshairTip.html();
+    g._.moveCrosshair(g.x.$scale(t0));
+    var html = g._.$crosshairTip.html();
     g.destroy();
     wrap.remove();
     return html;
@@ -271,8 +271,8 @@ test('crosshair tooltip values use formatNumber, and a gap under the cursor read
       [ { x: 0, y: 12345.678 },    { x: 10, y: 1 } ],
       [ { x: 0, y: null },         { x: 10, y: 1 } ]
     ]);
-    g._moveCrosshair(g.x.$scale(0));
-    var html = g.$crosshairTip.html();
+    g._.moveCrosshair(g.x.$scale(0));
+    var html = g._.$crosshairTip.html();
     g.destroy();
     wrap.remove();
     return html;
@@ -322,7 +322,7 @@ test('null, undefined and an absent key all mark a gap; NaN and Infinity do not 
       var w = document.createElement('div');
       w.style.width = '500px';
       document.body.appendChild(w);
-      var g = d3.easygraph.line({ container: w, height: 200, lines: true, x: { scale: 'linear' } });
+      var g = d3.easygraph.line({ container: w, height: 200, lines: true, x: { type: 'linear' } });
       g.update([series]);
       var d = w.querySelector('path.easygraph-line').getAttribute('d') || '';
       var out = {
@@ -363,7 +363,7 @@ test('crosshair accepts { threshold } as well as true', async ({ page }) => {
     var w = document.createElement('div'); document.body.appendChild(w);
     var g = d3.easygraph.line({ container: w, height: 200, crosshair: { threshold: 4 }, lines: true });
     g.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
-    return !!g.$crosshairTip;
+    return !!g._.$crosshairTip;
   });
   expect(ok).toBe(true);
 });
@@ -382,8 +382,8 @@ test('bands is an object: {} draws none, either key works alone, unknown keys an
     var both = mk({ bands: { minmax: true, sigma: true } });
     var counts = function(o) { return [o.w.querySelectorAll('path.easygraph-minmax').length, o.w.querySelectorAll('path.easygraph-sigma').length]; };
     var out = { both: counts(both) };
-    both.g.bands = {};            out.none = (both.g.update(data), counts(both));
-    both.g.bands = { sigma: true }; out.sigmaOnly = (both.g.update(data), counts(both));
+    both.g.set({ bands: {} });              out.none = (both.g.update(data), counts(both));
+    both.g.set({ bands: { sigma: true } }); out.sigmaOnly = (both.g.update(data), counts(both));
     out.unknown = msg(function() { mk({ bands: { median: true } }); });
     out.array = msg(function() { mk({ bands: ['minmax'] }); });
     return out;

@@ -222,7 +222,7 @@ test('presets and palettes are extensible - the documented way to add your own',
       y: { preset: 'soilMoisture' }, color: { palette: 'Sequential.MyBrand' }
     });
     g.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
-    var title = g.$yTitle.text();
+    var title = g._.$yTitle.text();
     var strokeUsesCustomPalette = g.paletteColor(0) === '#eef';
     g.destroy(); wrap.remove();
 

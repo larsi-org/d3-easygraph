@@ -52,8 +52,8 @@ d3.easygraph.line = function(config) {
     // bands says which shaded bands to draw around each series, nested widest first:
     // { minmax: true } (each point's min/max), { sigma: true } (sigmaMin/sigmaMax, typically
     // mean +-1 sd), or both. A missing key or false is off; null or {} is none. Re-read on every
-    // update(), so a page toggles both with one assignment:
-    // graph.bands = hourly ? {} : { minmax: true, sigma: true }.
+    // update(), so a page toggles both with one call:
+    // graph.set({ bands: hourly ? {} : { minmax: true, sigma: true } }).
     // lines left unset draws the lines, so a plain { container, height } chart shows something - except
     // on a stacked chart, where the stacked areas are the picture. Set true or false to decide.
     // Re-read on every update(), like the other flags.
@@ -61,15 +61,9 @@ d3.easygraph.line = function(config) {
       return (graph.lines == null) ? !graph.stacked : !!graph.lines;
     }
 
+    // bands is checked by the config and by set(), its only ways in
     function _bandSet() {
-      var b = graph.bands;
-      if (b == null) b = {};
-      if (typeof b !== 'object' || Array.isArray(b))
-        throw new Error("d3.easygraph.line: bands must be an object like { minmax: true, sigma: true }");
-      Object.keys(b).forEach(function(name) {
-        if (name !== 'minmax' && name !== 'sigma')
-          throw new Error("d3.easygraph.line: unknown band " + JSON.stringify(name) + " (use minmax or sigma)");
-      });
+      var b = graph.bands || {};
       return { minmax: !!b.minmax, sigma: !!b.sigma };
     }
 
@@ -81,10 +75,10 @@ d3.easygraph.line = function(config) {
         var _curve = _resolveCurve(graph.curve);
         var _definedLine = function(d) { return d.y != null; };
         var _definedRibbon = function(d) { return d.min != null && d.max != null; };
-        graph.$ribbon0 = d3.area().curve(_curve).defined(_definedRibbon).x(_cx)
+        graph._.$ribbon0 = d3.area().curve(_curve).defined(_definedRibbon).x(_cx)
           .y0(function(d) { return graph.y.$scale(0); })
           .y1(function(d) { return graph.y.$scale(0); });
-        graph.$ribbon  = d3.area().curve(_curve).defined(_definedRibbon).x(_cx)
+        graph._.$ribbon  = d3.area().curve(_curve).defined(_definedRibbon).x(_cx)
           .y0(function(d) { return graph.y.$scale(d.min); })
           .y1(function(d) { return graph.y.$scale(d.max); });
         // bands: { sigma: true } - a second, narrower band (typically mean +-1 standard deviation) nested
@@ -93,21 +87,21 @@ d3.easygraph.line = function(config) {
         // may have one without the other (min/max always derivable from raw samples; sigma
         // needs a sum-of-squares alongside them - see bucket-series.js/daily-from-hourly.js).
         var _definedSigma = function(d) { return d.sigmaMin != null && d.sigmaMax != null; };
-        graph.$sigma0 = d3.area().curve(_curve).defined(_definedSigma).x(_cx)
+        graph._.$sigma0 = d3.area().curve(_curve).defined(_definedSigma).x(_cx)
           .y0(function(d) { return graph.y.$scale(0); })
           .y1(function(d) { return graph.y.$scale(0); });
-        graph.$sigma  = d3.area().curve(_curve).defined(_definedSigma).x(_cx)
+        graph._.$sigma  = d3.area().curve(_curve).defined(_definedSigma).x(_cx)
           .y0(function(d) { return graph.y.$scale(d.sigmaMin); })
           .y1(function(d) { return graph.y.$scale(d.sigmaMax); });
-        graph.$line0 = d3.line().curve(_curve).defined(_definedLine).x(_cx).y(function(d) { return graph.y.$scale(0); });
-        graph.$line  = d3.line().curve(_curve).defined(_definedLine).x(_cx).y(_cy);
+        graph._.$line0 = d3.line().curve(_curve).defined(_definedLine).x(_cx).y(function(d) { return graph.y.$scale(0); });
+        graph._.$line  = d3.line().curve(_curve).defined(_definedLine).x(_cx).y(_cy);
         // stacked's points are d3.easygraph._computeStacked()'s output - same shape as a
         // plain {x,y} point plus a precomputed y0 offset, so _definedLine (checks d.y != null)
         // is exactly the same check a stacked point needs too, no separate function.
-        graph.$stack0 = d3.area().curve(_curve).defined(_definedLine).x(_cx)
+        graph._.$stack0 = d3.area().curve(_curve).defined(_definedLine).x(_cx)
           .y0(function(d) { return graph.y.$scale(0); })
           .y1(function(d) { return graph.y.$scale(0); });
-        graph.$stack  = d3.area().curve(_curve).defined(_definedLine).x(_cx)
+        graph._.$stack  = d3.area().curve(_curve).defined(_definedLine).x(_cx)
           .y0(function(d) { return graph.y.$scale(d.y0); })
           .y1(function(d) { return graph.y.$scale(d.y0 + d.y); });
 
@@ -117,25 +111,25 @@ d3.easygraph.line = function(config) {
         // the only family with built-in zoom, so it's the only one that needs this; it's
         // internal for the same reason prepareScales (bars-only) and destroy (line-only) are
         // optional module hooks rather than promises every family has to keep.
-        graph._redraw = function() {
-          graph._drawAxes();
-          graph.$marks.selectAll("path.easygraph-minmax").attr("d", graph.$ribbon);
-          graph.$marks.selectAll("path.easygraph-sigma").attr("d", graph.$sigma);
-          graph.$marks.selectAll("path.easygraph-stack").attr("d", graph.$stack);
-          graph.$marks.selectAll("path.easygraph-line").attr("d", graph.$line);
+        graph._.redraw = function() {
+          graph._.drawAxes();
+          graph.$marks.selectAll("path.easygraph-minmax").attr("d", graph._.$ribbon);
+          graph.$marks.selectAll("path.easygraph-sigma").attr("d", graph._.$sigma);
+          graph.$marks.selectAll("path.easygraph-stack").attr("d", graph._.$stack);
+          graph.$marks.selectAll("path.easygraph-line").attr("d", graph._.$line);
         };
 
         if (graph.zoom) {
           var z = (typeof graph.zoom === 'object') ? graph.zoom : {};
-          graph.$zoom = d3.zoom().scaleExtent([z.min != null ? z.min : 1, z.max != null ? z.max : 10]).on("zoom", function(event) {
-            graph.x.$scale.domain(event.transform.rescaleX(graph.$xScaleRef).domain());
-            graph._redraw();
+          graph._.$zoom = d3.zoom().scaleExtent([z.min != null ? z.min : 1, z.max != null ? z.max : 10]).on("zoom", function(event) {
+            graph.x.$scale.domain(event.transform.rescaleX(graph._.$xScaleRef).domain());
+            graph._.redraw();
             // { transform, x }: the d3 zoom transform, and the x domain now in view (Dates on a time
             // axis) - what most listeners want, without redoing rescaleX themselves.
-            graph._emit('zoom', { transform: event.transform, x: graph.x.$scale.domain() });
+            graph._.emit('zoom', { transform: event.transform, x: graph.x.$scale.domain() });
           });
 
-          graph.$pane = graph.$plot
+          graph._.$pane = graph.$plot
             .append("rect")
               .attr("class", "easygraph-pane")
               .attr("width", graph.plotWidth)
@@ -146,7 +140,7 @@ d3.easygraph.line = function(config) {
               // the OS-level gesture recognizer, on any iOS browser (all of them run on the
               // system WebKit engine, so this isn't Safari-specific).
               .style("touch-action", "none")
-              .call(graph.$zoom);
+              .call(graph._.$zoom);
         }
 
         if (graph.crosshair) {
@@ -156,30 +150,30 @@ d3.easygraph.line = function(config) {
           // verifying it would cost a full scan of every series on every construction.
           _bisect = d3.bisector(function(d) { return d.x; }).left;
 
-          graph.$crosshairLine = graph.$plot
+          graph._.$crosshairLine = graph.$plot
             .append("line")
             .attr("class", "easygraph-crosshair-line")
-            .attr("clip-path", "url(#" + graph._clipId + ")")
+            .attr("clip-path", "url(#" + graph._.clipId + ")")
             .attr("y1", 0)
             .attr("y2", graph.plotHeight)
             .style("display", "none");
 
-          graph.$crosshairTip = d3.select("body")
+          graph._.$crosshairTip = d3.select("body")
             .append("div")
             .attr("class", "easygraph-crosshair-tip")
             .style("display", "none");
 
-          graph._moveCrosshair = function(mouseX) {
-            if (!graph._crosshairData) return;
-            graph.$crosshairLine.attr("x1", mouseX).attr("x2", mouseX).style("display", null);
+          graph._.moveCrosshair = function(mouseX) {
+            if (!graph._.crosshairData) return;
+            graph._.$crosshairLine.attr("x1", mouseX).attr("x2", mouseX).style("display", null);
 
             var x0 = graph.x.$scale.invert(mouseX);
-            var xLabel = (graph.x.scale === 'time')
+            var xLabel = (graph.x.type === 'time')
               ? d3.timeFormat('%Y-%m-%d %H:%M')(x0)
               : (d3.easygraph.formatNumber(x0) + (graph.x.unit || ''));
 
             var html = '<strong>' + xLabel + '</strong>';
-            graph._crosshairData.forEach(function(series, i) {
+            graph._.crosshairData.forEach(function(series, i) {
               if (!series.length) return;
               var idx = _bisect(series, x0, 1);
               var d0 = series[Math.max(idx - 1, 0)], d1 = series[idx];
@@ -198,35 +192,35 @@ d3.easygraph.line = function(config) {
                       name + value + unit;
             });
 
-            graph.$crosshairTip.html(html).style("display", null);
+            graph._.$crosshairTip.html(html).style("display", null);
 
             var svgRect = graph.$svg.node().getBoundingClientRect();
-            var tipX = svgRect.left + window.scrollX + graph._margin.left + mouseX + 12;
-            var tipY = svgRect.top  + window.scrollY + graph._margin.top;
-            var tipW = graph.$crosshairTip.node().offsetWidth;
+            var tipX = svgRect.left + window.scrollX + graph._.margin.left + mouseX + 12;
+            var tipY = svgRect.top  + window.scrollY + graph._.margin.top;
+            var tipW = graph._.$crosshairTip.node().offsetWidth;
             if (tipX + tipW > window.scrollX + window.innerWidth) {
-              tipX = svgRect.left + window.scrollX + graph._margin.left + mouseX - 12 - tipW;
+              tipX = svgRect.left + window.scrollX + graph._.margin.left + mouseX - 12 - tipW;
             }
-            graph.$crosshairTip.style("left", tipX + "px").style("top", tipY + "px");
+            graph._.$crosshairTip.style("left", tipX + "px").style("top", tipY + "px");
           };
 
-          graph._hideCrosshair = function() {
-            graph.$crosshairLine.style("display", "none");
-            graph.$crosshairTip.style("display", "none");
+          graph._.hideCrosshair = function() {
+            graph._.$crosshairLine.style("display", "none");
+            graph._.$crosshairTip.style("display", "none");
           };
 
           graph.$plot.on("mousemove.crosshair", function(event) {
             var mouseX = d3.pointer(event, graph.$plot.node())[0];
             if (mouseX >= 0 && mouseX <= graph.plotWidth) {
-              graph._moveCrosshair(mouseX);
-              graph._emit('crosshair', { x: graph.x.$scale.invert(mouseX), pixel: mouseX });
+              graph._.moveCrosshair(mouseX);
+              graph._.emit('crosshair', { x: graph.x.$scale.invert(mouseX), pixel: mouseX });
             } else {
-              graph._hideCrosshair();
-              graph._emit('crosshair', null);
+              graph._.hideCrosshair();
+              graph._.emit('crosshair', null);
             }
           }).on("mouseleave.crosshair", function() {
-            graph._hideCrosshair();
-            graph._emit('crosshair', null);
+            graph._.hideCrosshair();
+            graph._.emit('crosshair', null);
           });
         }
       },
@@ -279,7 +273,7 @@ d3.easygraph.line = function(config) {
         // A line chart with none of the three mark types enabled draws axes and nothing else -
         // the likeliest first-run mistake, and previously a silent one. A warning rather than an
         // error on purpose: the flags are meant to be toggled on a live chart (larsi.org's own
-        // pages do `graph.bands = hourly ? {} : {...}` between renders), so a caller can legitimately be
+        // pages do `graph.set({ bands: hourly ? {} : {...} })` between renders), so a caller can legitimately be
         // mid-flight with all three off, and throwing would break that. Only warns when there's
         // actually data being asked for, so an empty first render stays quiet.
         var B = _bandSet();
@@ -290,11 +284,11 @@ d3.easygraph.line = function(config) {
 
         if (graph.zoom) {
           // baseline for zoom rescaling; reset transform so new domain is "home"
-          graph.$xScaleRef = graph.x.$scale.copy();
-          graph.$plot.select("rect.easygraph-pane").call(graph.$zoom.transform, d3.zoomIdentity);
+          graph._.$xScaleRef = graph.x.$scale.copy();
+          graph.$plot.select("rect.easygraph-pane").call(graph._.$zoom.transform, d3.zoomIdentity);
         }
 
-        if (graph.crosshair) graph._crosshairData = data;
+        if (graph.crosshair) graph._.crosshairData = data;
 
         // A series' point count changing between updates (e.g. a chart's own hourly/daily
         // toggle, `weather/report.php` and `sensors/report.php`'s bucketSeries()/data_hourly.php's
@@ -311,25 +305,25 @@ d3.easygraph.line = function(config) {
         // length; a brand-new series (no previous entry at that index at all) still grows in
         // smoothly from $ribbon0/$stack0/$line0's flat baseline, which shares the new data's
         // own point count and x-positions on both ends, so it was never affected by this.
-        var prevLengths = graph._prevSeriesLengths;
+        var prevLengths = graph._.prevSeriesLengths;
         function _duration(d, i) {
           var prevLen = prevLengths && prevLengths[i];
           return (prevLen != null && prevLen !== data[i].length) ? 0 : graph.duration;
         }
-        graph._prevSeriesLengths = data.map(function(series) { return series.length; });
+        graph._.prevSeriesLengths = data.map(function(series) { return series.length; });
 
         if (B.minmax) {
           var dataRibbons = graph.$marks.selectAll(".easygraph-minmax").data(data);
           var ribbonsEntered = dataRibbons.enter().append("path")
             .attr("class",      "easygraph-minmax")
-            .attr("clip-path",  "url(#" + graph._clipId + ")")
-            .attr("d",          graph.$ribbon0)
+            .attr("clip-path",  "url(#" + graph._.clipId + ")")
+            .attr("d",          graph._.$ribbon0)
             .style("fill",      function(d, i) { return graph.paletteColor(i); })
             .style("opacity",   1e-6);
           dataRibbons.exit().remove();
           dataRibbons = ribbonsEntered.merge(dataRibbons);
           dataRibbons.transition().duration(_duration).ease(d3.easeCubicInOut)
-            .attr("d",        graph.$ribbon)
+            .attr("d",        graph._.$ribbon)
             .style("fill",    function(d, i) { return graph.paletteColor(i); })
             .style("opacity", 0.4);
         } else {
@@ -348,14 +342,14 @@ d3.easygraph.line = function(config) {
           var dataSigma = graph.$marks.selectAll(".easygraph-sigma").data(data);
           var sigmaEntered = dataSigma.enter().append("path")
             .attr("class",      "easygraph-sigma")
-            .attr("clip-path",  "url(#" + graph._clipId + ")")
-            .attr("d",          graph.$sigma0)
+            .attr("clip-path",  "url(#" + graph._.clipId + ")")
+            .attr("d",          graph._.$sigma0)
             .style("fill",      function(d, i) { return graph.paletteColor(i); })
             .style("opacity",   1e-6);
           dataSigma.exit().remove();
           dataSigma = sigmaEntered.merge(dataSigma);
           dataSigma.transition().duration(_duration).ease(d3.easeCubicInOut)
-            .attr("d",        graph.$sigma)
+            .attr("d",        graph._.$sigma)
             .style("fill",    function(d, i) { return graph.paletteColor(i); })
             .style("opacity", 0.5);
         } else {
@@ -367,14 +361,14 @@ d3.easygraph.line = function(config) {
           var dataStack = graph.$marks.selectAll(".easygraph-stack").data(stackedData);
           var stackEntered = dataStack.enter().append("path")
             .attr("class",      "easygraph-stack")
-            .attr("clip-path",  "url(#" + graph._clipId + ")")
-            .attr("d",          graph.$stack0)
+            .attr("clip-path",  "url(#" + graph._.clipId + ")")
+            .attr("d",          graph._.$stack0)
             .style("fill",      function(d, i) { return graph.paletteColor(i); })
             .style("opacity",   1e-6);
           dataStack.exit().remove();
           dataStack = stackEntered.merge(dataStack);
           dataStack.transition().duration(_duration).ease(d3.easeCubicInOut)
-            .attr("d",        graph.$stack)
+            .attr("d",        graph._.$stack)
             .style("fill",    function(d, i) { return graph.paletteColor(i); })
             .style("opacity", 1);
         } else {
@@ -385,14 +379,14 @@ d3.easygraph.line = function(config) {
           var dataLines = graph.$marks.selectAll(".easygraph-line").data(data);
           var linesEntered = dataLines.enter().append("path")
             .attr("class",     "easygraph-line")
-            .attr("clip-path", "url(#" + graph._clipId + ")")
-            .attr("d",         graph.$line0)
+            .attr("clip-path", "url(#" + graph._.clipId + ")")
+            .attr("d",         graph._.$line0)
             .style("stroke",   function(d, i) { return graph.paletteColor(i); })
             .style("opacity",  1e-6);
           dataLines.exit().remove();
           dataLines = linesEntered.merge(dataLines);
           dataLines.transition().duration(_duration).ease(d3.easeCubicInOut)
-            .attr("d",        graph.$line)
+            .attr("d",        graph._.$line)
             .style("stroke",  function(d, i) { return graph.paletteColor(i); })
             .style("opacity", 1);
         } else {
@@ -403,12 +397,12 @@ d3.easygraph.line = function(config) {
       legendItems: function() { return d3.easygraph._seriesLegendItems(graph); },
 
       resize: function() {
-        if (graph.$pane) graph.$pane.attr("width", graph.plotWidth);
-        if (graph.$xScaleRef) graph.$xScaleRef.range([0, graph.plotWidth]);
+        if (graph._.$pane) graph._.$pane.attr("width", graph.plotWidth);
+        if (graph._.$xScaleRef) graph._.$xScaleRef.range([0, graph.plotWidth]);
       },
 
       destroy: function() {
-        if (graph.$crosshairTip) graph.$crosshairTip.remove();
+        if (graph._.$crosshairTip) graph._.$crosshairTip.remove();
       }
     };
   });
@@ -418,13 +412,13 @@ d3.easygraph.line = function(config) {
 // beside any listener the caller added and calling them twice replaces rather than stacks.
 d3.easygraph.syncZoom = function(graphs) {
   graphs.forEach(function(g) {
-    if (!g.$pane) return;
+    if (!g._.$pane) return;
     g.on('zoom.sync', function(event) {
       graphs.forEach(function(other) {
-        if (other === g || !other.$pane || !other.$xScaleRef) return;
-        other.x.$scale.domain(event.transform.rescaleX(other.$xScaleRef).domain());
-        other._redraw();
-        other.$pane.node().__zoom = event.transform;
+        if (other === g || !other._.$pane || !other._.$xScaleRef) return;
+        other.x.$scale.domain(event.transform.rescaleX(other._.$xScaleRef).domain());
+        other._.redraw();
+        other._.$pane.node().__zoom = event.transform;
       });
     });
   });
@@ -432,14 +426,14 @@ d3.easygraph.syncZoom = function(graphs) {
 
 d3.easygraph.syncCrosshair = function(graphs) {
   graphs.forEach(function(g) {
-    if (!g._moveCrosshair) return;
+    if (!g._.moveCrosshair) return;
     g.on('crosshair.sync', function(position) {
       graphs.forEach(function(other) {
-        if (other === g || !other._moveCrosshair) return;
+        if (other === g || !other._.moveCrosshair) return;
         if (position === null) {
-          other._hideCrosshair();
+          other._.hideCrosshair();
         } else {
-          other._moveCrosshair(other.x.$scale(position.x));
+          other._.moveCrosshair(other.x.$scale(position.x));
         }
       });
     });

@@ -6,6 +6,23 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Changed (the 1.0 API audit; every item breaks 0.9.0 code)
+- **`set()` is the only way to change a chart.** Assigning any key of the graph throws: a live key
+  (`graph.stacked = true`, `graph.y.label = 'T'`) with a message naming the `set()` call, a build-time
+  key as before, and what the chart computes (`width`, `plotWidth`, `plotHeight`, `paletteColors`,
+  `x.$scale`, `x.$axis`, `x.convert`, the `$svg`/`$plot`/`$marks` handles, the methods) as read-only.
+  The graph and its `x`, `y` and `color` objects are sealed and `margin` is frozen, so a misspelled
+  key cannot be added either. Every config key of the family is on the graph, `undefined` when not
+  given. The live options are no longer re-checked on every render, since `set()` checks them.
+- **Internals moved to `graph._`** (not enumerable, not API): `Object.keys(graph)` lists only config
+  keys, the three public handles and the methods, and a `$` name on the graph is always a public handle.
+  The config checker no longer lets `_`- and `$`-named keys through: they throw like any unknown key.
+- **`update(data, ranges)` is `update(data, domains)`**, the d3 word for data values (a range is pixels);
+  the error messages say domains. Calls do not change, the argument is positional.
+- **`x.scale` / `y.scale` is `x.type` / `y.type`** (`'linear'` or `'time'`), so it is not one character
+  away from `x.$scale`, the d3 scale.
+- **Bar categories are every series' `x` values in first-seen order** (they were series 0's only, so a
+  category only a later series had was not drawn), and stacked bars are matched by category, not by
+  position in the array.
 - **`graph.set(options)` changes live keys**, checked exactly like the config (a typo throws with a
   did-you-mean; a build-time key throws before anything is changed); `x`, `y` and `color` are merged
   key by key; returns the graph: `graph.set({ stacked: true }).update(data)`. The `x`, `y` and `color`

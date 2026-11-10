@@ -98,11 +98,11 @@ d3.easygraph.bar = function(config) {
         }
         if (graph.orientation === 'vertical') {
           graph.x.$scale = d3.scaleBand().rangeRound([0, graph.plotWidth]).padding(.2);
-          graph.y.$scale = (graph.y.scale === 'time') ? d3.scaleTime() : d3.scaleLinear();
+          graph.y.$scale = (graph.y.type === 'time') ? d3.scaleTime() : d3.scaleLinear();
           graph.y.$scale.range([graph.plotHeight, 0]);
         } else {
           graph.y.$scale = d3.scaleBand().rangeRound([0, graph.plotHeight]).padding(.2);
-          graph.x.$scale = (graph.x.scale === 'time') ? d3.scaleTime() : d3.scaleLinear();
+          graph.x.$scale = (graph.x.type === 'time') ? d3.scaleTime() : d3.scaleLinear();
           graph.x.$scale.range([0, graph.plotWidth]);
         }
       },
@@ -126,7 +126,11 @@ d3.easygraph.bar = function(config) {
         }
         if (valueDomain[0] === valueDomain[1]) valueDomain[1] = valueDomain[0] + 1;
 
-        var categories = data.length > 0 ? data[0].map(function(d) { return d.x; }) : [];
+        // The categories are every series' x values, in the order they first appear (series 0 first),
+        // so a category that only a later series has still gets its place on the axis.
+        var seen = new d3.InternSet();
+        data.forEach(function(series) { series.forEach(function(d) { seen.add(d.x); }); });
+        var categories = Array.from(seen);
         var xDomain = xRange || (isH ? valueDomain : (categories.length ? categories : [0, 1]));
         var yDomain = yRange || (isH ? (categories.length ? categories : [0, 1]) : valueDomain);
 

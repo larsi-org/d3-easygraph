@@ -1,6 +1,6 @@
 // The API shape settled for 1.0: set(), frozen x/y/color, the three DOM handles, color.reverse,
 // strict color and axis keys, the bar constructor, scatter points: false, the zoom event object,
-// module-level formatNumber.
+// module-level formatNumber, the sealed graph object with its internals on _, bar categories by name.
 const { test, expect } = require('@playwright/test');
 const path = require('path');
 
@@ -53,31 +53,35 @@ test('set() with a build-time key throws before changing anything', async ({ pag
   const r = await page.evaluate(() => {
     var g = d3.easygraph.line({ container: mk(), height: 200 });
     var fixedTop = msg(() => g.set({ stacked: true, height: 300 }));
-    var fixedNested = msg(() => g.set({ title: 'T', y: { label: 'L', scale: 'time' } }));
+    var fixedNested = msg(() => g.set({ title: 'T', y: { label: 'L', type: 'time' } }));
     var fixedColor = msg(() => g.set({ color: { reverse: true } }));
-    return { fixedTop, fixedNested, fixedColor, stacked: g.stacked, title: g.title, label: g.y.label };
+    var owned = msg(() => g.set({ stacked: true, width: 300 }));
+    return { fixedTop, fixedNested, fixedColor, owned, stacked: g.stacked, title: g.title, label: g.y.label };
   });
   expect(r.fixedTop).toContain("'height' is fixed");
-  expect(r.fixedNested).toContain('y.scale is fixed');
-  expect(r.fixedColor).toContain('color.reverse is fixed');
+  expect(r.fixedNested).toContain("'y.type' is fixed");
+  expect(r.fixedColor).toContain("'color.reverse' is fixed");
+  expect(r.owned).toContain("'width' is set by the chart");
   expect(r.stacked).toBe(false);       // nothing from the failed calls was applied
   expect(r.title).toBeUndefined();
   expect(r.label).toBeUndefined();
 });
 
-test('x, y and color cannot be replaced, only their keys changed', async ({ page }) => {
+test('x, y and color cannot be replaced, and their keys change only through set()', async ({ page }) => {
   const r = await page.evaluate(() => {
     var g = d3.easygraph.line({ container: mk(), height: 200 });
     var s = d3.easygraph.scatter({ container: mk(), height: 200 });
     return {
       y: msg(() => { g.y = { label: 'T' }; }),
       color: msg(() => { s.color = { domain: [0, 1] }; }),
-      key: msg(() => { g.y.label = 'T'; })
+      key: msg(() => { g.y.label = 'T'; }),
+      viaSet: (g.set({ y: { label: 'T' } }), g.y.label)
     };
   });
   expect(r.y).toContain("'y' holds the chart's scales");
   expect(r.color).toContain("'color' holds the chart's scales");
-  expect(r.key).toBeNull();
+  expect(r.key).toContain("'y.label' is changed with graph.set({ y: { label: ... } })");
+  expect(r.viaSet).toBe('T');
 });
 
 test('$svg is the <svg>, $plot the margin-shifted group, $marks the marks layer', async ({ page }) => {
@@ -139,7 +143,7 @@ test('convert is not axis config, color takes no preset keys; a preset still put
       colorScale: msg(() => d3.easygraph.heatmap({ container: mk(), height: 200, color: { scale: 'time' } })),
       fromPreset: g.y.convert(100),
       roundedFromPreset: g.y.convertRounded(20.5, 1),
-      scale: g.y.scale
+      type: g.y.type
     };
   });
   expect(r.convert).toContain("unknown option 'y.convert'");
@@ -148,7 +152,7 @@ test('convert is not axis config, color takes no preset keys; a preset still put
   expect(r.colorScale).toContain("unknown option 'color.scale'");
   expect(r.fromPreset).toBe(212);
   expect(r.roundedFromPreset).toBe(68.9);
-  expect(r.scale).toBe('linear');      // an axis is linear unless it says time
+  expect(r.type).toBe('linear');      // an axis is linear unless it says time
 });
 
 test('the bar constructor is d3.easygraph.bar; bars is gone', async ({ page }) => {
@@ -183,7 +187,7 @@ test('the zoom event passes { transform, x } with the x domain in view', async (
     g.update([[{ x: 0, y: 1 }, { x: 100, y: 2 }]]);
     var got = null;
     g.on('zoom', function (e) { got = e; });
-    d3.select(g.$pane.node()).call(g.$zoom.transform, d3.zoomIdentity.scale(2));
+    d3.select(g._.$pane.node()).call(g._.$zoom.transform, d3.zoomIdentity.scale(2));
     return { k: got.transform.k, x: got.x, domain: g.x.$scale.domain() };
   });
   expect(r.k).toBe(2);
@@ -201,4 +205,45 @@ test('formatNumber is module-level; graph.numberFormat is gone', async ({ page }
   expect(r.b).toBe('12.3k');
   expect(r.c).toBe('0');
   expect(r.old).toBe('undefined');
+});
+
+test('the graph object holds config keys, the public handles and methods only; internals are on the hidden _', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    var g = d3.easygraph.line({ container: mk(), height: 200, zoom: true, crosshair: true });
+    g.update([[{ x: 0, y: 1 }, { x: 1, y: 2 }]]);
+    var keys = Object.keys(g);
+    return {
+      privateKeys: keys.filter(function (k) { return k.charAt(0) === '_' || (k.charAt(0) === '$' && ['$svg', '$plot', '$marks'].indexOf(k) < 0); }),
+      hasHidden: typeof g._ === 'object' && keys.indexOf('_') < 0,
+      sealed: Object.isSealed(g) && Object.isSealed(g.x) && Object.isSealed(g.color),
+      xKeys: Object.keys(g.x).sort(),
+      title: g.title   // a live key never passed is still there, undefined, so set() can reach it
+    };
+  });
+  expect(r.privateKeys).toEqual([]);
+  expect(r.hasHidden).toBe(true);
+  expect(r.sealed).toBe(true);
+  expect(r.xKeys).toEqual(['$axis', '$scale', 'convert', 'convertRounded', 'label', 'preset', 'tickFormat', 'tickLabels', 'trim', 'type', 'unit']);
+  expect(r.title).toBeUndefined();
+});
+
+test('bar categories are every series\' x values in first-seen order; stacking matches bars by category, not position', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    var g = d3.easygraph.bar({ container: mk(), height: 200, duration: 0 });
+    var data = [[{ x: 'a', y: 1 }, { x: 'b', y: 2 }],
+                [{ x: 'b', y: 3 }, { x: 'c', y: 4 }, { x: 'a', y: -1 }]];
+    g.update(data);
+    var grouped = g.x.$scale.domain();
+    g.set({ stacked: true }).update(data);
+    var y = g.y.$scale, bars = {};
+    d3.selectAll(g.$marks.selectAll('g.easygraph-bar-group').nodes()).each(function (s, i) {
+      d3.select(this).selectAll('rect.easygraph-bar').each(function (d) { bars[i + d.x] = [d.y0, d.y0 + d.y]; });
+    });
+    return { grouped: grouped, stackedDomain: g.x.$scale.domain(), valueDomain: y.domain(), bars: bars };
+  });
+  expect(r.grouped).toEqual(['a', 'b', 'c']);
+  expect(r.stackedDomain).toEqual(['a', 'b', 'c']);
+  // b: 2 then 3 on top of it; a: 1 up, -1 on its own pile down; c only in series 1, from zero
+  expect(r.bars).toEqual({ '0a': [0, 1], '0b': [0, 2], '1b': [2, 5], '1c': [0, 4], '1a': [0, -1] });
+  expect(r.valueDomain).toEqual([-1, 5]);
 });

@@ -40,7 +40,7 @@
 // Stroke-width matters as much as radius/length here: left unscaled (e.g. a plain CSS rule), a
 // high enough k inflates it past the already-shrunk radius/length, and a point or arrow
 // collapses into a solid blob - exactly the same failure mode fixed sizes would have. Re-renders
-// graph._lastData (already tracked by core.js's update() for the resize-reflow case) rather than
+// graph._.lastData (already tracked by core.js's update() for the resize-reflow case) rather than
 // needing the caller to keep its own copy of the current data just to pass back in.
 //
 // A point's own `radius` overrides the graph-level `radius` config for just that point (a
@@ -67,16 +67,13 @@ d3.easygraph.scatter = function(config) {
     arrows: false,
     labels: false
   }, function(graph) {
-    // arrows / labels are false, true, or an options object; the object's keys fall back to
-    // these. Resolved on every render so assigning graph.arrows / graph.labels live still works.
+    // points / arrows / labels are false, true, or an options object (checked by the config and by
+    // set()); the object's keys fall back to these. Resolved on every render, as they are live.
     var ARROW_DEFAULTS = { color: '#000', strokeWidth: 1.5, minLength: 6, maxLength: 24,
                            headLength: 6, headAngle: 180 / 7 };
     var POINT_DEFAULTS = { radius: 4, strokeWidth: 0.5 };
     var LABEL_DEFAULTS = { size: 10, offset: 8, minZoom: 1 };
-    // `name` is the config key (points, arrows, labels): these are assignable live, so a typo in
-    // one is checked here on every render, not only at construction.
-    function withDefaults(name, value, defaults) {
-      d3.easygraph._checkOption('d3.easygraph.scatter', name, value, { kind: 'flag' }, Object.keys(defaults));
+    function withDefaults(value, defaults) {
       return Object.assign({}, defaults, (value && typeof value === 'object') ? value : null);
     }
 
@@ -103,11 +100,10 @@ d3.easygraph.scatter = function(config) {
       // Set by rescale() (default 1, i.e. no adjustment) - divides every on-screen size
       // (point radius, arrow length/head) so they stay constant when this render is reached
       // through a caller's own zoom-transform scaling, rather than growing with it.
-      var k = (graph._zoomScale || 1) * (graph._viewScale || 1);
-      var P = withDefaults('points', graph.points, POINT_DEFAULTS);
-      d3.easygraph._checkOption('d3.easygraph.scatter', 'voronoi', graph.voronoi, { kind: 'flag' }, ['opacity']);
+      var k = (graph._.zoomScale || 1) * (graph._.viewScale || 1);
+      var P = withDefaults(graph.points, POINT_DEFAULTS);
 
-      // ranges.color (this render) beats color.domain (fixed at construction) beats the data's
+      // domains.color (this render) beats color.domain (fixed at construction) beats the data's
       // own clipped extent - see _colorDomain in core.js, which both color-scale families share.
       var extent  = d3.easygraph._colorDomain(graph, data.map(function(d) { return d.value; })),
           dataMin = extent[0],
@@ -128,7 +124,7 @@ d3.easygraph.scatter = function(config) {
       // Cells live in their own group, appended before the points' group in init() (not on
       // first render()), so z-order (cells behind points) stays correct regardless of
       // whether voronoi gets toggled on/off after points already exist.
-      var cells = graph.$cellsGroup.selectAll(".easygraph-voronoi-cell").data((graph.voronoi && data.length) ? data : []);
+      var cells = graph._.$cellsGroup.selectAll(".easygraph-voronoi-cell").data((graph.voronoi && data.length) ? data : []);
       var cellsEnter = cells.enter().append("path").attr("class", "easygraph-voronoi-cell");
       cells.exit().remove();
       cells = cellsEnter.merge(cells);
@@ -164,7 +160,7 @@ d3.easygraph.scatter = function(config) {
       // different station and visibly flies from the old station's position to the new one.
       // A caller that never sets `id` keeps plain index-based identity. `label` is display text only.
       // points: false draws no circles (an arrows-only or voronoi-only picture); the other layers stay.
-      var points = graph.$pointsGroup.selectAll(".easygraph-point")
+      var points = graph._.$pointsGroup.selectAll(".easygraph-point")
         .data(graph.points ? data : [], function(d, i) { return d.id != null ? d.id : i; });
       var pointsEnter = points.enter().append("circle").attr("class", "easygraph-point")
         .attr("cx", function(d) { return graph.x.$scale(d.x); })
@@ -185,8 +181,8 @@ d3.easygraph.scatter = function(config) {
       // toggled on/off after points already exist - same z-order-stability reasoning as
       // cells vs. points above, just the opposite end (arrows are the topmost layer, cells
       // the bottommost).
-      var A = withDefaults('arrows', graph.arrows, ARROW_DEFAULTS);
-      var L = withDefaults('labels', graph.labels, LABEL_DEFAULTS);
+      var A = withDefaults(graph.arrows, ARROW_DEFAULTS);
+      var L = withDefaults(graph.labels, LABEL_DEFAULTS);
       var vectorData = (graph.arrows && data.length)
         ? data.filter(function(d) { return d.bearing != null && d.magnitude != null; })
         : [];
@@ -196,7 +192,7 @@ d3.easygraph.scatter = function(config) {
         .range([A.minLength / k, A.maxLength / k])
         .clamp(true);
 
-      var arrows = graph.$arrowsGroup.selectAll(".easygraph-arrow").data(vectorData);
+      var arrows = graph._.$arrowsGroup.selectAll(".easygraph-arrow").data(vectorData);
       var arrowsEnter = arrows.enter().append("path").attr("class", "easygraph-arrow");
       arrows.exit().remove();
       arrows = arrowsEnter.merge(arrows);
@@ -209,12 +205,12 @@ d3.easygraph.scatter = function(config) {
       // render()), so they draw on top of everything else regardless of what else gets
       // toggled on/off after points already exist - same z-order-stability reasoning as
       // cells/points/arrows above.
-      var labelData = (graph.labels && (graph._zoomScale || 1) >= L.minZoom && data.length)
+      var labelData = (graph.labels && (graph._.zoomScale || 1) >= L.minZoom && data.length)
         ? data.filter(function(d) { return d.label != null; })
         : [];
       var offset = L.offset / k;
 
-      var labels = graph.$labelsGroup.selectAll(".easygraph-label").data(labelData);
+      var labels = graph._.$labelsGroup.selectAll(".easygraph-label").data(labelData);
       var labelsEnter = labels.enter().append("text").attr("class", "easygraph-label");
       labels.exit().remove();
       labels = labelsEnter.merge(labels);
@@ -226,10 +222,10 @@ d3.easygraph.scatter = function(config) {
     }
 
     // See this file's own header comment for what this is and why it re-renders
-    // graph._lastData rather than taking data as a parameter.
+    // graph._.lastData rather than taking data as a parameter.
     graph.rescale = function(k) {
-      graph._zoomScale = k;
-      if (graph._lastData) render(graph._lastData);
+      graph._.zoomScale = k;
+      if (graph._.lastData) render(graph._.lastData);
     };
 
     return {
@@ -245,10 +241,10 @@ d3.easygraph.scatter = function(config) {
         graph.color.$scale = graph.color.quantize
           ? d3.scaleQuantize().range(graph.paletteColors)
           : d3.scaleLinear().range(graph.paletteColors).clamp(true);
-        graph.$cellsGroup  = graph.$marks.append("g").attr("class", "easygraph-voronoi-cells");
-        graph.$pointsGroup = graph.$marks.append("g").attr("class", "easygraph-points");
-        graph.$arrowsGroup = graph.$marks.append("g").attr("class", "easygraph-arrows");
-        graph.$labelsGroup = graph.$marks.append("g").attr("class", "easygraph-labels");
+        graph._.$cellsGroup  = graph.$marks.append("g").attr("class", "easygraph-voronoi-cells");
+        graph._.$pointsGroup = graph.$marks.append("g").attr("class", "easygraph-points");
+        graph._.$arrowsGroup = graph.$marks.append("g").attr("class", "easygraph-arrows");
+        graph._.$labelsGroup = graph.$marks.append("g").attr("class", "easygraph-labels");
       },
 
       // a caller plotting pre-projected pixel coordinates (e.g. a map overlay) always passes
