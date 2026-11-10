@@ -192,8 +192,10 @@ d3.easygraph.line = function(config) {
               // the series' own label, when `series` supplies one - otherwise the row is just the
               // swatch and the value, exactly as before
               var name = (meta.label != null) ? meta.label + ' ' : '';
+              // the value in the axes' own number format; '?' when no point is near or it is a gap
+              var value = (near && d.y != null) ? d3.easygraph.formatNumber(d.y) : '?';
               html += '<br><span style="color:' + graph.paletteColor(i) + '">&#9632;</span> ' +
-                      name + (near ? d.y : '?') + unit;
+                      name + value + unit;
             });
 
             graph.$crosshairTip.html(html).style("display", null);

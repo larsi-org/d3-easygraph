@@ -36,6 +36,11 @@ All notable changes to this project are documented here. Format loosely follows
   **`hueWheelPalette` is removed** (it returned `[r, g, b]` triples for one site's canvas code).
   **`graph.numberFormat` is `d3.easygraph.formatNumber`**, module-level, as it depends on no chart.
 
+### Fixed
+
+- **The crosshair tooltip formats its values** with `formatNumber`, like the axes and legends
+  (`21.3333`, `12.3k`), instead of printing the raw number; a gap under the cursor reads `?`, not `null`.
+
 ## [0.9.0] - 2026-11-09
 
 ### Changed (last pass before 1.0)

@@ -260,6 +260,30 @@ test('series[i].unit gives the crosshair tooltip a per-series unit string, falli
   expect(html).toContain('3°C'); // series 1 falls back to y.unit (from the y preset)
 });
 
+test('crosshair tooltip values use formatNumber, and a gap under the cursor reads ?', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const html = await page.evaluate(() => {
+    var wrap = document.createElement('div');
+    document.body.appendChild(wrap);
+    var g = d3.easygraph.line({ container: wrap, height: 200, crosshair: true, y: { unit: '°F' } });
+    g.update([
+      [ { x: 0, y: 21.333333333 }, { x: 10, y: 22 } ],
+      [ { x: 0, y: 12345.678 },    { x: 10, y: 1 } ],
+      [ { x: 0, y: null },         { x: 10, y: 1 } ]
+    ]);
+    g._moveCrosshair(g.x.$scale(0));
+    var html = g.$crosshairTip.html();
+    g.destroy();
+    wrap.remove();
+    return html;
+  });
+  expect(html).toContain('21.3333°F');
+  expect(html).not.toContain('21.333333333');
+  expect(html).toContain('12.3k°F');
+  expect(html).toContain('?°F');
+  expect(html).not.toContain('null');
+});
+
 test('destroy() removes the svg and the crosshair tooltip; a later resize does not throw', async ({ page }) => {
   await page.goto(FIXTURE);
 

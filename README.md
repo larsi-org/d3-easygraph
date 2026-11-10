@@ -201,7 +201,8 @@ A continuous (time or linear) x axis. Three drawing modes, each a flag you can t
 
 `zoom: { min, max }` (scale extent, defaults 1 and 10) enables scroll-to-zoom and drag-to-pan.
 `crosshair: true` (or `{ threshold }`, how close in pixels the cursor must be to a point to show it,
-default 10) adds a hover crosshair with a tooltip; it finds the nearest point per series with a binary
+default 10) adds a hover crosshair with a tooltip, its values in the axes' number format
+(`formatNumber`; `?` for a series with no point near the cursor or a gap there); it finds the nearest point per series with a binary
 search, so **each series must be sorted ascending by `x`** (unsorted input reports the wrong point and
 does not error; every other feature is order-independent). `curve` is `'linear'`, `'monotone'`,
 `'step-after'`, `'step-before'`, `'basis'`, `'cardinal'`, or any d3 curve factory
@@ -644,7 +645,7 @@ npm test
 
 [Playwright](https://playwright.dev) specs in `test/` (one per source module - core, line, bar,
 heatmap, scatter, presets, colors - plus `api.spec.js` and `api-1.0.spec.js` for cross-cutting checks;
-174 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
+175 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
 live resize, `destroy()` teardown, config and `ranges` validation, the live/build-time key split,
 legends, the standalone unit and palette functions, and behavior that needs real interaction to
 verify: `set()`, zoom and crosshair events, pinned color domains surviving a resize, `id`-keyed point identity,
