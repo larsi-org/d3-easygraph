@@ -1,4 +1,4 @@
-// The final pre-1.0 pass: nested option validation, update()'s domain argument, negative bars,
+// Nested option validation, update()'s domain argument, negative bars,
 // the crosshair event payload, and sync helpers that do not depend on zoom.
 const { test, expect } = require('@playwright/test');
 const path = require('path');

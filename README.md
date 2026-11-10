@@ -117,7 +117,7 @@ naming the family and the fix; an empty array is always valid, "no data yet" bei
 
 | Family | `update()` takes |
 | --- | --- |
-| `line`, `bars` | an array of series, each an array of points: `[[{x, y}, ...], ...]` |
+| `line`, `bar` | an array of series, each an array of points: `[[{x, y}, ...], ...]` |
 | `scatter` | one flat array of points: `[{x, y, value}, ...]` |
 | `heatmap` | an array of rows, each an array of numbers: `[[1, 2], [3, 4]]` |
 
@@ -408,8 +408,8 @@ d3.easygraph.compassPoint(22.4, 8);   // => "NE"
 d3.easygraph.compassPoint(22.4, 4);   // => "N"
 ```
 
-They are plain utilities, not presets: a preset's `convert()` returns a number for a numeric axis, which a
-function returning a label cannot.
+It is a plain utility, not a preset: a preset's `convert()` returns a number for a numeric axis, and
+a compass label is a string.
 
 ### Color palettes
 
@@ -443,7 +443,7 @@ options like the chart config does.
 | Tableau | `Tableau10` (the library default) |
 | Observable | `Observable10` |
 | Google | `Turbo` |
-| D3 | `Category20`, `Category20b`, `Category20c` - written out by hand only because D3 dropped them from `d3-scale-chromatic` in v5 |
+| D3 | `Category20`, `Category20b`, `Category20c` (carried in the library, since `d3-scale-chromatic` does not include them) |
 
 Nothing in a name says "mine"; a palette of your own goes in `palettes` under a prefix of your own.
 
@@ -454,7 +454,7 @@ returns plain rows you draw however your page wants:
 
 ```js
 graph.legendItems()
-// line / bars   → [ { index: 0, color: "#4e79a7", label: "HVAC" }, … ]
+// line / bar    → [ { index: 0, color: "#4e79a7", label: "HVAC" }, … ]
 // quantized     → [ { index: 0, color: "#eff3ff", from: 0, to: 10000, label: "0–10.0k" }, … ]
 // continuous    → [ { index: 0, color: "#eff3ff", value: 0, label: "0" }, … ]
 
@@ -462,7 +462,7 @@ d3.select("#legend").selectAll("span").data(graph.legendItems()).join("span")
   .html(d => `<span style="color:${d.color}">■</span> ${d.label}`);
 ```
 
-For `line` and `bars` there is one row per series, labeled from the `series` config. A series with no
+For `line` and `bar` there is one row per series, labeled from the `series` config. A series with no
 label comes back with `label: undefined`, never an invented "Series 3" (the same rule the chart title
 follows). For `heatmap` and `scatter` the rows come from the color scale: a `color.quantize` scale
 yields one row per band with its own `from`/`to` edges (rebuilt from the scale's interior thresholds
@@ -503,8 +503,7 @@ future version of this library that ships the same name - so prefix your own (`M
 
 This is the supported surface - what semantic versioning covers. **Everything else reachable on a graph
 object, including every `$`- and `_`-prefixed property, is internal and may change in any release.**
-Your own state goes in `graph.meta`, not on the graph itself: a future release may check assignments to
-the graph the way `set()` checks its options.
+Your own state goes in `graph.meta`; a property you add to the graph object itself is not supported.
 
 **Module-level:**
 
@@ -564,7 +563,7 @@ are stable API for styling and for tests:
 | --- | --- |
 | all | `easygraph` (the svg), `easygraph-marks` (the marks layer, `$marks`), `easygraph-title`, `easygraph-axis` with `easygraph-axis-x` / `easygraph-axis-y`, `easygraph-axis-title` with `easygraph-axis-title-x` / `easygraph-axis-title-y` |
 | line | `easygraph-line`, `easygraph-minmax`, `easygraph-sigma`, `easygraph-stack` (one `<path>` per series), `easygraph-pane` (the zoom/pointer rect), `easygraph-crosshair-line`, `easygraph-crosshair-tip` (the tooltip, a child of `<body>`) |
-| bars | `easygraph-bar`, `easygraph-bar-group` |
+| bar | `easygraph-bar`, `easygraph-bar-group` |
 | heatmap | `easygraph-heatmap-row`, `easygraph-heatmap-cell` |
 | scatter | `easygraph-point`, `easygraph-arrow`, `easygraph-label`, `easygraph-voronoi-cell`, and their `<g>` groups `easygraph-points`, `easygraph-arrows`, `easygraph-labels`, `easygraph-voronoi-cells` |
 
@@ -614,7 +613,7 @@ across its weather, sensors, EnergyPlus and graphics sections (not included in t
   labor as presets: `core.js` is the only thing that folds a palette onto `graph.paletteColors`.
 - `src/d3.easygraph.line.js`, `.bar.js`, `.heatmap.js`, `.scatter.js` - one constructor per family,
   each handing `_build()` a small hook object: `domain` and `render` are required; `prepareScales`
-  (bars, for its band scale), `init`, `resize`, `legendItems` and `destroy` (line, to remove its
+  (bar, for its band scale), `init`, `resize`, `legendItems` and `destroy` (line, to remove its
   `document.body` crosshair tooltip) are optional.
 
 **Adding an option** follows the same path every time: add the key to `_FAMILY_KEYS` (or `_SHARED_KEYS`)
@@ -643,10 +642,9 @@ npx playwright install --with-deps chromium   # once per machine
 npm test
 ```
 
-[Playwright](https://playwright.dev) specs in `test/` (one per source module - core, line, bars,
+[Playwright](https://playwright.dev) specs in `test/` (one per source module - core, line, bar,
 heatmap, scatter, presets, colors - plus `api.spec.js` and `api-1.0.spec.js` for cross-cutting checks;
-174 tests) run against
-the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
+174 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
 live resize, `destroy()` teardown, config and `ranges` validation, the live/build-time key split,
 legends, the standalone unit and palette functions, and behavior that needs real interaction to
 verify: `set()`, zoom and crosshair events, pinned color domains surviving a resize, `id`-keyed point identity,

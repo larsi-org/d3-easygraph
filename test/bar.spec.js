@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const path = require('path');
 
-const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/bars.html');
+const FIXTURE = 'file://' + path.join(__dirname, 'fixtures/bar.html');
 
 test('renders grouped bars with the right element counts', async ({ page }) => {
   await page.goto(FIXTURE);

@@ -16,8 +16,8 @@ d3.easygraph.heatmap = function(config) {
     _palette:     { palette: 'Diverging.RdBu', reverse: true }
   }, function(graph) {
     function render(data) {
-      // Empty data (a page whose first fetch hasn't resolved yet) used to reach data[0].length
-      // and throw; there's simply nothing to draw, so clear any previous grid and stop.
+      // Empty data (a page whose first fetch has not resolved yet): nothing to draw, so clear any
+      // previous grid and stop before reading data[0].length.
       if (!data.length || !data[0].length) {
         graph.$marks.selectAll(".easygraph-heatmap-row").remove();
         return;
