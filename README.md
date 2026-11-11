@@ -319,9 +319,10 @@ overlay points on a map you draw yourself.
   (`crosshair.format`) takes the same values but is set on its own. Four time formats ship, two words
   each: **`'date'`** and **`'datetime'`** (with the time of day or not), and **`'date-short'`** and
   **`'datetime-short'`** without the year, for a typical year whose year means nothing, such as an EPW
-  weather file. On the ticks they are multi-scale (each tick at its own finest level: minute, hour,
-  day, month, year); in a tooltip `2026-03-05`, `2026-03-05 14:30`, `03-05` and `03-05 14:30`
-  (`datetime` is the tooltip's default). A category axis takes a function only. `tickLabels: false` blanks the tick text while keeping the tick marks and
+  weather file. On the ticks they are multi-scale (each tick at its own finest level: second, minute
+  or hour, day, month, year) on a 24-hour clock (`18:00`, not d3's `06 PM`); in a tooltip
+  `2026-03-05`, `2026-03-05 14:30`, `03-05` and `03-05 14:30`. A time axis that names no format uses
+  `'datetime'`, on its ticks and in the tooltip. A category axis takes a function only. `tickLabels: false` blanks the tick text while keeping the tick marks and
   gridlines, and wins over `tickFormat`.
 - `trim: [loQuantile, hiQuantile]` (e.g. `[0.05, 0.95]`) builds a data-driven domain from those
   quantiles instead of the true min/max, so one extreme outlier does not compress everything else.

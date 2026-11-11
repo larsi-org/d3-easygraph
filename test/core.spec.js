@@ -1016,6 +1016,8 @@ test('x.tickFormat: a shipped time format name (date, datetime, -short) for a ti
       noYear: await build({ x: { type: 'time', tickFormat: 'datetime-short' } }, [[{ x: new Date(2025, 5, 1), y: 1 }, { x: new Date(2026, 5, 1), y: 2 }]]),
       withYear: await build({ x: { type: 'time', tickFormat: 'datetime' } }, [[{ x: new Date(2025, 5, 1), y: 1 }, { x: new Date(2026, 5, 1), y: 2 }]]),
       hours: await build({ x: { type: 'time', tickFormat: 'datetime-short' } }, [[{ x: new Date(2026, 2, 5), y: 1 }, { x: new Date(2026, 2, 5, 18), y: 2 }]]),
+      hoursDefault: await build({ x: { type: 'time' } }, [[{ x: new Date(2026, 2, 5), y: 1 }, { x: new Date(2026, 2, 5, 18), y: 2 }]]),
+      hoursFull: await build({ x: { type: 'time', tickFormat: 'datetime' } }, [[{ x: new Date(2026, 2, 5), y: 1 }, { x: new Date(2026, 2, 5, 18), y: 2 }]]),
       hoursDate: await build({ x: { type: 'time', tickFormat: 'date-short' } }, [[{ x: new Date(2026, 2, 5), y: 1 }, { x: new Date(2026, 2, 5, 18), y: 2 }]]),
       plainDefault: await build({ x: { type: 'time' } }, [[{ x: new Date(2025, 5, 1), y: 1 }, { x: new Date(2026, 5, 1), y: 2 }]]),
       noYearOnLinear: await build({ x: { tickFormat: 'date-short' } }),
@@ -1034,7 +1036,10 @@ test('x.tickFormat: a shipped time format name (date, datetime, -short) for a ti
   expect(r.noYear.some(function(t) { return /20\d\d/.test(t); })).toBe(false);   // ...noYear never does
   expect(r.noYear).toContain('Jan');
   expect(r.withYear).toContain('2026');                         // datetime names January as the year
-  expect(r.hours).toContain('06 AM');                           // datetime: hour ticks
+  expect(r.hours).toContain('06:00');                           // datetime: hour ticks, 24-hour
+  expect(r.hours).toContain('18:00');
+  expect(r.hours.some(function(t) { return /AM|PM/.test(t); })).toBe(false);
+  expect(r.hoursDefault).toEqual(r.hoursFull);                  // no tickFormat on a time axis = datetime
   expect(r.hoursDate.some(function(t) { return /AM|PM/.test(t); })).toBe(false);   // date: no time of day
   expect(r.noYearOnLinear).toContain("x.tickFormat 'date-short' (d3.easygraph.formats.date-short) is for a time axis");
   expect(r.oldMulti).toContain('is neither a name in d3.easygraph.formats (datetime, datetime-short, date, date-short) nor a d3.timeFormat string');   // a stray word no longer prints itself

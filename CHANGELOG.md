@@ -64,7 +64,8 @@ All notable changes to this project are documented here. Format loosely follows
   option (`bands` took only an object, and `true` threw).
 - **`tickFormat: 'multi'` is gone; time formats have names** in a new table, **`d3.easygraph.formats`**,
   global and extensible like `presets` and `palettes`: `'date'`, `'datetime'`, `'date-short'` and
-  `'datetime-short'` (`-short` = without the year; `'datetime-short'` is what `'multi'` drew). A page
+  `'datetime-short'` (`-short` = without the year). Their ticks use a 24-hour clock (`18:00`, not
+  `06 PM`), and a time axis that names no format uses `'datetime'` instead of d3's own 12-hour format. A page
   adds its own (a format string or function, or `{ tick, tip, type }`) and names it on every chart, for
   ticks and tooltips alike. A time-axis format string must now contain a `%` directive, so a misspelled
   name throws instead of printing itself on every tick.

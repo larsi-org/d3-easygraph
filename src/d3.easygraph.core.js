@@ -305,8 +305,8 @@ function _nearest(key, known) {
 // crosshair.format.x / .y (the line chart's tooltip). The two are separate settings and never copy
 // each other - ticks are spaced, so their format may be coarse and vary along the axis, while a
 // tooltip names one exact point - but they take the same values, resolved here the same way:
-//   undefined  - null: the place's own default (ticks: formatNumber on a number axis, d3's multi-scale
-//                time format on a time axis; tooltip: formatNumber, or formats.datetime's '%Y-%m-%d %H:%M')
+//   undefined  - null: the place's own default (formatNumber on a number axis, the shipped datetime
+//                format on a time axis - its ticks, or '%Y-%m-%d %H:%M' in the tooltip)
 //   a function - value => text, used as is (the only form a category axis takes)
 //   a string   - a name in d3.easygraph.formats first, else a format string: d3.timeFormat on a time
 //                axis (it must contain a % directive, so a misspelled name does not print itself on
@@ -314,14 +314,15 @@ function _nearest(key, known) {
 // `use` is 'tick' or 'tip'; `axis` is { type, band }. The unit is added after the text by the tooltip.
 
 // Multi-scale tick formats for the shipped time formats: each tick takes the finest level it has
-// (minute, hour, then day, week start, month, year), as d3's own time format does. withTime keeps the
-// minute and hour levels; withYear names January as the year, else as "Jan".
+// (second, minute or hour, then day, week start, month, year), as d3's own time format does, but on a
+// 24-hour clock ("18:00", not d3's "06 PM"); a locale could switch that later. withTime keeps the
+// second, minute and hour levels; withYear names January as the year, else as "Jan".
 function _multiTicks(withTime, withYear) {
-  var minute = d3.timeFormat("%I:%M"), hour = d3.timeFormat("%I %p"), day = d3.timeFormat("%a %d"),
+  var second = d3.timeFormat("%H:%M:%S"), minute = d3.timeFormat("%H:%M"), day = d3.timeFormat("%a %d"),
       week = d3.timeFormat("%b %d"), month = d3.timeFormat("%b"), year = d3.timeFormat("%Y");
   return function(d) {
-    if (withTime && d.getMinutes()) return minute(d);
-    if (withTime && d.getHours()) return hour(d);
+    if (withTime && d.getSeconds()) return second(d);
+    if (withTime && (d.getMinutes() || d.getHours())) return minute(d);
     if (d.getDay() && d.getDate() != 1) return day(d);
     if (d.getDate() != 1) return week(d);
     return (withYear && d.getMonth() === 0) ? year(d) : month(d);
@@ -334,9 +335,11 @@ function _multiTicks(withTime, withYear) {
 // the only axis type it is for. Prefix your own names, as with presets.
 // The shipped ones are time formats in two words: date / datetime (with the time of day or not), and
 // -short (without the year, for a typical year whose year means nothing, such as an EPW weather file).
-// Ticks vary per tick at those levels; a tooltip shows the whole string.
+// Ticks vary per tick at those levels; a tooltip shows the whole string. datetime is also what a time
+// axis uses when it names no format, on its ticks and in the tooltip.
+var _defaultTimeTicks = _multiTicks(true, true);   // not looked up, so changing formats.datetime cannot move it
 d3.easygraph.formats = {
-  'datetime':       { tick: _multiTicks(true, true),   tip: '%Y-%m-%d %H:%M', type: 'time' },
+  'datetime':       { tick: _defaultTimeTicks,         tip: '%Y-%m-%d %H:%M', type: 'time' },
   'datetime-short': { tick: _multiTicks(true, false),  tip: '%m-%d %H:%M',    type: 'time' },
   'date':           { tick: _multiTicks(false, true),  tip: '%Y-%m-%d',       type: 'time' },
   'date-short':     { tick: _multiTicks(false, false), tip: '%m-%d',          type: 'time' }
@@ -711,14 +714,16 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   }
 
   // x.tickFormat / y.tickFormat through _formatter (the same values as the tooltip's format); left out,
-  // a number axis uses formatNumber and a time or category axis d3's own. tickLabels: false blanks the
+  // a number axis uses formatNumber, a time axis the shipped datetime ticks (24-hour) and a category
+  // axis its own names. tickLabels: false blanks the
   // tick *text* and keeps the tick marks and gridlines, and wins over tickFormat.
   function _applyTickFormat(name, axis) {
     var prop = graph[name], band = !!prop.$scale.bandwidth;
     if (prop.tickLabels === false) { axis.tickFormat(function() { return ''; }); return; }
     var fn = d3.easygraph._formatter('d3.easygraph', name + '.tickFormat', prop.tickFormat, { type: prop.type, band: band }, 'tick');
     if (fn) axis.tickFormat(fn);
-    else if (prop.type === 'linear' && !band) axis.tickFormat(d3.easygraph.formatNumber);
+    else if (band) return;
+    else axis.tickFormat(prop.type === 'time' ? _defaultTimeTicks : d3.easygraph.formatNumber);
   }
 
   graph.x.$axis = d3.axisBottom(graph.x.$scale).tickSize(-graph.plotHeight).tickPadding(12);
