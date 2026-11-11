@@ -284,6 +284,49 @@ test('crosshair tooltip values use formatNumber, and a gap under the cursor read
   expect(html).not.toContain('null');
 });
 
+test('crosshair.format { x, y } formats the tooltip: strings or functions, the unit still appended, a side left out keeps the default', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    function tip(cfg, data) {
+      var wrap = document.createElement('div'); wrap.style.width = '400px'; document.body.appendChild(wrap);
+      var g = d3.easygraph.line(Object.assign({ container: wrap, height: 200 }, cfg));
+      g.update(data);
+      g._.moveCrosshair(g.x.$scale(data[0][0].x));
+      var html = g._.$crosshairTip.html();
+      g.destroy(); wrap.remove();
+      return html;
+    }
+    var t0 = new Date(2026, 2, 5, 14, 30);
+    var timeData = [[{ x: t0, y: 21.333 }, { x: new Date(2026, 2, 6), y: 22 }]];
+    var numData = [[{ x: 2.5, y: 21.333 }, { x: 10, y: 22 }]];
+    function msg(cfg) {
+      try { d3.easygraph.line(Object.assign({ container: document.body, height: 200 }, cfg)).destroy(); return 'no error'; }
+      catch (e) { return e.message; }
+    }
+    return {
+      strings:  tip({ x: { type: 'time' }, y: { unit: '°F' }, crosshair: { format: { x: '%b %d', y: '.1f' } } }, timeData),
+      fns:      tip({ x: { unit: 'h' }, crosshair: { format: { x: function(v) { return 'at ' + v; }, y: function(v) { return '~' + Math.round(v); } } } }, numData),
+      onlyY:    tip({ x: { type: 'time' }, crosshair: { format: { y: '.2f' } } }, timeData),
+      multi:    msg({ x: { type: 'time' }, crosshair: { format: { x: 'multi' } } }),
+      badStr:   msg({ crosshair: { format: { y: 'nonsense' } } }),
+      number:   msg({ crosshair: { format: { y: 2 } } }),
+      typo:     msg({ crosshair: { format: { z: '.1f' } } }),
+      notObj:   msg({ crosshair: { format: '.1f' } })
+    };
+  });
+  expect(r.strings).toContain('<strong>Mar 05</strong>');
+  expect(r.strings).toContain('21.3°F');
+  expect(r.fns).toContain('<strong>at 2.5h</strong>');
+  expect(r.fns).toContain('~21');
+  expect(r.onlyY).toContain('<strong>2026-03-05 14:30</strong>');   // the default time format
+  expect(r.onlyY).toContain('21.33');
+  expect(r.multi).toContain("'multi' is for axis ticks only");
+  expect(r.badStr).toContain('crosshair.format.y is not a d3.format string');
+  expect(r.number).toContain('crosshair.format.y must be a format string or a function');
+  expect(r.typo).toContain("unknown option 'crosshair.format.z'");
+  expect(r.notObj).toContain("'crosshair.format' must be");
+});
+
 test('destroy() removes the svg and the crosshair tooltip; a later resize does not throw', async ({ page }) => {
   await page.goto(FIXTURE);
 

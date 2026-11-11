@@ -60,6 +60,9 @@ All notable changes to this project are documented here. Format loosely follows
 - **Scatter `points: false` draws no circles** (it was ignored); arrows, labels and voronoi still draw.
 - **The `zoom` event passes `{ transform, x }`** (the transform and the x domain in view) instead of the
   bare transform, so it can grow like the crosshair's `{ x, pixel }`.
+- **`crosshair: { format: { x, y } }`** formats the tooltip (a format string or a function, as
+  `tickFormat` takes); it was fixed at `%Y-%m-%d %H:%M` for a time x and `formatNumber` otherwise,
+  which stay the defaults.
 - **`compassPoint(deg, points)`** replaces `compassPoint16/8/4` (`points` 16, 8 or 4, default 16).
   **`hueWheelPalette` is removed** (it returned `[r, g, b]` triples for one site's canvas code).
   **`graph.numberFormat` is `d3.easygraph.formatNumber`**, module-level, as it depends on no chart.

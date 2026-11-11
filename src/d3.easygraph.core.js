@@ -264,7 +264,7 @@ var _NESTED = {
   y:      { kind: 'object', keys: _AXIS_KEYS },
   bands:  { kind: 'object', keys: ['minmax', 'sigma'] },
   zoom:   { kind: 'flag',   keys: ['min', 'max'] },
-  crosshair: { kind: 'flag', keys: ['threshold'] },
+  crosshair: { kind: 'flag', keys: ['threshold', 'format'] },
   points: { kind: 'flag',   keys: ['radius', 'strokeWidth'] },
   voronoi: { kind: 'flag',  keys: ['opacity'] },
   arrows: { kind: 'flag',   keys: ['color', 'strokeWidth', 'minLength', 'maxLength', 'headLength', 'headAngle'] },
@@ -300,6 +300,22 @@ function _nearest(key, known) {
   });
   return best;
 }
+
+// The crosshair tooltip's formatter for one axis, from crosshair.format.x / .y: undefined -> null (the
+// chart's own default), a function as is, a string through d3.timeFormat on a time axis and d3.format
+// otherwise. The same forms as tickFormat, except 'multi', which picks a format per tick and so names
+// no single point. The unit is added after the formatted text by the tooltip, as before.
+d3.easygraph._tipFormatter = function(ctor, name, fmt, type) {
+  var path = 'crosshair.format.' + name;
+  if (fmt == null) return null;
+  if (typeof fmt === 'function') return fmt;
+  if (typeof fmt !== 'string' || fmt === 'multi')
+    throw new Error(ctor + ": " + path + " must be a format string or a function value => text" +
+                    (fmt === 'multi' ? " ('multi' is for axis ticks only)" : ", got " + JSON.stringify(fmt)));
+  if (type === 'time') return d3.timeFormat(fmt);
+  try { return d3.format(fmt); }
+  catch (e) { throw new Error(ctor + ": " + path + " is not a d3.format string (" + JSON.stringify(fmt) + "); a time axis takes d3.timeFormat strings"); }
+};
 
 // Throws for any key of `obj` that is not in `allowed`. `path` names the object ('x', 'points'),
 // so the message can say 'x.lable' and suggest 'x.label'.
@@ -351,6 +367,16 @@ d3.easygraph._checkConfig = function(config, chartType) {
     if (own.indexOf(name) >= 0) d3.easygraph._checkOption(ctor, name, config[name], _NESTED[name], _NESTED[name].keys);
   });
   d3.easygraph._checkOption(ctor, 'color', config.color, { kind: 'object' }, _COLOR_KEYS[chartType]);
+
+  // crosshair.format: { x, y }, each a format string or a function, checked here so a bad one throws
+  // before any DOM is built (see _tipFormatter)
+  var tipFormat = config.crosshair && config.crosshair.format;
+  if (tipFormat != null) {
+    d3.easygraph._checkOption(ctor, 'crosshair.format', tipFormat, { kind: 'object' }, ['x', 'y']);
+    ['x', 'y'].forEach(function(name) {
+      d3.easygraph._tipFormatter(ctor, name, tipFormat[name], (config[name] && config[name].type) || 'linear');
+    });
+  }
 
   if (config.series != null) {
     if (!Array.isArray(config.series))

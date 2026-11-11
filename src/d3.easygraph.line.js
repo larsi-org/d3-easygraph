@@ -163,14 +163,20 @@ d3.easygraph.line = function(config) {
             .attr("class", "easygraph-crosshair-tip")
             .style("display", "none");
 
+          // crosshair.format { x, y } (checked with the config); a side left out keeps the default:
+          // x '%Y-%m-%d %H:%M' on a time axis, else formatNumber; values formatNumber
+          var _tipFmt = (graph.crosshair && graph.crosshair.format) || {};
+          var _fmtX = d3.easygraph._tipFormatter('d3.easygraph.line', 'x', _tipFmt.x, graph.x.type) ||
+                      ((graph.x.type === 'time') ? d3.timeFormat('%Y-%m-%d %H:%M') : d3.easygraph.formatNumber);
+          var _fmtY = d3.easygraph._tipFormatter('d3.easygraph.line', 'y', _tipFmt.y, graph.y.type) ||
+                      d3.easygraph.formatNumber;
+
           graph._.moveCrosshair = function(mouseX) {
             if (!graph._.crosshairData) return;
             graph._.$crosshairLine.attr("x1", mouseX).attr("x2", mouseX).style("display", null);
 
             var x0 = graph.x.$scale.invert(mouseX);
-            var xLabel = (graph.x.type === 'time')
-              ? d3.timeFormat('%Y-%m-%d %H:%M')(x0)
-              : (d3.easygraph.formatNumber(x0) + (graph.x.unit || ''));
+            var xLabel = _fmtX(x0) + ((graph.x.type === 'time') ? '' : (graph.x.unit || ''));
 
             var html = '<strong>' + xLabel + '</strong>';
             graph._.crosshairData.forEach(function(series, i) {
@@ -186,8 +192,9 @@ d3.easygraph.line = function(config) {
               // the series' own label, when `series` supplies one - otherwise the row is just the
               // swatch and the value, exactly as before
               var name = (meta.label != null) ? meta.label + ' ' : '';
-              // the value in the axes' own number format; '?' when no point is near or it is a gap
-              var value = (near && d.y != null) ? d3.easygraph.formatNumber(d.y) : '?';
+              // the value in crosshair.format.y, else the axes' own number format; '?' when no point is
+              // near or it is a gap
+              var value = (near && d.y != null) ? _fmtY(d.y) : '?';
               html += '<br><span style="color:' + graph.paletteColor(i) + '">&#9632;</span> ' +
                       name + value + unit;
             });

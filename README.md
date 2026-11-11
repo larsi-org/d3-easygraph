@@ -94,7 +94,7 @@ chart's scales, so they are never replaced, only their keys changed. The split i
 ([table below](#public-api)).
 
 **3. Options are `false`, `true`, or an object.** A feature is off, on with defaults, or on with
-options: `zoom: { min, max }`, `crosshair: { threshold }`, `voronoi: { opacity }`,
+options: `zoom: { min, max }`, `crosshair: { threshold, format }`, `voronoi: { opacity }`,
 `arrows: { color, ... }`, `labels: { size, offset, minZoom }`, `points: { radius, strokeWidth }`.
 `bands` is the one object-only option (`{ minmax, sigma }`, each `true` or `false`).
 
@@ -210,8 +210,12 @@ A continuous (time or linear) x axis. Three drawing modes, each a flag you can t
 
 `zoom: { min, max }` (scale extent, defaults 1 and 10) enables scroll-to-zoom and drag-to-pan.
 `crosshair: true` (or `{ threshold }`, how close in pixels the cursor must be to a point to show it,
-default 10) adds a hover crosshair with a tooltip, its values in the axes' number format
-(`formatNumber`; `?` for a series with no point near the cursor or a gap there); it finds the nearest point per series with a binary
+default 10) adds a hover crosshair with a tooltip. The tooltip shows x as `%Y-%m-%d %H:%M` on a time
+axis (else `formatNumber`) and the values in the axes' number format (`formatNumber`; `?` for a series
+with no point near the cursor or a gap there). `crosshair: { format: { x, y } }` changes either: a
+format string (`d3.timeFormat` on a time axis, `d3.format` otherwise, e.g. `{ x: '%b %d', y: '.1f' }`)
+or a function `value => text`, the same forms as `tickFormat` except `'multi'`; the unit is still added
+after it, and a side left out keeps the default. The crosshair finds the nearest point per series with a binary
 search, so **each series must be sorted ascending by `x`** (unsorted input reports the wrong point and
 does not error; every other feature is order-independent). `curve` is `'linear'`, `'monotone'`,
 `'step-after'`, `'step-before'`, `'basis'`, `'cardinal'`, or any d3 curve factory
@@ -677,7 +681,7 @@ npm test
 
 [Playwright](https://playwright.dev) specs in `test/` (one per source module - core, line, bar,
 heatmap, scatter, presets, colors - plus `api.spec.js` and `api-1.0.spec.js` for cross-cutting checks;
-182 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
+183 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
 live resize, `destroy()` teardown, config and `domains` validation, the live/build-time key split,
 legends, the standalone unit and palette functions, and behavior that needs real interaction to
 verify: `set()`, zoom and crosshair events, pinned color domains surviving a resize, `id`-keyed point identity,
