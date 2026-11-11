@@ -91,7 +91,7 @@ test('bars with negative values run below the zero line and the axis reaches the
     var settle = eval(settleSrc);
     var w = document.createElement('div'); w.style.width = '500px'; document.body.appendChild(w);
     var g = d3.easygraph.bar({ container: w, height: 300, duration: 0 });
-    g.update([[{ x: 'a', y: -30 }, { x: 'b', y: 10 }]]);
+    g.update([[{ category: 'a', value: -30 }, { category: 'b', value: 10 }]]);
     await settle();
     var S = g.y.$scale, zero = S(0);
     var rects = [...w.querySelectorAll('rect.easygraph-bar')].map(function(el) {
@@ -113,7 +113,7 @@ test('stacked bars pile positives up and negatives down, each from zero; horizon
     function run(orientation) {
       var w = document.createElement('div'); w.style.width = '500px'; document.body.appendChild(w);
       var g = d3.easygraph.bar({ container: w, height: 300, duration: 0, stacked: true, orientation: orientation });
-      g.update([[{ x: 'a', y: 10 }], [{ x: 'a', y: -5 }], [{ x: 'a', y: 20 }], [{ x: 'a', y: -15 }]]);
+      g.update([[{ category: 'a', value: 10 }], [{ category: 'a', value: -5 }], [{ category: 'a', value: 20 }], [{ category: 'a', value: -15 }]]);
       return settle().then(function() {
         var V = orientation === 'horizontal' ? g.x.$scale : g.y.$scale;
         var spans = [...w.querySelectorAll('rect.easygraph-bar')].map(function(el) {
@@ -139,7 +139,7 @@ test('all-positive bars are unchanged: the value axis still starts at zero, grou
     function dom(stacked) {
       var w = document.createElement('div'); document.body.appendChild(w);
       var g = d3.easygraph.bar({ container: w, height: 200, stacked: stacked, duration: 0 });
-      g.update([[{ x: 'a', y: 3 }, { x: 'b', y: 5 }], [{ x: 'a', y: 4 }, { x: 'b', y: 1 }]]);
+      g.update([[{ category: 'a', value: 3 }, { category: 'b', value: 5 }], [{ category: 'a', value: 4 }, { category: 'b', value: 1 }]]);
       return g.y.$scale.domain();
     }
     return { grouped: dom(false), stacked: dom(true) };

@@ -34,14 +34,14 @@ test('a point\'s own radius overrides the graph-level radius (bubble chart)', as
   expect(radii).toEqual([10, 4]);
 });
 
-test('rescale(k) still shrinks a per-point radius override by 1/k', async ({ page }) => {
+test('zoomScale(k) still shrinks a per-point radius override by 1/k', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
     var wrap = document.createElement('div');
     document.body.appendChild(wrap);
     var g = d3.easygraph.scatter({ container: wrap, height: 200 });
     g.update([{ x: 0, y: 0, value: 0, radius: 10 }], { x: [0, 1], y: [0, 1] });
-    g.rescale(2);
+    g.zoomScale(2);
     var r = Number(wrap.querySelector('circle.easygraph-point').getAttribute('r'));
     g.destroy();
     wrap.remove();
@@ -125,11 +125,11 @@ test('point cx/fill transition over graph.duration on a data update, not an inst
   expect(Number(settledCx)).toBeCloseTo(finalCx, 0);
 });
 
-test('rescale(k) re-renders synchronously, not through the same transition points/fill use', async ({ page }) => {
+test('zoomScale(k) re-renders synchronously, not through the same transition points/fill use', async ({ page }) => {
   await page.goto(FIXTURE);
   const { rBeforeAnyWait } = await page.evaluate(() => {
-    window.graph.rescale(2);
-    // fixture uses the default radius (4) - if rescale() were transitioned like cx/cy/fill,
+    window.graph.zoomScale(2);
+    // fixture uses the default radius (4) - if zoomScale() were transitioned like cx/cy/fill,
     // this synchronous read (no wait at all) would still show the old radius (4)
     return { rBeforeAnyWait: document.querySelector('circle.easygraph-point').getAttribute('r') };
   });
@@ -305,29 +305,29 @@ test('magnitude scales arrow shaft length - a bigger magnitude draws a longer sh
   expect(lengths[1]).toBeGreaterThan(lengths[0]);
 });
 
-test('rescale(k) shrinks point radius by 1/k, for a caller layering its own zoom transform', async ({ page }) => {
+test('zoomScale(k) shrinks point radius by 1/k, for a caller layering its own zoom transform', async ({ page }) => {
   await page.goto(FIXTURE);
   const before = await page.evaluate(() => +document.querySelector('circle.easygraph-point').getAttribute('r'));
   const after = await page.evaluate(() => {
-    window.graph.rescale(2);
+    window.graph.zoomScale(2);
     return +document.querySelector('circle.easygraph-point').getAttribute('r');
   });
-  // fixture uses the default radius (4) - rescale(2) should halve it
+  // fixture uses the default radius (4) - zoomScale(2) should halve it
   expect(before).toBe(4);
   expect(after).toBe(2);
 });
 
-test('rescale(1) (or never calling it) leaves radius at its normal, unscaled size', async ({ page }) => {
+test('zoomScale(1) (or never calling it) leaves radius at its normal, unscaled size', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
-    window.graph.rescale(2);
-    window.graph.rescale(1);
+    window.graph.zoomScale(2);
+    window.graph.zoomScale(1);
     return +document.querySelector('circle.easygraph-point').getAttribute('r');
   });
   expect(r).toBe(4);
 });
 
-test('rescale(k) shrinks arrow shaft length by 1/k too', async ({ page }) => {
+test('zoomScale(k) shrinks arrow shaft length by 1/k too', async ({ page }) => {
   await page.goto(ARROWS_FIXTURE);
   function shaftLength() {
     var d = document.querySelector('path.easygraph-arrow').getAttribute('d');
@@ -336,7 +336,7 @@ test('rescale(k) shrinks arrow shaft length by 1/k too', async ({ page }) => {
   }
   const before = await page.evaluate(shaftLength);
   const after = await page.evaluate(() => {
-    window.graph.rescale(2);
+    window.graph.zoomScale(2);
     return document.querySelector('path.easygraph-arrow').getAttribute('d');
   }).then((d) => {
     var m = d.match(/^M([\d.\-]+),([\d.\-]+)L([\d.\-]+),([\d.\-]+)/);
@@ -359,13 +359,13 @@ test('labels: true renders one text per point that has a label, skipping the res
   expect(texts.sort()).toEqual(['AAA', 'BBB']);
 });
 
-test('rescale(k) shrinks label font size by 1/k', async ({ page }) => {
+test('zoomScale(k) shrinks label font size by 1/k', async ({ page }) => {
   await page.goto(LABELS_FIXTURE);
   const before = await page.evaluate(() =>
     document.querySelector('text.easygraph-label').style.fontSize
   );
   const after = await page.evaluate(() => {
-    window.graph.rescale(2);
+    window.graph.zoomScale(2);
     return document.querySelector('text.easygraph-label').style.fontSize;
   });
   // fixture sets labels.size: 10
@@ -377,24 +377,24 @@ test('labels.minZoom hides labels below the threshold and shows them once it\'s 
   await page.goto(LABELS_MINZOOM_FIXTURE);
   const atDefaultZoom = await page.locator('text.easygraph-label').count();
   const belowThreshold = await page.evaluate(() => {
-    window.graph.rescale(2.9);
+    window.graph.zoomScale(2.9);
     return document.querySelectorAll('text.easygraph-label').length;
   });
   const atThreshold = await page.evaluate(() => {
-    window.graph.rescale(3);
+    window.graph.zoomScale(3);
     return document.querySelectorAll('text.easygraph-label').length;
   });
-  // fixture sets labels.minZoom: 3; default zoom (k=1, never having called rescale) is below it
+  // fixture sets labels.minZoom: 3; default zoom (k=1, never having called zoomScale) is below it
   expect(atDefaultZoom).toBe(0);
   expect(belowThreshold).toBe(0);
   expect(atThreshold).toBe(2);
 });
 
-test('rescale(k) shrinks point stroke-width by 1/k too, not just radius', async ({ page }) => {
+test('zoomScale(k) shrinks point stroke-width by 1/k too, not just radius', async ({ page }) => {
   await page.goto(FIXTURE);
   const before = await page.evaluate(() => document.querySelector('circle.easygraph-point').style.strokeWidth);
   const after = await page.evaluate(() => {
-    window.graph.rescale(2);
+    window.graph.zoomScale(2);
     return document.querySelector('circle.easygraph-point').style.strokeWidth;
   });
   // default points.strokeWidth is 0.5
@@ -402,11 +402,11 @@ test('rescale(k) shrinks point stroke-width by 1/k too, not just radius', async 
   expect(after).toBe('0.25px');
 });
 
-test('rescale(k) shrinks arrow stroke-width by 1/k too, not just shaft length', async ({ page }) => {
+test('zoomScale(k) shrinks arrow stroke-width by 1/k too, not just shaft length', async ({ page }) => {
   await page.goto(ARROWS_FIXTURE);
   const before = await page.evaluate(() => document.querySelector('path.easygraph-arrow').style.strokeWidth);
   const after = await page.evaluate(() => {
-    window.graph.rescale(2);
+    window.graph.zoomScale(2);
     return document.querySelector('path.easygraph-arrow').style.strokeWidth;
   });
   // default arrows.strokeWidth is 1.5
@@ -467,13 +467,13 @@ test('points join by id, else position - a dropped point keeps the others\' circ
   expect(r.none).toBe(false);
 });
 
-test('width + height is a fixed-size chart: viewBox, no relayout, marks keep their screen size', async ({ page }) => {
+test('sizing: \'scaled\' with width + height is a fixed-size chart: viewBox, no relayout, marks keep their screen size', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(async () => {
     var wrap = document.createElement('div');
     wrap.style.width = '400px';
     document.body.appendChild(wrap);
-    var g = d3.easygraph.scatter({ container: wrap, width: 800, height: 400, points: { radius: 6 },
+    var g = d3.easygraph.scatter({ container: wrap, sizing: 'scaled', width: 800, height: 400, points: { radius: 6 },
                                    margin: { top: 0, right: 0, bottom: 0, left: 0 } });
     g.update([{ x: 0, y: 0, value: 0 }, { x: 1, y: 1, value: 1 }], { x: [0, 800], y: [400, 0] });
     var svg = wrap.querySelector('svg');
@@ -494,13 +494,22 @@ test('width + height is a fixed-size chart: viewBox, no relayout, marks keep the
   expect(r.r2).toBeCloseTo(24, 1);          // 6 screen px at scale 0.25
 });
 
-test('width must be positive', async ({ page }) => {
+test('sizing names the mode: width is only for sizing: \'scaled\', which needs a positive one', async ({ page }) => {
   await page.goto(FIXTURE);
-  const msg = await page.evaluate(() => {
-    try { d3.easygraph.scatter({ container: '#graph', width: -5, height: 100 }); return 'no error'; }
-    catch (e) { return e.message; }
+  const r = await page.evaluate(() => {
+    function msg(cfg) {
+      try { d3.easygraph.scatter(Object.assign({ container: '#graph', height: 100 }, cfg)).destroy(); return 'no error'; }
+      catch (e) { return e.message; }
+    }
+    return { negative: msg({ sizing: 'scaled', width: -5 }), missing: msg({ sizing: 'scaled' }),
+             bareWidth: msg({ width: 600 }), unknown: msg({ sizing: 'fixed', width: 600 }),
+             fluid: msg({ sizing: 'fluid' }) };
   });
-  expect(msg).toContain('width must be a positive number');
+  expect(r.negative).toContain("sizing: 'scaled' needs width, a positive number");
+  expect(r.missing).toContain("sizing: 'scaled' needs width");
+  expect(r.bareWidth).toContain("width is only for sizing: 'scaled'");
+  expect(r.unknown).toContain('sizing must be "fluid" or "scaled"');
+  expect(r.fluid).toBe('no error');
 });
 
 test('arrow bearings are compass degrees: 0 north (up), 90 east (right), 270 west, headAngle is degrees', async ({ page }) => {

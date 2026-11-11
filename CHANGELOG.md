@@ -20,9 +20,20 @@ All notable changes to this project are documented here. Format loosely follows
   the error messages say domains. Calls do not change, the argument is positional.
 - **`x.scale` / `y.scale` is `x.type` / `y.type`** (`'linear'` or `'time'`), so it is not one character
   away from `x.$scale`, the d3 scale.
-- **Bar categories are every series' `x` values in first-seen order** (they were series 0's only, so a
+- **A bar is `{ category, value }`** (was `{ x, y }`, where `y` was the value even on a horizontal chart
+  whose value axis is `x`); `x` and `y` are now the screen axes everywhere, bar data being the one
+  shape that is not about the axes. Bar data written the old way throws, naming the new shape.
+- **Bar categories are every series' categories in first-seen order** (they were series 0's only, so a
   category only a later series had was not drawn), and stacked bars are matched by category, not by
   position in the array.
+- **`sizing: 'fluid' | 'scaled'`** names the sizing mode. A logical `width` (with `height`) is only for
+  `sizing: 'scaled'`, the viewBox mode for maps; a bare `width` used to switch to it, and `width: 600`
+  read as 600 px. `width` on a fluid chart now throws, saying to size the container.
+- **Scatter `rescale(k)` is `zoomScale(k)`**, which no longer reads like d3's `transform.rescaleX`;
+  it checks `k` and returns the graph, and `zoomScale()` reads the factor back.
+- **`syncZoom(graphs)` / `syncCrosshair(graphs)` return a function that undoes the link** (they
+  returned `undefined`). It removes only the listeners that call added; a chart linked into another
+  group since keeps that link. A destroyed chart in a group is skipped.
 - **`graph.set(options)` changes live keys**, checked exactly like the config (a typo throws with a
   did-you-mean; a build-time key throws before anything is changed); `x`, `y` and `color` are merged
   key by key; returns the graph: `graph.set({ stacked: true }).update(data)`. The `x`, `y` and `color`

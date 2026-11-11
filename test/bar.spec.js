@@ -78,7 +78,7 @@ test('horizontal bars render: grouped bars start at the value axis zero and run 
   const r = await page.evaluate(async () => {
     var w = document.createElement('div'); w.style.width = '600px'; document.body.appendChild(w);
     var g = d3.easygraph.bar({ container: w, height: 300, orientation: 'horizontal', stacked: false, duration: 0 });
-    g.update([[{ x: 'a', y: 10 }, { x: 'b', y: 20 }]]); // no ranges: categories and value auto-fit
+    g.update([[{ category: 'a', value: 10 }, { category: 'b', value: 20 }]]); // no ranges: categories and value auto-fit
     // d3 transitions run on the next frame even at duration 0, so the geometry below is the
     // enter state until they have flushed
     await new Promise(function (r) { setTimeout(r, 250); });
@@ -106,7 +106,7 @@ test('horizontal bars render: stacked series pick up where the previous one ends
     var w = document.createElement('div'); w.style.width = '600px'; document.body.appendChild(w);
     var g = d3.easygraph.bar({ container: w, height: 300, orientation: 'horizontal', stacked: true, duration: 0 });
     // two series over one category: 10 then 20 stacked on top of it
-    g.update([[{ x: 'a', y: 10 }], [{ x: 'a', y: 20 }]]);
+    g.update([[{ category: 'a', value: 10 }], [{ category: 'a', value: 20 }]]);
     await new Promise(function (r) { setTimeout(r, 250); });
     var rects = [...w.querySelectorAll('rect.easygraph-bar')].map(function (r) {
       return { x: +r.getAttribute('x'), width: +r.getAttribute('width'), y: +r.getAttribute('y') };

@@ -6,7 +6,7 @@
    .easygraph-crosshair-tip is the one exception - line.js appends it to document.body, outside
    the chart's svg, so it carries its own namespaced class instead of relying on the scope. */
 /* .easygraph-point/.easygraph-arrow stroke-width is set inline by scatter.js's render(), not here
-   - it has to divide by the current zoom factor (graph.rescale()) to stay a constant on-screen
+   - it has to divide by the current zoom factor (graph.zoomScale(k)) to stay a constant on-screen
    size, which a static CSS rule can't do. */
 .easygraph rect.easygraph-pane{cursor:move;fill:none;pointer-events:all}
 .easygraph .easygraph-title{text-anchor:middle;font-size:16px;fill:#333}

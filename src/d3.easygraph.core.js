@@ -95,27 +95,29 @@ d3.easygraph.bandStats = function(values, k) {
 
 // Stacks layered series, accumulating y0 offsets bottom-up - shared by bar.js's stacked mode and
 // line.js's stackedArea.
-//   signed (bars): points are matched by category (d.x), so a series may leave a category out or
-//     list them in another order. Values of either sign: positive values stack upward from zero and
-//     negative ones downward from zero, each on its own pile, so a bar spans [y0, y0 + y] either way.
-//   unsigned (stacked area): points are matched by index, so every series must be sampled at the
-//     same x positions.
+//   signed (bars, points { category, value }): points are matched by category, so a series may
+//     leave a category out or list them in another order. Values of either sign: positive values
+//     stack upward from zero and negative ones downward from zero, each on its own pile, so a bar
+//     spans [base, base + value] either way.
+//   unsigned (stacked area, points { x, y }): points are matched by index, so every series must be
+//     sampled at the same x positions; each point gets y0, where it starts.
 d3.easygraph._computeStacked = function(data, signed) {
+  if (signed) {
+    var up = new d3.InternMap(), down = new d3.InternMap();
+    return data.map(function(series) {
+      return series.map(function(p) {
+        var d = Object.assign({ base: 0 }, p);
+        if (d.value == null) return d;
+        var pile = (d.value >= 0) ? up : down, base = pile.get(d.category) || 0;
+        d.base = base;
+        pile.set(d.category, base + d.value);
+        return d;
+      });
+    });
+  }
   var result = data.map(function(series) {
     return series.map(function(d) { return Object.assign({ y0: 0 }, d); });
   });
-  if (signed) {
-    var up = new d3.InternMap(), down = new d3.InternMap();
-    result.forEach(function(series) {
-      series.forEach(function(d) {
-        if (d.y == null) return;
-        var pile = (d.y >= 0) ? up : down, base = pile.get(d.x) || 0;
-        d.y0 = base;
-        pile.set(d.x, base + d.y);
-      });
-    });
-    return result;
-  }
   var len = result[0] ? result[0].length : 0;
   for (var j = 0; j < len; j++) {
     for (var i = 1; i < result.length; i++) {
@@ -128,12 +130,14 @@ d3.easygraph._computeStacked = function(data, signed) {
 // Validates update()'s `data` at the boundary, the same way the constructor already validates
 // `container` and `height`, so a wrong shape throws here with the fix in the message instead of
 // deep inside d3 (or rendering a chart full of NaN). Each family declares its shape (_dataShape):
-//   'series' - an array of series, each an array of points   (line, bar)
+//   'series' - an array of series, each an array of points   (line)
+//   'bars'   - the same, each point { category, value }      (bar)
 //   'points' - one flat array of point objects               (scatter)
 //   'grid'   - an array of rows, each an array of numbers    (heatmap; null/undefined = no data)
 // An empty array is always allowed: "no data yet" is a normal state while a fetch is in flight.
 var _shapeHelp = {
   series: "an array of series, each an array of points - e.g. [[{x, y}, {x, y}]]",
+  bars:   "an array of series, each an array of bars - e.g. [[{category, value}, {category, value}]]",
   points: "a flat array of point objects - e.g. [{x, y, value}, {x, y, value}]",
   grid:   "an array of rows, each an array of numbers - e.g. [[1, 2], [3, 4]]"
 };
@@ -150,6 +154,16 @@ d3.easygraph._checkData = function(data, shape, family) {
   }
   if (shape !== 'points' && !firstIsArray) {
     throw new Error(prefix + 'a flat array. Wrap a single series as [yourArray].');
+  }
+  // a bar is { category, value }; the first point that is an object decides, and one written the
+  // line way ({ x, y }) is told so
+  if (shape === 'bars') {
+    var bar;
+    data.some(function(series) { bar = series.find(function(d) { return d != null; }); return bar !== undefined; });
+    if (bar !== undefined && (typeof bar !== 'object' || !('category' in bar) || !('value' in bar))) {
+      throw new Error(prefix + JSON.stringify(bar) + '. A bar is { category, value } (whichever way the bars ' +
+                      'run; x and y are the screen axes, as in the config and in domains)');
+    }
   }
   // the first cell that holds a value decides: a missing (null/undefined) cell is allowed anywhere
   var cell = (shape === 'grid') ? first.find(function(v) { return v != null; }) : undefined;
@@ -231,7 +245,7 @@ var _nextClipId = 0;
 // Config keys each constructor understands. A key outside this list throws: a misspelled option
 // used to do nothing and say nothing. Keys inside the nested option objects (x, y, color, margin,
 // points, arrows, ...) are checked too, against _NESTED below.
-var _SHARED_KEYS = ['container', 'width', 'height', 'margin', 'x', 'y', 'color', 'title', 'duration', 'meta'];
+var _SHARED_KEYS = ['container', 'sizing', 'width', 'height', 'margin', 'x', 'y', 'color', 'title', 'duration', 'meta'];
 var _FAMILY_KEYS = {
   line:    ['lines', 'bands', 'stacked', 'zoom', 'crosshair', 'curve', 'series'],
   bar:     ['orientation', 'stacked', 'series'],
@@ -415,20 +429,30 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   if (!(graph.height > 0)) {
     throw new Error('d3.easygraph: height must be a positive number');
   }
-  // Sizing modes. height alone: width follows the container, height is fixed (the default, for
-  // charts). width AND height: a fixed logical size - the chart is drawn once at width x height
-  // and the browser scales the whole svg uniformly through a viewBox, so its shape never changes
-  // (for maps and other drawings with an intrinsic aspect ratio). graph.width is then the logical
-  // width; graph._.viewScale is the current on-screen scale (container width / logical width).
+  // Sizing modes, named by `sizing`. 'fluid' (the default, for charts): width follows the container,
+  // height is fixed in px, and there is no width option. 'scaled' (for maps and other drawings with
+  // an intrinsic aspect ratio): the chart is drawn once at a logical width x height and the browser
+  // scales the whole svg uniformly through a viewBox to the container's width, so its shape never
+  // changes. graph.width is then the logical width; graph._.viewScale is the current on-screen scale
+  // (container width / logical width). A bare `width` used to switch modes on its own, and
+  // `width: 600` read as 600 px.
+  if (graph.sizing === undefined) graph.sizing = 'fluid';
+  if (graph.sizing !== 'fluid' && graph.sizing !== 'scaled') {
+    throw new Error('d3.easygraph: sizing must be "fluid" or "scaled", got ' + JSON.stringify(graph.sizing));
+  }
   var _fixedW = graph.width;
-  if (_fixedW !== undefined && !(_fixedW > 0)) {
-    throw new Error('d3.easygraph: width must be a positive number (and is only for a fixed-size chart, together with height)');
+  if (graph.sizing === 'fluid' && _fixedW !== undefined) {
+    throw new Error("d3.easygraph: width is only for sizing: 'scaled' (a logical width x height the browser " +
+                    "scales to the container); a fluid chart takes its container's width - size the container instead");
+  }
+  if (graph.sizing === 'scaled' && !(_fixedW > 0)) {
+    throw new Error("d3.easygraph: sizing: 'scaled' needs width, a positive number (the logical width, with height)");
   }
   // graph.width is the svg box's width: the logical width in fixed-size mode, else measured from the
   // container. Either way it is the library's to set, so assigning it throws.
   var _widthValue = _fixedW;
   _defineOwned(graph, 'width', function() { return _widthValue; },
-               "(the container's width, or the fixed width you built it with) - destroy() it and build a new chart to change it");
+               "(the container's width, or the logical width of a sizing: 'scaled' chart) - destroy() it and build a new chart to change it");
   graph._.viewScale = 1;
   // The width path already refuses a container narrower than its own horizontal margins (see
   // _measureWidth below); without the matching vertical check, a height smaller than
@@ -754,7 +778,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
       var s = (containerEl.getBoundingClientRect().width / _fixedW) || 1;
       if (Math.abs(s - graph._.viewScale) < 0.001) return;
       graph._.viewScale = s;
-      if (graph.rescale && graph._.lastData) graph._.reflow();
+      if (graph.zoomScale && graph._.lastData) graph._.reflow();
       return;
     }
     if (graph._.layout() && graph._.lastData) graph._.reflow();
@@ -789,7 +813,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     domains = (domains === undefined) ? {} : domains;
     d3.easygraph._checkDomains(domains, graph._.chartType);
     graph._.lastData = data;
-    // Kept alongside lastData so a resize reflow or a scatter rescale() - both of which
+    // Kept alongside lastData so a resize reflow or a scatter zoomScale(k) - both of which
     // re-render from stored state rather than a fresh update() - keep the pinned domains.
     graph._.lastDomains = domains;
 
@@ -885,7 +909,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     });
   }
 
-  var _FIXED_TOP  = ['container', 'height', 'margin', 'orientation', 'curve', 'zoom', 'crosshair'];
+  var _FIXED_TOP  = ['container', 'sizing', 'height', 'margin', 'orientation', 'curve', 'zoom', 'crosshair'];
   var _FIXED_SUB  = { x: ['type', 'preset', 'tickFormat', 'tickLabels'], y: ['type', 'preset', 'tickFormat', 'tickLabels'],
                       color: ['palette', 'classes', 'reverse', 'quantize'] };
   var _OWNED_SUB  = { x: ['convert', 'convertRounded', '$scale', '$axis'], y: ['convert', 'convertRounded', '$scale', '$axis'],

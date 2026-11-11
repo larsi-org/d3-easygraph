@@ -7,16 +7,19 @@
 // `orientation` is fixed for a graph's lifetime, but `stacked` can be toggled live
 // (see data_monthly.php/h.php's dropdown) - domain()/render() always re-read the
 // live config rather than caching a choice made at construction. Stacking itself
-// (accumulating y0 offsets) is d3.easygraph._computeStacked() in core.js, shared with
+// (accumulating each bar's base) is d3.easygraph._computeStacked() in core.js, shared with
 // line.js's stacked area; bars ask for its signed form, where positive values pile up from zero
 // and negative ones down from it.
 //
-// A datum's own `color` field, when it has one, colors that bar instead of its series' palette color.
+// A bar is { category, value } (plus an optional `color`, which colors that bar instead of its series'
+// palette color), whichever way the bars run: x and y name the screen axes, in the config and in
+// update()'s domains, and a horizontal chart puts its values on x. Bar data used to be { x, y } too,
+// which meant y was the value even on a horizontal chart whose value axis is x.
 
 d3.easygraph.bar = function(config) {
   return d3.easygraph._build(config, {
     _chartType:   'bar',
-    _dataShape:   'series',
+    _dataShape:   'bars',
     orientation:  'vertical',
     stacked:      false,
     series:       null // optional [{ label }, ...], one per series passed to update(): what legendItems()
@@ -24,15 +27,14 @@ d3.easygraph.bar = function(config) {
   }, function(graph) {
     function _horizontal() { return graph.orientation === 'horizontal'; }
 
-    // The bars' value axis: y for vertical bars, x for horizontal ones (data stays { x: category,
-    // y: value } either way).
+    // The bars' value axis: y for vertical bars, x for horizontal ones.
     function _valueScale() { return _horizontal() ? graph.x.$scale : graph.y.$scale; }
     function _categoryScale() { return _horizontal() ? graph.y.$scale : graph.x.$scale; }
 
-    // The two values a bar spans on the value axis: from its base (y0, which is 0 unless stacked)
-    // to base + y. Order does not matter, a negative bar just runs the other way.
-    function _spanStart(d) { return Math.min(_valueScale()(d.y0 || 0), _valueScale()((d.y0 || 0) + d.y)); }
-    function _spanSize(d)  { return Math.abs(_valueScale()((d.y0 || 0) + d.y) - _valueScale()(d.y0 || 0)); }
+    // The two values a bar spans on the value axis: from its base (0 unless stacked) to base + value.
+    // Order does not matter, a negative bar just runs the other way.
+    function _spanStart(d) { return Math.min(_valueScale()(d.base || 0), _valueScale()((d.base || 0) + d.value)); }
+    function _spanSize(d)  { return Math.abs(_valueScale()((d.base || 0) + d.value) - _valueScale()(d.base || 0)); }
 
     // enter/exit/merge bar group <g> elements
     function _bindGroups(data) {
@@ -65,13 +67,13 @@ d3.easygraph.bar = function(config) {
         })
         .style("fill", function(d, i) { return graph.paletteColor(i); });
 
-      var dataBars = groups.selectAll(".easygraph-bar").data(function(d) { return d; }, function(d) { return d.x; });
+      var dataBars = groups.selectAll(".easygraph-bar").data(function(d) { return d; }, function(d) { return d.category; });
       var zero = _valueScale()(0);
       var entered = dataBars.enter().append("rect").attr("class", "easygraph-bar");
       if (horizontal) {
-        entered.attr("x", zero).attr("width", 0).attr("y", function(d) { return band(d.x); }).attr("height", thickness);
+        entered.attr("x", zero).attr("width", 0).attr("y", function(d) { return band(d.category); }).attr("height", thickness);
       } else {
-        entered.attr("x", function(d) { return band(d.x); }).attr("width", thickness).attr("y", zero).attr("height", 0);
+        entered.attr("x", function(d) { return band(d.category); }).attr("width", thickness).attr("y", zero).attr("height", 0);
       }
       dataBars.exit().remove();
       dataBars = entered.merge(dataBars);
@@ -80,9 +82,9 @@ d3.easygraph.bar = function(config) {
       var t = dataBars.transition('size').duration(graph.duration).ease(d3.easeCubicInOut);
       if (horizontal) {
         t.attr("x", _spanStart).attr("width", _spanSize)
-         .attr("y", function(d) { return band(d.x); }).attr("height", thickness);
+         .attr("y", function(d) { return band(d.category); }).attr("height", thickness);
       } else {
-        t.attr("x", function(d) { return band(d.x); }).attr("width", thickness)
+        t.attr("x", function(d) { return band(d.category); }).attr("width", thickness)
          .attr("y", _spanStart).attr("height", _spanSize);
       }
     }
@@ -116,20 +118,20 @@ d3.easygraph.bar = function(config) {
         var valueDomain;
         if (graph.stacked) {
           var stacked = d3.easygraph._computeStacked(data, true);
-          var lo = d3.min(stacked, function(a) { return d3.min(a, function(d) { return Math.min(d.y0, d.y0 + d.y); }); });
-          var hi = d3.max(stacked, function(a) { return d3.max(a, function(d) { return Math.max(d.y0, d.y0 + d.y); }); });
+          var lo = d3.min(stacked, function(a) { return d3.min(a, function(d) { return d.value == null ? undefined : Math.min(d.base, d.base + d.value); }); });
+          var hi = d3.max(stacked, function(a) { return d3.max(a, function(d) { return d.value == null ? undefined : Math.max(d.base, d.base + d.value); }); });
           valueDomain = [Math.min(0, lo === undefined ? 0 : lo), Math.max(0, hi === undefined ? 1 : hi)];
         } else {
-          var min = d3.min(data, function(a) { return d3.min(a, function(d) { return d.y; }); });
-          var max = d3.max(data, function(a) { return d3.max(a, function(d) { return d.y; }); });
+          var min = d3.min(data, function(a) { return d3.min(a, function(d) { return d.value; }); });
+          var max = d3.max(data, function(a) { return d3.max(a, function(d) { return d.value; }); });
           valueDomain = [Math.min(0, min === undefined ? 0 : min), Math.max(0, max === undefined ? 1 : max)];
         }
         if (valueDomain[0] === valueDomain[1]) valueDomain[1] = valueDomain[0] + 1;
 
-        // The categories are every series' x values, in the order they first appear (series 0 first),
+        // The categories are every series' categories, in the order they first appear (series 0 first),
         // so a category that only a later series has still gets its place on the axis.
         var seen = new d3.InternSet();
-        data.forEach(function(series) { series.forEach(function(d) { seen.add(d.x); }); });
+        data.forEach(function(series) { series.forEach(function(d) { seen.add(d.category); }); });
         var categories = Array.from(seen);
         var xDomain = xRange || (isH ? valueDomain : (categories.length ? categories : [0, 1]));
         var yDomain = yRange || (isH ? (categories.length ? categories : [0, 1]) : valueDomain);

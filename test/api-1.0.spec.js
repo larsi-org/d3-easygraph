@@ -158,7 +158,7 @@ test('convert is not axis config, color takes no preset keys; a preset still put
 test('the bar constructor is d3.easygraph.bar; bars is gone', async ({ page }) => {
   const r = await page.evaluate(() => {
     var b = d3.easygraph.bar({ container: mk(), height: 200 });
-    return { bars: typeof d3.easygraph.bars, aria: (b.update([[{ x: 'a', y: 1 }]]), b.$svg.attr('aria-label')),
+    return { bars: typeof d3.easygraph.bars, aria: (b.update([[{ category: 'a', value: 1 }]]), b.$svg.attr('aria-label')),
              zoom: msg(() => d3.easygraph.bar({ container: mk(), height: 200, zoom: true })) };
   });
   expect(r.bars).toBe('undefined');
@@ -227,17 +227,17 @@ test('the graph object holds config keys, the public handles and methods only; i
   expect(r.title).toBeUndefined();
 });
 
-test('bar categories are every series\' x values in first-seen order; stacking matches bars by category, not position', async ({ page }) => {
+test('bars are { category, value }; categories are every series\' categories in first-seen order; stacking matches bars by category, not position', async ({ page }) => {
   const r = await page.evaluate(() => {
     var g = d3.easygraph.bar({ container: mk(), height: 200, duration: 0 });
-    var data = [[{ x: 'a', y: 1 }, { x: 'b', y: 2 }],
-                [{ x: 'b', y: 3 }, { x: 'c', y: 4 }, { x: 'a', y: -1 }]];
+    var data = [[{ category: 'a', value: 1 }, { category: 'b', value: 2 }],
+                [{ category: 'b', value: 3 }, { category: 'c', value: 4 }, { category: 'a', value: -1 }]];
     g.update(data);
     var grouped = g.x.$scale.domain();
     g.set({ stacked: true }).update(data);
     var y = g.y.$scale, bars = {};
     d3.selectAll(g.$marks.selectAll('g.easygraph-bar-group').nodes()).each(function (s, i) {
-      d3.select(this).selectAll('rect.easygraph-bar').each(function (d) { bars[i + d.x] = [d.y0, d.y0 + d.y]; });
+      d3.select(this).selectAll('rect.easygraph-bar').each(function (d) { bars[i + d.category] = [d.base, d.base + d.value]; });
     });
     return { grouped: grouped, stackedDomain: g.x.$scale.domain(), valueDomain: y.domain(), bars: bars };
   });
@@ -246,4 +246,30 @@ test('bar categories are every series\' x values in first-seen order; stacking m
   // b: 2 then 3 on top of it; a: 1 up, -1 on its own pile down; c only in series 1, from zero
   expect(r.bars).toEqual({ '0a': [0, 1], '0b': [0, 2], '1b': [2, 5], '1c': [0, 4], '1a': [0, -1] });
   expect(r.valueDomain).toEqual([-1, 5]);
+});
+
+test('bar data written the line way ({ x, y }) throws and names { category, value }', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    var g = d3.easygraph.bar({ container: mk(), height: 200, duration: 0 });
+    function msg(data) { try { g.update(data); return 'no error'; } catch (e) { return e.message; } }
+    return { xy: msg([[{ x: 'a', y: 1 }]]), emptyFirst: msg([[], [{ x: 'a', y: 1 }]]), ok: msg([[], [{ category: 'a', value: null }]]) };
+  });
+  expect(r.xy).toContain('A bar is { category, value }');
+  expect(r.emptyFirst).toContain('A bar is { category, value }');
+  expect(r.ok).toBe('no error');
+});
+
+test('scatter zoomScale(k) reads back with no argument and rejects a non-positive factor; rescale is gone', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    var g = d3.easygraph.scatter({ container: mk(), height: 200, duration: 0 });
+    var before = g.zoomScale();
+    var chained = g.zoomScale(2) === g;
+    var err; try { g.zoomScale(0); } catch (e) { err = e.message; }
+    return { before: before, chained: chained, after: g.zoomScale(), err: err, rescale: typeof g.rescale };
+  });
+  expect(r.before).toBe(1);
+  expect(r.chained).toBe(true);
+  expect(r.after).toBe(2);
+  expect(r.err).toContain('zoomScale(k) needs the zoom factor');
+  expect(r.rescale).toBe('undefined');
 });

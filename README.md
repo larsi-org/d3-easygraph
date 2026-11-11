@@ -6,7 +6,7 @@ A small, batteries-included charting library built on [D3](https://d3js.org) v7:
 mean ±1σ bands, stacked areas, zoom, a hover crosshair, stacked/grouped bars (vertical and
 horizontal, values of either sign), heatmaps, and scatter and bubble plots - all through one
 consistent config object, with chart width that tracks its container's rendered size (height stays
-fixed, or give `width` and `height` for a fixed-shape drawing such as a map). Unit presets, color
+fixed, or `sizing: 'scaled'` with a logical `width` and `height` for a fixed-shape drawing such as a map). Unit presets, color
 palettes and legend rows are also available with no chart at all.
 
 **Live examples and docs:** [larsi.org/easygraph](https://larsi.org/easygraph)
@@ -106,14 +106,14 @@ names the closest real key (`did you mean 'x.label'?`) or says the option belong
 object itself is sealed: no property can be added to it (in strict-mode code that throws; in sloppy-mode
 code the assignment is ignored).
 
-**5. `x` and `y` are the screen axes everywhere** - in the `x`/`y` config, in `domains`, in axis titles.
-A bar chart's *data* keeps `x` = category and `y` = value in either orientation, so in a horizontal
-chart the values run across on the `x` axis: that is where you pin and title them.
+**5. `x` and `y` are the screen axes everywhere** - in the `x`/`y` config, in `domains`, in axis titles,
+in line and scatter points. A bar is `{ category, value }` instead, in either orientation, so in a
+horizontal chart the values run across on the `x` axis: that is where you pin and title them.
 
 ```js
 var g = d3.easygraph.bar({ container: '#chart', orientation: 'horizontal',
                            x: { label: 'Count' }, y: { label: 'Day' } });
-g.update([[{ x: 'Mon', y: 3 }, { x: 'Tue', y: 7 }]], { x: [0, 10] });   // pins the value axis
+g.update([[{ category: 'Mon', value: 3 }, { category: 'Tue', value: 7 }]], { x: [0, 10] });   // pins the value axis
 ```
 
 **6. Data comes in one of three shapes**, checked at the boundary (a wrong shape throws a message
@@ -121,7 +121,8 @@ naming the family and the fix; an empty array is always valid, "no data yet" bei
 
 | Family | `update()` takes |
 | --- | --- |
-| `line`, `bar` | an array of series, each an array of points: `[[{x, y}, ...], ...]` |
+| `line` | an array of series, each an array of points: `[[{x, y}, ...], ...]` |
+| `bar` | an array of series, each an array of bars: `[[{category, value}, ...], ...]` |
 | `scatter` | one flat array of points: `[{x, y, value}, ...]` |
 | `heatmap` | an array of rows, each an array of numbers: `[[1, 2], [3, 4]]` |
 
@@ -139,19 +140,21 @@ that render instead of fitting the data (`{ color }` on heatmap and scatter pins
 are domains in d3's sense, data values; the ranges (pixels) are the chart's. Precedence for the color
 scale, most specific first: `domains.color` (this render), then `color.domain` (fixed at construction),
 then the data's own extent. `trim: [lo, hi]` (quantiles) shapes only that last, data-driven extent.
-A pinned domain survives a resize and `rescale()`, which re-render from stored state.
+A pinned domain survives a resize and a scatter's `zoomScale(k)`, which re-render from stored state.
 
 **10. Events are listeners.** `graph.on('zoom', fn)` / `graph.on('crosshair', fn)` (line charts),
 several per event, called in the order added, each with one object (`{ transform, x }` for zoom,
 `{ x, pixel }` for crosshair), so a payload can grow without breaking a listener. `on('zoom.name', fn)` names a listener so adding it
 again replaces it; `on('zoom.name', null)` or `off('zoom'[, fn])` removes. Asking for an event the
 chart does not emit throws. `syncZoom(graphs)` / `syncCrosshair(graphs)` link charts and are
-themselves listeners named `sync`:
+themselves listeners named `sync` (so a chart is in one sync group at a time, the last one linked).
+Each returns a function that undoes the link, removing only the listeners that call added:
 
 ```js
 graphs = graphs.map(function (config) { return d3.easygraph.line(config); });   // keep the returned charts
-d3.easygraph.syncZoom(graphs);
+var unsyncZoom = d3.easygraph.syncZoom(graphs);
 d3.easygraph.syncCrosshair(graphs);
+unsyncZoom();                                  // later: zoom each chart on its own again
 ```
 
 **11. Identity across updates.** Whenever the set of points can change between `update()` calls,
@@ -170,7 +173,7 @@ API.
 are plain objects you add to ([below](#adding-your-own-presets-and-palettes)).
 
 **14. Resize is automatic, errors are early.** Width follows the container with no calls on your end.
-Bad `container`, `height`, `orientation`, axis `type`, `tickFormat`, `series`, palette, preset or data shapes throw at the
+Bad `container`, `sizing`, `width`, `height`, `orientation`, axis `type`, `tickFormat`, `series`, palette, preset or data shapes throw at the
 boundary with a message that says how to fix it, rather than rendering the wrong chart.
 
 ## Chart families
@@ -225,11 +228,12 @@ pointer (a `Date` on a time axis) and its x in plot pixels - or `null` when the 
 
 ### Bars
 
-A category axis (`d3.scaleBand()`). `orientation` is fixed for a chart's lifetime; `stacked` (default
-`false`, i.e. grouped) can be toggled live. A datum with its own `color` field is drawn in it instead
-of its series' palette color.
+A bar is `{ category, value }`, whichever way the bars run. The category axis is a `d3.scaleBand()`.
+`orientation` is fixed for a chart's lifetime; `stacked` (default `false`, i.e. grouped) can be toggled
+live. A bar with its own `color` field is drawn in it instead of its series' palette color. Data written
+the line way (`{ x, y }`) throws with the right shape in the message.
 
-The categories are every series' `x` values, in the order they first appear (series 0 first, then
+The categories are every series' `category` values, in the order they first appear (series 0 first, then
 whatever a later series adds). A series may leave a category out or list them in another order: bars
 are matched by category, not by position, both side by side and when stacked. To fix the order or show
 an empty category, pin the category axis (`update(data, { x: ['Mon', 'Tue', ...] })`).
@@ -274,9 +278,11 @@ overlay points on a map you draw yourself.
   gradient for `paletteColors.length` discrete, equal-width bands over the domain - better for data
   with a few clearly separated ranges (aircraft altitude), especially with `color.classes` to control
   how many bands a ColorBrewer palette yields.
-- **`graph.rescale(k)`** divides point and arrow radius, length and stroke width, and label size, by
-  `k` and re-renders - for a caller layering its own SVG-transform zoom on top (a zoomable map) so
-  markers keep a constant on-screen size.
+- **`graph.zoomScale(k)`** tells the chart the zoom factor of your own SVG-transform zoom on top (a
+  zoomable map): it divides point and arrow radius, length and stroke width, and label size, by `k` and
+  re-renders at once, so markers keep a constant on-screen size, and `labels.minZoom` is compared with
+  `k`. `zoomScale()` with no argument returns the current factor (1 until set). Call it from your zoom
+  handler with `event.transform.k`.
 
 ## Shared config
 
@@ -284,7 +290,8 @@ overlay points on a map you draw yourself.
 | --- | --- |
 | `container` | a CSS selector, a DOM element or a d3 selection; must resolve to an element |
 | `height` | positive, and greater than `margin.top + margin.bottom` (otherwise there is no room to plot) |
-| `width` | only together with `height`, for a [fixed-size chart](#sizing) |
+| `sizing` | `'fluid'` (the default: width follows the container) or `'scaled'` (a fixed logical size the browser scales); [Sizing](#sizing) |
+| `width` | the logical width, only with `sizing: 'scaled'`; a fluid chart has none |
 | `margin` | `{ top, right, bottom, left }`, defaults `20, 20, 30, 50`; a partial object is filled in |
 | `title` | the chart heading drawn above the plot; blank unless set |
 | `x`, `y` | per-axis config, below |
@@ -321,15 +328,23 @@ overlay points on a map you draw yourself.
 
 ### Sizing
 
-With `height` alone (the default, right for charts) the width follows the container and the height
-stays fixed, so a wider window shows more detail. With `width` **and** `height` the chart has a fixed
-logical size: it is drawn once at `width` x `height` and the browser scales the whole `<svg>`
-uniformly through a `viewBox`, so the shape never changes. Use that for a map or any drawing with a
-shape of its own; give the container just a width (the svg is `width: 100%; height: auto`). In this
-mode nothing is laid out again on resize, and scatter marks (radius, arrows, labels) keep a constant
-on-screen size, the way `rescale(k)` keeps them through a zoom. `graph.width`/`graph.height` are the
-whole `<svg>` box (the logical size in fixed mode); `plotWidth`/`plotHeight` are the plot area inside
-the margins.
+`sizing` names the mode, fixed when the chart is built:
+
+- **`'fluid'`** (the default, right for charts): the width follows the container and `height` stays
+  fixed in px, so a wider window shows more detail. There is no `width` option; size the container.
+- **`'scaled'`**, with `width` **and** `height`: the chart has a fixed logical size. It is drawn once at
+  `width` x `height` and the browser scales the whole `<svg>` uniformly through a `viewBox`, so the
+  shape never changes. Use it for a map or any drawing with a shape of its own; give the container
+  just a width (the svg is `width: 100%; height: auto`). Nothing is laid out again on resize, and
+  scatter marks (radius, arrows, labels) keep a constant on-screen size, the way `zoomScale(k)` keeps
+  them through a zoom.
+
+```js
+d3.easygraph.scatter({ container: '#map', sizing: 'scaled', width: 960, height: 600 });
+```
+
+`graph.width`/`graph.height` are the whole `<svg>` box (the logical size when scaled);
+`plotWidth`/`plotHeight` are the plot area inside the margins.
 
 Each chart's `<svg>` carries `class="easygraph"` (every rule in the stylesheet is scoped under it),
 `role="img"`, and an `aria-label` that is the `title`, else the y then x axis title, else the chart
@@ -524,7 +539,7 @@ sealed, so a property of your own cannot be added to it.
 | | |
 | --- | --- |
 | `line`, `bar`, `heatmap`, `scatter` | the four chart constructors |
-| `syncZoom(graphs)`, `syncCrosshair(graphs)` | link zoom / crosshair across line charts |
+| `syncZoom(graphs)`, `syncCrosshair(graphs)` | link zoom / crosshair across line charts; each returns a function that undoes the link |
 | `preset(name)`, `presets` | preset lookup (throws on an unrecognized name) and the table behind it |
 | `round(x, n)` | round to `n` decimal places |
 | `formatNumber(v)` | the number format the axes and legends use |
@@ -544,7 +559,7 @@ sealed, so a property of your own cannot be added to it.
 | `on(event, fn)`, `off(event[, fn])` | listeners, chainable ([Patterns](#patterns) 10) |
 | `paletteColor(i)` | the i-th palette color, wrapping past the end |
 | `legendItems()` | the `{ index, color, label }` rows a legend is drawn from |
-| `rescale(k)` | scatter only: divide on-screen marker sizes by `k` |
+| `zoomScale(k)` | scatter only: the zoom factor of your own zoom on top, dividing on-screen marker sizes by `k`; `zoomScale()` reads it back |
 
 **On a graph - properties:**
 
@@ -565,7 +580,7 @@ handles and methods) are read-only too.
 
 | Re-read on every `update()` (live, through `set()`) | Fixed when the chart is built |
 |---|---|
-| `lines`, `bands`, `stacked`, `voronoi`, `arrows`, `labels`, `points`, `duration`, `series`, `title`, `meta`; on `x`/`y`: `label`, `unit`, `trim`; on `color`: `domain`, `trim` | `container`, `height`, `width`, `margin`, `orientation`, `curve`, `zoom`, `crosshair`; on `x`/`y`: `type`, `preset`, `tickFormat`, `tickLabels`; on `color`: `palette`, `classes`, `reverse`, `quantize`; the `x`, `y` and `color` objects themselves |
+| `lines`, `bands`, `stacked`, `voronoi`, `arrows`, `labels`, `points`, `duration`, `series`, `title`, `meta`; on `x`/`y`: `label`, `unit`, `trim`; on `color`: `domain`, `trim` | `container`, `sizing`, `height`, `width`, `margin`, `orientation`, `curve`, `zoom`, `crosshair`; on `x`/`y`: `type`, `preset`, `tickFormat`, `tickLabels`; on `color`: `palette`, `classes`, `reverse`, `quantize`; the `x`, `y` and `color` objects themselves |
 
 The right-hand column is what a chart is built around. This split, plus the names in this README, is
 the API that 1.0.0 freezes.
@@ -610,7 +625,7 @@ across its weather, sensors, EnergyPlus and graphics sections (not included in t
   `arrows: true` for wind over pressure) and [Air Traffic](https://larsi.org/air-traffic/)
   (`color.domain` + `color.quantize`/`color.classes` for four altitude bands, `labels: { minZoom }` for
   callsigns once zoomed in). Both draw over a D3 US map through a shared pan/zoom helper (not part of
-  this repo) that drives `graph.rescale(k)`
+  this repo) that drives `graph.zoomScale(k)`
 - **Palettes** - the [palette picker](https://larsi.org/easygraph/#colors)
 
 ## Architecture
@@ -662,7 +677,7 @@ npm test
 
 [Playwright](https://playwright.dev) specs in `test/` (one per source module - core, line, bar,
 heatmap, scatter, presets, colors - plus `api.spec.js` and `api-1.0.spec.js` for cross-cutting checks;
-179 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
+182 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
 live resize, `destroy()` teardown, config and `domains` validation, the live/build-time key split,
 legends, the standalone unit and palette functions, and behavior that needs real interaction to
 verify: `set()`, zoom and crosshair events, pinned color domains surviving a resize, `id`-keyed point identity,

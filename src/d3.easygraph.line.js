@@ -409,33 +409,47 @@ d3.easygraph.line = function(config) {
 };
 
 // The sync helpers are ordinary listeners named 'sync' (graph.on('zoom.sync', ...)), so they sit
-// beside any listener the caller added and calling them twice replaces rather than stacks.
-d3.easygraph.syncZoom = function(graphs) {
+// beside any listener the caller added and calling them twice replaces rather than stacks. Each
+// returns a function that undoes the link: it removes only the listeners this call added, so a
+// graph since linked into another group (whose 'sync' listener replaced this one) keeps that link.
+function _syncListeners(graphs, type, has, listener) {
+  var added = [];
   graphs.forEach(function(g) {
-    if (!g._.$pane) return;
-    g.on('zoom.sync', function(event) {
+    if (!has(g)) return;
+    var fn = listener(g);
+    g.on(type + '.sync', fn);
+    added.push({ graph: g, fn: fn });
+  });
+  return function unsync() {
+    added.forEach(function(a) { if (!a.graph._.destroyed) a.graph.off(type + '.sync', a.fn); });
+    added = [];
+  };
+}
+
+d3.easygraph.syncZoom = function(graphs) {
+  return _syncListeners(graphs, 'zoom', function(g) { return !!g._.$pane; }, function(g) {
+    return function(event) {
       graphs.forEach(function(other) {
-        if (other === g || !other._.$pane || !other._.$xScaleRef) return;
+        if (other === g || other._.destroyed || !other._.$pane || !other._.$xScaleRef) return;
         other.x.$scale.domain(event.transform.rescaleX(other._.$xScaleRef).domain());
         other._.redraw();
         other._.$pane.node().__zoom = event.transform;
       });
-    });
+    };
   });
 };
 
 d3.easygraph.syncCrosshair = function(graphs) {
-  graphs.forEach(function(g) {
-    if (!g._.moveCrosshair) return;
-    g.on('crosshair.sync', function(position) {
+  return _syncListeners(graphs, 'crosshair', function(g) { return !!g._.moveCrosshair; }, function(g) {
+    return function(position) {
       graphs.forEach(function(other) {
-        if (other === g || !other._.moveCrosshair) return;
+        if (other === g || other._.destroyed || !other._.moveCrosshair) return;
         if (position === null) {
           other._.hideCrosshair();
         } else {
           other._.moveCrosshair(other.x.$scale(position.x));
         }
       });
-    });
+    };
   });
 };

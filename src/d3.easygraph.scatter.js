@@ -30,25 +30,27 @@
 // a caller with too many points to label all of them usefully at once (e.g. a full US-wide
 // map) - labels.minZoom (default 1, i.e. always on) hides every label below that zoom factor
 // entirely, rather than rendering an unreadable wall of overlapping text at the zoomed-out
-// default view; a caller passes a higher labels.minZoom and only calls graph.rescale(k) as the
+// default view; a caller passes a higher labels.minZoom and only calls graph.zoomScale(k) as the
 // user actually zooms in for labels to appear past that point.
 //
-// graph.rescale(k): for a caller layering an external SVG-transform zoom on top (e.g. a
-// zoomable map background) - shrinks every on-screen size (point radius and stroke-width,
+// graph.zoomScale(k): tells the chart the zoom factor of a caller's own SVG-transform zoom on top
+// (e.g. a zoomable map background) - shrinks every on-screen size (point radius and stroke-width,
 // arrow length/head/stroke-width, label font size and offset) by 1/k so they stay constant
 // instead of growing with the zoom transform, and re-evaluates labels.minZoom against the new k.
 // Stroke-width matters as much as radius/length here: left unscaled (e.g. a plain CSS rule), a
 // high enough k inflates it past the already-shrunk radius/length, and a point or arrow
 // collapses into a solid blob - exactly the same failure mode fixed sizes would have. Re-renders
 // graph._.lastData (already tracked by core.js's update() for the resize-reflow case) rather than
-// needing the caller to keep its own copy of the current data just to pass back in.
+// needing the caller to keep its own copy of the current data just to pass back in. Called with no
+// argument it returns the current k (1 until set). It is a method rather than a set() key because it
+// redraws at once, on every zoom tick; it was rescale(k), which read like d3's transform.rescaleX.
 //
 // A point's own `radius` overrides the graph-level `radius` config for just that point (a
 // bubble chart: point size driven by a third data dimension, independent of `value`'s color) -
 // same optional-field pattern as `angle`/`magnitude`/`label` above, a point missing it just uses
-// the graph's own radius. Still divided by 1/k in graph.rescale()'s zoom-compensation the same
+// the graph's own radius. Still divided by 1/k in graph.zoomScale(k)'s zoom-compensation the same
 // way the graph-level radius always was; radius transitioning smoothly on a data update is
-// covered by the same rescale-synchronicity constraint as the plain graph-level radius, so it
+// covered by the same zoomScale-synchronicity constraint as the plain graph-level radius, so it
 // stays instant, not animated (see the render() comment above the points block).
 //
 // color.quantize: true swaps the usual continuous color gradient for paletteColors.length
@@ -97,7 +99,7 @@ d3.easygraph.scatter = function(config) {
     }
 
     function render(data) {
-      // Set by rescale() (default 1, i.e. no adjustment) - divides every on-screen size
+      // Set by zoomScale(k) (default 1, i.e. no adjustment) - divides every on-screen size
       // (point radius, arrow length/head) so they stay constant when this render is reached
       // through a caller's own zoom-transform scaling, rather than growing with it.
       var k = (graph._.zoomScale || 1) * (graph._.viewScale || 1);
@@ -145,10 +147,10 @@ d3.easygraph.scatter = function(config) {
 
       // cx/cy/fill transition on graph.duration (a point moving/recoloring on a real data
       // update, e.g. a live map redrawing the same station list, should animate smoothly);
-      // r/stroke-width deliberately don't - rescale(k) re-renders on every zoom tick and
+      // r/stroke-width deliberately don't - zoomScale(k) re-renders on every zoom tick and
       // reads r/stroke-width back synchronously right after calling it, so those two must
       // always be instant. cx/cy/fill are unaffected by k, so they're safe to animate without
-      // fighting rescale(). A freshly entered point gets cx/cy/fill set immediately (not
+      // fighting zoomScale(k). A freshly entered point gets cx/cy/fill set immediately (not
       // faded in) so it doesn't animate in from some arbitrary un-set DOM default.
       //
       // Keyed by `id` (falling back to index when a point has none) rather than joined
@@ -223,9 +225,14 @@ d3.easygraph.scatter = function(config) {
 
     // See this file's own header comment for what this is and why it re-renders
     // graph._.lastData rather than taking data as a parameter.
-    graph.rescale = function(k) {
+    graph.zoomScale = function(k) {
+      if (!arguments.length) return graph._.zoomScale || 1;
+      if (!(k > 0) || !isFinite(k)) {
+        throw new Error('d3.easygraph: zoomScale(k) needs the zoom factor, a positive number (1 = not zoomed), got ' + JSON.stringify(k));
+      }
       graph._.zoomScale = k;
       if (graph._.lastData) render(graph._.lastData);
+      return graph;
     };
 
     return {

@@ -300,7 +300,7 @@ test('horizontal bars: x is the horizontal (value) axis, y the vertical (categor
     var w = document.createElement('div'); document.body.appendChild(w);
     var g = d3.easygraph.bar({ container: w, height: 200, orientation: 'horizontal',
                                 x: { label: 'Count' }, y: { label: 'Day' } });
-    g.update([[{ x: 'Mon', y: 3 }, { x: 'Tue', y: 7 }]], { x: [0, 10] });
+    g.update([[{ category: 'Mon', value: 3 }, { category: 'Tue', value: 7 }]], { x: [0, 10] });
     return { bottom: g._.$xTitle.text(), left: g._.$yTitle.text(), xDomain: g.x.$scale.domain(), yDomain: g.y.$scale.domain() };
   });
   expect(r.bottom).toBe('Count');
@@ -430,7 +430,7 @@ test('every family still accepts its own correct shape, and an empty array', asy
       var l = d3.easygraph.line({ container: w, height: 200, lines: true });
       l.update([[{ x: 0, y: 1 }]]); l.update([]); built.push(l);
       var b = d3.easygraph.bar({ container: w, height: 200 });
-      b.update([[{ x: 'a', y: 1 }]]); b.update([]); built.push(b);
+      b.update([[{ category: 'a', value: 1 }]]); b.update([]); built.push(b);
       var s = d3.easygraph.scatter({ container: w, height: 200 });
       s.update([{ x: 0, y: 1, value: 1 }]); s.update([]); built.push(s);
       var h = d3.easygraph.heatmap({ container: w, height: 200 });
@@ -473,6 +473,52 @@ test('syncZoom/syncCrosshair compose with a caller-set callback instead of repla
   expect(result.crosshairCalls).toBeGreaterThan(0);
   // ...and syncing still happened
   expect(result.syncedDomain).toBeDefined();
+});
+
+test('syncZoom/syncCrosshair return a function that undoes the link and leaves other listeners alone', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var ws = [0, 1, 2].map(function() { var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w); return w; });
+    var g = ws.map(function(w) {
+      var c = d3.easygraph.line({ container: w, height: 200, zoom: { min: 1, max: 10 }, crosshair: true, lines: true });
+      c.update([[{ x: 0, y: 1 }, { x: 10, y: 2 }]]);
+      return c;
+    });
+    var a = g[0], b = g[1], c = g[2];
+    var own = 0;
+    a.on('crosshair', function() { own++; });
+    var bHits = 0;
+    b._.moveCrosshair = (function(orig) { return function(px) { bHits++; return orig(px); }; })(b._.moveCrosshair);
+    var unsyncZoom = d3.easygraph.syncZoom([a, b]);
+    var unsync = d3.easygraph.syncCrosshair([a, b]);
+    a._.emit('crosshair', { x: 5, pixel: 100 });
+    var linked = bHits;
+    var types = [typeof unsyncZoom, typeof unsync];
+    unsync();
+    a._.emit('crosshair', { x: 6, pixel: 120 });
+    var afterUnsync = bHits;
+    // unzoom-sync too: zooming a no longer moves b
+    unsyncZoom();
+    var before = b.x.$scale.domain().slice();
+    d3.select(a._.$pane.node()).call(a._.$zoom.transform, d3.zoomIdentity.scale(2));
+    var bDomainAfter = b.x.$scale.domain().slice();
+    // a graph relinked into another group keeps that link when the first group is undone
+    var unsyncAB = d3.easygraph.syncCrosshair([a, b]);
+    d3.easygraph.syncCrosshair([a, c]);
+    var cHits = 0;
+    c._.moveCrosshair = (function(orig) { return function(px) { cHits++; return orig(px); }; })(c._.moveCrosshair);
+    unsyncAB();
+    a._.emit('crosshair', { x: 4, pixel: 80 });
+    unsync();   // calling it again is harmless
+    g.forEach(function(o) { o.destroy(); }); ws.forEach(function(w) { w.remove(); });
+    return { types: types, linked: linked, afterUnsync: afterUnsync, own: own, before: before, bDomainAfter: bDomainAfter, cHits: cHits };
+  });
+  expect(r.types).toEqual(['function', 'function']);
+  expect(r.linked).toBe(1);
+  expect(r.afterUnsync).toBe(1);        // b no longer follows a
+  expect(r.own).toBe(3);                // the caller's own listener stayed through all of it
+  expect(r.bDomainAfter).toEqual(r.before);
+  expect(r.cHits).toBe(1);              // the a-c link survived undoing the a-b one
 });
 
 test('width/height are the full svg box; plotWidth/plotHeight are the plot area inside the margins', async ({ page }) => {
@@ -581,7 +627,7 @@ test('bars: a datum\'s own `color` field colors that bar; bars without one keep 
     return new Promise(function (resolve) {
       var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
       var g = d3.easygraph.bar({ container: w, height: 200 });
-      g.update([[{ x: 'a', y: 1, color: '#ff0000' }, { x: 'b', y: 2, color: '#00ff00' }, { x: 'c', y: 3 }]]);
+      g.update([[{ category: 'a', value: 1, color: '#ff0000' }, { category: 'b', value: 2, color: '#00ff00' }, { category: 'c', value: 3 }]]);
       setTimeout(function () {
         var f = [...w.querySelectorAll('rect.easygraph-bar')].map(function (r) { return r.style.fill; });
         var seriesFill = w.querySelector('g.easygraph-bar-group').style.fill;
@@ -601,7 +647,7 @@ test('bars: orientation takes full words and rejects anything else', async ({ pa
       var w = document.createElement('div'); w.style.width = '400px'; document.body.appendChild(w);
       try {
         var g = d3.easygraph.bar({ container: w, height: 200, orientation: orientation });
-        g.update([[{ x: 'a', y: 1 }]]);
+        g.update([[{ category: 'a', value: 1 }]]);
         var banded = g.x.$scale.bandwidth ? 'x' : 'y';
         g.destroy(); return 'ok, category axis on ' + banded;
       } catch (e) { return e.message; }
@@ -640,7 +686,7 @@ test('every family re-renders its axes on resize, not just line (regression)', a
       }, [[{ x: 0, y: 1 }, { x: 10, y: 2 }]]),
       bar: await lastTickX(function (w) {
         return d3.easygraph.bar({ container: w, height: 200 });
-      }, [[{ x: 'a', y: 1 }, { x: 'b', y: 2 }, { x: 'c', y: 3 }]]),
+      }, [[{ category: 'a', value: 1 }, { category: 'b', value: 2 }, { category: 'c', value: 3 }]]),
       scatter: await lastTickX(function (w) {
         return d3.easygraph.scatter({ container: w, height: 200 });
       }, [{ x: 0, y: 0, value: 1 }, { x: 10, y: 10, value: 2 }]),
@@ -881,7 +927,7 @@ test('ranges.color pins the color domain, beating both color.domain and the data
   expect(r.heatmapPerRender).toEqual([0, 900]);
 });
 
-test('a pinned color domain survives a resize reflow and a scatter rescale()', async ({ page }) => {
+test('a pinned color domain survives a resize reflow and a scatter zoomScale()', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(async () => {
     var wait = function (ms) { return new Promise(function (res) { setTimeout(res, ms); }); };
@@ -891,7 +937,7 @@ test('a pinned color domain survives a resize reflow and a scatter rescale()', a
              { x: [0, 1], y: [0, 1], color: [0, 1000] });
     var afterUpdate = g.color.$scale.domain();
 
-    g.rescale(2);                       // re-renders from stored state, not a fresh update()
+    g.zoomScale(2);                       // re-renders from stored state, not a fresh update()
     var afterRescale = g.color.$scale.domain();
 
     w.style.width = '300px';            // resize reflow, same path
