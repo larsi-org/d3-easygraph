@@ -18,7 +18,7 @@ palettes and legend rows are also available with no chart at all.
 - [Chart families](#chart-families): [Line](#line), [Bars](#bars), [Heatmap](#heatmap), [Scatter](#scatter)
 - [Shared config](#shared-config)
 - [Data conventions](#data-conventions)
-- [Standalone helpers](#standalone-helpers): [units](#unit-conversion), [compass labels](#compass-labels), [palettes](#color-palettes), [legends](#legends), [your own presets and palettes](#adding-your-own-presets-and-palettes)
+- [Standalone helpers](#standalone-helpers): [units](#unit-conversion), [palettes](#color-palettes), [legends](#legends), [your own presets and palettes](#adding-your-own-presets-and-palettes)
 - [Public API](#public-api) - what 1.0 freezes
 - [Class names](#class-names), [Examples](#examples), [Architecture](#architecture), [Building](#building), [Testing](#testing)
 
@@ -271,8 +271,7 @@ overlay points on a map you draw yourself.
   (`voronoi: { opacity }`, `0.6`) so a layer underneath stays visible.
 - **`arrows: true`** draws a directional glyph (shaft plus a two-line chevron head) on any point that
   also carries `bearing` and `magnitude` - a vector quantity (wind speed and direction) layered on a
-  scalar one (`value`'s color). `bearing` is a compass bearing in degrees, the convention
-  `compassPoint()` takes: 0 = north (up the screen), 90 = east, clockwise; the arrow points toward
+  scalar one (`value`'s color). `bearing` is a compass bearing in degrees: 0 = north (up the screen), 90 = east, clockwise; the arrow points toward
   it. `magnitude` maps to pixel length between `arrows.minLength` and `maxLength`; `arrows.headAngle`
   is in degrees.
 - **`labels: true`** draws each point's `label` (a string). Labels stay hidden below `labels.minZoom`
@@ -424,25 +423,16 @@ A preset says nothing about the axis type (time or linear) and declares no range
 range depends on what a station or sensor actually observes, so a chart that pins none auto-scales
 from the data loaded.
 
+**What is stable:** preset *names* are part of the API and change only in a major release. A preset's
+label, unit text and conversion constant may be corrected in a minor release (a typo, a more exact
+factor), so a chart may read slightly differently after an upgrade. To pin one exactly, add your own
+preset ([below](#adding-your-own-presets-and-palettes)).
+
 `convert(v)` stays unrounded, so a consumer that needs full precision (a continuous color scale) is not
-forced to lose it. `convertRounded(v, d)` rounds the result to `d` decimals (`round(convert(v), d)`).
-`d3.easygraph.round(x, n)` is public too, and so is `d3.easygraph.formatNumber(v)`, the axes' number
+forced to lose it. `convertRounded(v, d)` rounds the result to `d` decimals (`d` omitted or 0: to a
+whole number). `d3.easygraph.formatNumber(v)` is public too, the axes' number
 format (plain digits between 0.01 and 1000, SI prefixes outside: `12.3k`), for a tooltip or table that
 should read like the axes.
-
-### Compass labels
-
-`compassPoint(direction, points)` returns the nearest 16-, 8- or 4-point label (`points` defaults to
-16) for a bearing in degrees (0 = north, clockwise; a slightly negative or over-360 value wraps):
-
-```js
-d3.easygraph.compassPoint(22.4);      // => "NNE"
-d3.easygraph.compassPoint(22.4, 8);   // => "NE"
-d3.easygraph.compassPoint(22.4, 4);   // => "N"
-```
-
-It is a plain utility, not a preset: a preset's `convert()` returns a number for a numeric axis, and
-a compass label is a string.
 
 ### Color palettes
 
@@ -545,9 +535,7 @@ sealed, so a property of your own cannot be added to it.
 | `line`, `bar`, `heatmap`, `scatter` | the four chart constructors |
 | `syncZoom(graphs)`, `syncCrosshair(graphs)` | link zoom / crosshair across line charts; each returns a function that undoes the link |
 | `preset(name)`, `presets` | preset lookup (throws on an unrecognized name) and the table behind it |
-| `round(x, n)` | round to `n` decimal places |
 | `formatNumber(v)` | the number format the axes and legends use |
-| `compassPoint(deg, points)` | nearest 16-, 8- or 4-point compass label for a bearing |
 | `palette(name, { classes, reverse })`, `palettes` | palette lookup (throws on an unrecognized name) and the table behind it |
 | `colorScale({ palette, domain, classes, reverse, quantize })` | a ready `color(value)` scale |
 | `legendItems(colors, labels)` | zip colors and labels into legend rows, with no chart involved |
@@ -642,7 +630,7 @@ across its weather, sensors, EnergyPlus and graphics sections (not included in t
   scaffolding, axis formatting and `formatNumber`, x/y/color config resolution, config and `domains`
   validation, `set()`, events, `bandStats`, and the shared `_build()` that each constructor calls with
   its own defaults and hooks.
-- `src/d3.easygraph.presets.js` - the preset table and `preset(name)`, plus `round` and `compassPoint`.
+- `src/d3.easygraph.presets.js` - the preset table and `preset(name)`.
   No config merging, no chart concepts: `core.js` is the only thing that folds a preset onto a graph's
   config.
 - `src/d3.easygraph.colors.js` - `palettes`, `palette`, `colorScale` and `legendItems`. Same division of
@@ -681,7 +669,7 @@ npm test
 
 [Playwright](https://playwright.dev) specs in `test/` (one per source module - core, line, bar,
 heatmap, scatter, presets, colors - plus `api.spec.js` and `api-1.0.spec.js` for cross-cutting checks;
-183 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
+180 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
 live resize, `destroy()` teardown, config and `domains` validation, the live/build-time key split,
 legends, the standalone unit and palette functions, and behavior that needs real interaction to
 verify: `set()`, zoom and crosshair events, pinned color domains surviving a resize, `id`-keyed point identity,

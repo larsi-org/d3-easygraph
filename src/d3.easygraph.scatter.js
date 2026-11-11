@@ -21,7 +21,7 @@
 // color) at the same position. Only points carrying both `bearing` (degrees) and `magnitude`
 // (raw units, mapped to pixel length via arrows.minLength/maxLength) get a glyph - a point
 // missing either just renders its circle with no arrow, same as any other optional field
-// elsewhere in this library. `bearing` is a compass bearing, like compassPoint() takes: 0 =
+// elsewhere in this library. `bearing` is a compass bearing: 0 =
 // north (up on screen), 90 = east, clockwise; the arrow points toward it. arrows.headAngle is
 // degrees too.
 //

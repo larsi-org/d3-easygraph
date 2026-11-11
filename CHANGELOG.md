@@ -63,8 +63,13 @@ All notable changes to this project are documented here. Format loosely follows
 - **`crosshair: { format: { x, y } }`** formats the tooltip (a format string or a function, as
   `tickFormat` takes); it was fixed at `%Y-%m-%d %H:%M` for a time x and `formatNumber` otherwise,
   which stay the defaults.
-- **`compassPoint(deg, points)`** replaces `compassPoint16/8/4` (`points` 16, 8 or 4, default 16).
-  **`hueWheelPalette` is removed** (it returned `[r, g, b]` triples for one site's canvas code).
+- **`round(x, n)` and `compassPoint(deg, points)` are no longer part of the API.** A charting
+  library is not the place for a rounding helper or wind-direction labels: use `+v.toFixed(n)` (or
+  a preset's `convertRounded`), and copy `compassPoint` (which had replaced `compassPoint16/8/4`) from
+  [larsi.org's compass page](https://larsi.org/graphics/earth-and-sky/compass/#the-code), where the
+  whole function is kept. Preset *names* are frozen at 1.0; a preset's label, unit text or
+  conversion constant may be corrected in a minor release.
+- **`hueWheelPalette` is removed** (it returned `[r, g, b]` triples for one site's canvas code).
   **`graph.numberFormat` is `d3.easygraph.formatNumber`**, module-level, as it depends on no chart.
 
 ### Fixed

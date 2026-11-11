@@ -113,93 +113,22 @@ test('works with no chart or container on the page at all', async ({ page }) => 
   await expect(page.locator('svg')).toHaveCount(0);
 });
 
-test('round(x, n) rounds to n decimal places, or the nearest integer when n is omitted/0', async ({ page }) => {
+test('convertRounded(v, n) rounds to n decimal places, or the nearest integer when n is omitted/0', async ({ page }) => {
   await page.goto(FIXTURE);
-  const results = await page.evaluate(() => [
-    d3.easygraph.round(68.549999, 1),
-    d3.easygraph.round(68.55, 0),
-    d3.easygraph.round(68.55),
-    d3.easygraph.round(29.9212, 2)
-  ]);
+  const results = await page.evaluate(() => {
+    d3.easygraph.presets.testPlain = { label: 'Plain', unit: '' };
+    var r = d3.easygraph.preset('testPlain').convertRounded;
+    var out = [r(68.549999, 1), r(68.55, 0), r(68.55), r(29.9212, 2)];
+    delete d3.easygraph.presets.testPlain;
+    return out;
+  });
   expect(results).toEqual([68.5, 69, 69, 29.92]);
 });
 
-test('compassPoint(direction) returns the nearest 16-point compass label', async ({ page }) => {
+test('round and compassPoint are not part of the API (compassPoint lives on as code to copy on larsi.org)', async ({ page }) => {
   await page.goto(FIXTURE);
-  const results = await page.evaluate(() => [
-    d3.easygraph.compassPoint(0),     // N
-    d3.easygraph.compassPoint(23),    // NNE
-    d3.easygraph.compassPoint(45),    // NE
-    d3.easygraph.compassPoint(68),    // ENE
-    d3.easygraph.compassPoint(90),    // E
-    d3.easygraph.compassPoint(113),   // ESE
-    d3.easygraph.compassPoint(135),   // SE
-    d3.easygraph.compassPoint(158),   // SSE
-    d3.easygraph.compassPoint(180),   // S
-    d3.easygraph.compassPoint(203),   // SSW
-    d3.easygraph.compassPoint(225),   // SW
-    d3.easygraph.compassPoint(248),   // WSW
-    d3.easygraph.compassPoint(270),   // W
-    d3.easygraph.compassPoint(293),   // WNW
-    d3.easygraph.compassPoint(315),   // NW
-    d3.easygraph.compassPoint(338),   // NNW
-    d3.easygraph.compassPoint(360),   // wraps back to N
-    d3.easygraph.compassPoint(-1)     // negative input reads as 359, still N
-  ]);
-  expect(results).toEqual([
-    'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
-    'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW', 'N', 'N'
-  ]);
-});
-
-test('compassPoint(direction, 8) returns the nearest 8-point compass label', async ({ page }) => {
-  await page.goto(FIXTURE);
-  const results = await page.evaluate(() => [
-    d3.easygraph.compassPoint(0, 8),     // N
-    d3.easygraph.compassPoint(22, 8),    // still N, just under the N/NE boundary
-    d3.easygraph.compassPoint(23, 8),    // NE, just over it
-    d3.easygraph.compassPoint(45, 8),    // NE
-    d3.easygraph.compassPoint(90, 8),    // E
-    d3.easygraph.compassPoint(135, 8),   // SE
-    d3.easygraph.compassPoint(180, 8),   // S
-    d3.easygraph.compassPoint(225, 8),   // SW
-    d3.easygraph.compassPoint(270, 8),   // W
-    d3.easygraph.compassPoint(315, 8),   // NW
-    d3.easygraph.compassPoint(337, 8),   // still NW, just under the NW/N wraparound boundary
-    d3.easygraph.compassPoint(360, 8),   // wraps back to N
-    d3.easygraph.compassPoint(-1, 8)     // negative input reads as 359, still N
-  ]);
-  expect(results).toEqual(['N', 'N', 'NE', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'NW', 'N', 'N']);
-});
-
-test('compassPoint(direction, 4) returns the nearest 4-point compass label', async ({ page }) => {
-  await page.goto(FIXTURE);
-  const results = await page.evaluate(() => [
-    d3.easygraph.compassPoint(0, 4),     // N
-    d3.easygraph.compassPoint(44, 4),    // still N, just under the N/E boundary
-    d3.easygraph.compassPoint(46, 4),    // E, just over it
-    d3.easygraph.compassPoint(90, 4),    // E
-    d3.easygraph.compassPoint(134, 4),   // still E, just under the E/S boundary
-    d3.easygraph.compassPoint(135, 4),   // S, exactly on the boundary
-    d3.easygraph.compassPoint(180, 4),   // S
-    d3.easygraph.compassPoint(225, 4),   // W, exactly on the S/W boundary
-    d3.easygraph.compassPoint(270, 4),   // W
-    d3.easygraph.compassPoint(315, 4),   // N, exactly on the W/N wraparound boundary
-    d3.easygraph.compassPoint(360, 4),   // wraps back to N
-    d3.easygraph.compassPoint(-1, 4)     // negative input reads as 359, still N
-  ]);
-  expect(results).toEqual(['N', 'N', 'E', 'E', 'E', 'S', 'S', 'W', 'W', 'N', 'N', 'N']);
-});
-
-test('compassPoint takes only 16, 8 or 4 points; the three old functions are gone', async ({ page }) => {
-  await page.goto(FIXTURE);
-  const r = await page.evaluate(() => {
-    function msg(fn) { try { fn(); return ''; } catch (e) { return e.message; } }
-    return { bad: msg(() => d3.easygraph.compassPoint(10, 32)),
-             old: ['compassPoint16', 'compassPoint8', 'compassPoint4'].map((n) => typeof d3.easygraph[n]) };
-  });
-  expect(r.bad).toContain('points must be 16, 8 or 4');
-  expect(r.old).toEqual(['undefined', 'undefined', 'undefined']);
+  const r = await page.evaluate(() => ['round', 'compassPoint', 'compassPoint16'].map((n) => typeof d3.easygraph[n]));
+  expect(r).toEqual(['undefined', 'undefined', 'undefined']);
 });
 
 test('presets and palettes are extensible - the documented way to add your own', async ({ page }) => {

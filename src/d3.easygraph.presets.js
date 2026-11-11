@@ -13,43 +13,20 @@
 // physical quantity itself, so a generic one-size-fits-all range was never the right fit; a
 // chart that pins no y domain auto-scales from whatever data is currently loaded.
 
-// rounds x to n decimal places (n omitted or 0 rounds to the nearest integer)
-d3.easygraph.round = function(x, n) {
+// rounds x to n decimal places (n omitted or 0 rounds to the nearest integer); internal, behind
+// convertRounded. round and compassPoint used to be public; a charting API is not the place for a
+// rounding helper or wind-direction labels, and compassPoint lives on as code to copy on
+// https://larsi.org/graphics/earth-and-sky/compass/.
+function _round(x, n) {
   return n ? Math.round(x * Math.pow(10, n)) / Math.pow(10, n) : Math.round(x);
-};
-
-// compassPoint(direction, points): the nearest 16-, 8- or 4-point compass label (points defaults
-// to 16) for a raw bearing in degrees (0 = north, clockwise) - a plain string lookup, not a
-// `convert`: every preset's convert() feeds a numeric axis, so a label-returning function isn't
-// usable as one and doesn't belong in `presets` below. No FROM/TO wind-direction semantic either -
-// purely "which label is this angle closest to," so a caller distinguishing wind blowing from vs.
-// toward a bearing applies that adjustment before calling this.
-//
-// The direction is bucketed into 32 raw, uncentered 11.25-degree segments (segment 0 = [0, 11.25)),
-// adding 360 first so a slightly negative input (e.g. -1) reads as just before N. 11.25 evenly
-// divides 22.5/45/90 (the 16-/8-/4-point sector widths), so every centered compass sector's edges
-// land on a segment edge, and the label index follows from the segment number by a shift and a mask:
-// 16 points pair up 2 segments per sector, 8 group 4, 4 group 8, each into an index on the shared
-// 16-entry label list (verified exhaustively at 0.01-degree resolution, -720 to 720).
-var _compassPoints = [
-  'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
-  'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'
-];
-var _compassMask = { 16: 0x0f, 8: 0x0e, 4: 0x0c };
-d3.easygraph.compassPoint = function(direction, points) {
-  points = (points == null) ? 16 : points;
-  var mask = _compassMask[points];
-  if (!mask) throw new Error('d3.easygraph.compassPoint: points must be 16, 8 or 4, got ' + JSON.stringify(points));
-  var segment = Math.floor((direction + 360) / 11.25) & 0x1f;
-  return _compassPoints[((segment + 16 / points) >> 1) & mask];
-};
+}
 
 function _identity(v) { return v; }
 
 // convert(v) is the raw, unrounded value (safe for color-scale interpolation); the rounded form
 // is its own function, convertRounded(v, d) = round(convert(v), d).
 function _roundedFrom(convert) {
-  return function(v, d) { return d3.easygraph.round(convert(v), d); };
+  return function(v, d) { return _round(convert(v), d); };
 }
 
 // Each preset's `convert` takes the value in the base unit of its quantity and returns it in the
