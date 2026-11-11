@@ -62,8 +62,11 @@ All notable changes to this project are documented here. Format loosely follows
   bare transform, so it can grow like the crosshair's `{ x, pixel }`.
 - **`bands: true` draws both bands** and `bands: false` none, like every other false/true/object
   option (`bands` took only an object, and `true` threw).
-- **`crosshair: { format: { x, y } }`** formats the tooltip (a format string or a function, as
-  `tickFormat` takes); it was fixed at `%Y-%m-%d %H:%M` for a time x and `formatNumber` otherwise,
+- **`tickFormat: 'multi'` is `'noYear'`**, which says what it changes: d3's own multi-scale time
+  format is already the default, and this one only leaves out the year. A time-axis format string must
+  now contain a `%` directive, so a misspelled keyword throws instead of printing itself on every tick.
+- **`crosshair: { format: { x, y } }`** formats the tooltip and takes exactly what `tickFormat` takes
+  (`'noYear'` there is `%m-%d %H:%M`), checked by the same code with the same messages; it was fixed at `%Y-%m-%d %H:%M` for a time x and `formatNumber` otherwise,
   which stay the defaults.
 - **`round(x, n)` and `compassPoint(deg, points)` are no longer part of the API.** A charting
   library is not the place for a rounding helper or wind-direction labels: use `+v.toFixed(n)` (or

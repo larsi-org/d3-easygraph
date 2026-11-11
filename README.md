@@ -212,10 +212,11 @@ A continuous (time or linear) x axis. Three drawing modes, each a flag you can t
 `crosshair: true` (or `{ threshold }`, how close in pixels the cursor must be to a point to show it,
 default 10) adds a hover crosshair with a tooltip. The tooltip shows x as `%Y-%m-%d %H:%M` on a time
 axis (else `formatNumber`) and the values in the axes' number format (`formatNumber`; `?` for a series
-with no point near the cursor or a gap there). `crosshair: { format: { x, y } }` changes either: a
-format string (`d3.timeFormat` on a time axis, `d3.format` otherwise, e.g. `{ x: '%b %d', y: '.1f' }`)
-or a function `value => text`, the same forms as `tickFormat` except `'multi'`; the unit is still added
-after it, and a side left out keeps the default. The crosshair finds the nearest point per series with a binary
+with no point near the cursor or a gap there). `crosshair: { format: { x, y } }` changes either, and
+takes exactly what `tickFormat` takes ([below](#shared-config)): `'noYear'`, a format string or a
+function, e.g. `{ x: '%b %d', y: '.1f' }`. It is a setting of its own and does not follow the tick
+format: ticks are spaced and may be coarse, while the tooltip names one exact point. The unit is still
+added after it, and a side left out keeps the default. The crosshair finds the nearest point per series with a binary
 search, so **each series must be sorted ascending by `x`** (unsorted input reports the wrong point and
 does not error; every other feature is order-independent). `curve` is `'linear'`, `'monotone'`,
 `'step-after'`, `'step-before'`, `'basis'`, `'cardinal'`, or any d3 curve factory
@@ -311,10 +312,13 @@ overlay points on a map you draw yourself.
   title, on the bottom for an x title) is added to your margin, reserved at construction; `graph.margin`
   still reads what you passed. Change a label's text whenever you like, but an axis with no label at
   construction has no room set aside if you add one later.
-- `tickFormat` is `'multi'` (time axis only: minute, hour, day or month format picked per tick from
-  its precision), a format string (`'.1f'` on a linear axis, `'%b %d'` on a time axis) or a function
-  `value => text`. A category axis takes a function only. `tickLabels: false` blanks the tick text
-  while keeping the tick marks and gridlines, and wins over `tickFormat`.
+- `tickFormat` is a format string (`d3.format` on a linear axis, `'.1f'`; `d3.timeFormat` on a time axis,
+  `'%b %d'`, which must contain a `%` directive), a function `value => text`, or `'noYear'` (time axis
+  only): the default without the year, for a typical year whose year means nothing, such as an EPW
+  weather file. On the ticks that is d3's own multi-scale time format minus its year level; in the
+  line chart's tooltip, which takes the same values (`crosshair.format`), `%m-%d %H:%M`. A category
+  axis takes a function only. `tickLabels: false` blanks the tick text while keeping the tick marks and
+  gridlines, and wins over `tickFormat`.
 - `trim: [loQuantile, hiQuantile]` (e.g. `[0.05, 0.95]`) builds a data-driven domain from those
   quantiles instead of the true min/max, so one extreme outlier does not compress everything else.
   `color` clamps values past the trimmed domain to the nearest end color; `x`/`y` do not clamp - an

@@ -168,9 +168,9 @@ d3.easygraph.line = function(config) {
           // crosshair.format { x, y } (checked with the config); a side left out keeps the default:
           // x '%Y-%m-%d %H:%M' on a time axis, else formatNumber; values formatNumber
           var _tipFmt = (graph.crosshair && graph.crosshair.format) || {};
-          var _fmtX = d3.easygraph._tipFormatter('d3.easygraph.line', 'x', _tipFmt.x, graph.x.type) ||
+          var _fmtX = d3.easygraph._formatter('d3.easygraph.line', 'crosshair.format.x', _tipFmt.x, { type: graph.x.type }, 'tip') ||
                       ((graph.x.type === 'time') ? d3.timeFormat('%Y-%m-%d %H:%M') : d3.easygraph.formatNumber);
-          var _fmtY = d3.easygraph._tipFormatter('d3.easygraph.line', 'y', _tipFmt.y, graph.y.type) ||
+          var _fmtY = d3.easygraph._formatter('d3.easygraph.line', 'crosshair.format.y', _tipFmt.y, { type: graph.y.type }, 'tip') ||
                       d3.easygraph.formatNumber;
 
           graph._.moveCrosshair = function(mouseX) {

@@ -307,7 +307,9 @@ test('crosshair.format { x, y } formats the tooltip: strings or functions, the u
       strings:  tip({ x: { type: 'time' }, y: { unit: '°F' }, crosshair: { format: { x: '%b %d', y: '.1f' } } }, timeData),
       fns:      tip({ x: { unit: 'h' }, crosshair: { format: { x: function(v) { return 'at ' + v; }, y: function(v) { return '~' + Math.round(v); } } } }, numData),
       onlyY:    tip({ x: { type: 'time' }, crosshair: { format: { y: '.2f' } } }, timeData),
-      multi:    msg({ x: { type: 'time' }, crosshair: { format: { x: 'multi' } } }),
+      noYear:   tip({ x: { type: 'time' }, crosshair: { format: { x: 'noYear' } } }, timeData),
+      noYearLin: msg({ crosshair: { format: { x: 'noYear' } } }),
+      noPct:    msg({ x: { type: 'time' }, crosshair: { format: { x: 'multi' } } }),
       badStr:   msg({ crosshair: { format: { y: 'nonsense' } } }),
       number:   msg({ crosshair: { format: { y: 2 } } }),
       typo:     msg({ crosshair: { format: { z: '.1f' } } }),
@@ -320,9 +322,11 @@ test('crosshair.format { x, y } formats the tooltip: strings or functions, the u
   expect(r.fns).toContain('~21');
   expect(r.onlyY).toContain('<strong>2026-03-05 14:30</strong>');   // the default time format
   expect(r.onlyY).toContain('21.33');
-  expect(r.multi).toContain("'multi' is for axis ticks only");
-  expect(r.badStr).toContain('crosshair.format.y is not a d3.format string');
-  expect(r.number).toContain('crosshair.format.y must be a format string or a function');
+  expect(r.noYear).toContain('<strong>03-05 14:30</strong>');     // the tooltip default minus the year
+  expect(r.noYearLin).toContain("crosshair.format.x 'noYear' is for a time axis");
+  expect(r.noPct).toContain('is not a d3.timeFormat string');
+  expect(r.badStr).toContain('crosshair.format.y "nonsense" is not a d3.format string');
+  expect(r.number).toContain("crosshair.format.y must be 'noYear', a format string or a function");
   expect(r.typo).toContain("unknown option 'crosshair.format.z'");
   expect(r.notObj).toContain("'crosshair.format' must be");
 });

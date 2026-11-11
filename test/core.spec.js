@@ -995,7 +995,7 @@ test('assigning a build-time key throws; live keys change through set(), and ass
   expect(r.live).toEqual([false, 0]);
 });
 
-test('x.tickFormat: \'multi\' for a time axis, a function, or a format string; anything else throws', async ({ page }) => {
+test('x.tickFormat: \'noYear\' for a time axis, a function, or a format string; anything else throws', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(async () => {
     async function build(cfg, data) {
@@ -1013,8 +1013,11 @@ test('x.tickFormat: \'multi\' for a time axis, a function, or a format string; a
       fn:     await build({ x: { tickFormat: function(v) { return '<' + v + '>'; } } }),
       string: await build({ x: { tickFormat: '.1f' } }),
       timeStr: await build({ x: { type: 'time', tickFormat: '%b %d' } }, days),
-      multi:  await build({ x: { type: 'time', tickFormat: 'multi' } }, days),
-      multiOnLinear: await build({ x: { tickFormat: 'multi' } }),
+      noYear: await build({ x: { type: 'time', tickFormat: 'noYear' } }, [[{ x: new Date(2025, 5, 1), y: 1 }, { x: new Date(2026, 5, 1), y: 2 }]]),
+      plainDefault: await build({ x: { type: 'time' } }, [[{ x: new Date(2025, 5, 1), y: 1 }, { x: new Date(2026, 5, 1), y: 2 }]]),
+      noYearOnLinear: await build({ x: { tickFormat: 'noYear' } }),
+      oldMulti: await build({ x: { type: 'time', tickFormat: 'multi' } }, days),
+      badNumber: await build({ x: { tickFormat: 'nonsense' } }),
       bogus:  await build({ x: { tickFormat: 5 } }),
       yString: await build({ y: { tickFormat: '.0%' } }),
       blank:  await build({ x: { tickFormat: '.1f', tickLabels: false } })
@@ -1023,8 +1026,13 @@ test('x.tickFormat: \'multi\' for a time axis, a function, or a format string; a
   expect(r.fn.every(function(t) { return /^<.*>$/.test(t); })).toBe(true);
   expect(r.string[0]).toMatch(/^\d+\.0$/);
   expect(r.timeStr.every(function(t) { return /^Jan \d\d$/.test(t); })).toBe(true);
-  expect(r.multi.length).toBeGreaterThan(0);
-  expect(r.multiOnLinear).toContain('time axis');
+  expect(r.plainDefault).toContain('2026');                     // d3's default has a year tick...
+  expect(r.noYear.length).toBeGreaterThan(0);
+  expect(r.noYear.some(function(t) { return /20\d\d/.test(t); })).toBe(false);   // ...noYear never does
+  expect(r.noYear).toContain('Jan');
+  expect(r.noYearOnLinear).toContain("x.tickFormat 'noYear' is for a time axis");
+  expect(r.oldMulti).toContain('is not a d3.timeFormat string');   // a stray word no longer prints itself
+  expect(r.badNumber).toContain('x.tickFormat "nonsense" is not a d3.format string');
   expect(r.bogus).toContain('tickFormat');
   expect(r.blank.join('')).toBe('');   // tickLabels: false wins
 });
@@ -1087,7 +1095,7 @@ test('what a chart is built around throws when assigned (type, preset, convert, 
       added:    (function() { 'use strict'; return msg(function() { g.stakced = true; }); })(),
       yPreset:  msg(function() { g.y.preset = 'temperatureF'; }),
       yConvert: msg(function() { g.y.convert = function(v) { return v; }; }),
-      tickFmt:  msg(function() { g.x.tickFormat = 'multi'; }),
+      tickFmt:  msg(function() { g.x.tickFormat = 'noYear'; }),
       palette:  msg(function() { h.color.palette = 'Sequential.Blues'; }),
       width:    msg(function() { g.width = 300; }),
       readable: [g.x.type, g.y.preset, typeof g.y.convert, typeof g.width, typeof g.palettes]

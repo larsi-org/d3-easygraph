@@ -301,20 +301,50 @@ function _nearest(key, known) {
   return best;
 }
 
-// The crosshair tooltip's formatter for one axis, from crosshair.format.x / .y: undefined -> null (the
-// chart's own default), a function as is, a string through d3.timeFormat on a time axis and d3.format
-// otherwise. The same forms as tickFormat, except 'multi', which picks a format per tick and so names
-// no single point. The unit is added after the formatted text by the tooltip, as before.
-d3.easygraph._tipFormatter = function(ctor, name, fmt, type) {
-  var path = 'crosshair.format.' + name;
+// One format API for an axis's values, used by x.tickFormat / y.tickFormat (the ticks) and by
+// crosshair.format.x / .y (the line chart's tooltip). The two are separate settings and never copy
+// each other - ticks are spaced, so their format may be coarse and vary along the axis, while a
+// tooltip names one exact point - but they take the same values, checked here the same way:
+//   undefined  - null: the place's own default (ticks: formatNumber on a number axis, d3's multi-scale
+//                time format on a time axis; tooltip: formatNumber, '%Y-%m-%d %H:%M' for time)
+//   a function - value => text, used as is (the only form a category axis takes)
+//   a string   - d3.timeFormat on a time axis (it must contain a % directive, so a misspelled keyword
+//                does not print itself on every tick), d3.format otherwise
+//   'noYear'   - a time axis only: that default without the year, for a typical year whose year means
+//                nothing (an EPW weather file). Ticks: d3's multi-scale format minus its year level;
+//                tooltip: '%m-%d %H:%M'.
+// `use` is 'tick' or 'tip'; `axis` is { type, band }. The unit is added after the text by the tooltip.
+var _noYearTickFormats = [
+  [d3.timeFormat("%I:%M"), function(d) { return d.getMinutes(); }],
+  [d3.timeFormat("%I %p"), function(d) { return d.getHours(); }],
+  [d3.timeFormat("%a %d"), function(d) { return d.getDay() && d.getDate() != 1; }],
+  [d3.timeFormat("%b %d"), function(d) { return d.getDate() != 1; }],
+  [d3.timeFormat("%b"),    function(d) { return true; }]
+];
+function _noYearTicks(date) {
+  for (var i = 0; i < _noYearTickFormats.length; i++) {
+    if (_noYearTickFormats[i][1](date)) return _noYearTickFormats[i][0](date);
+  }
+}
+d3.easygraph._formatter = function(ctor, path, fmt, axis, use) {
   if (fmt == null) return null;
   if (typeof fmt === 'function') return fmt;
-  if (typeof fmt !== 'string' || fmt === 'multi')
-    throw new Error(ctor + ": " + path + " must be a format string or a function value => text" +
-                    (fmt === 'multi' ? " ('multi' is for axis ticks only)" : ", got " + JSON.stringify(fmt)));
-  if (type === 'time') return d3.timeFormat(fmt);
+  var time = axis.type === 'time' && !axis.band;
+  if (fmt === 'noYear') {
+    if (!time) throw new Error(ctor + ": " + path + " 'noYear' is for a time axis (type: 'time')");
+    return (use === 'tick') ? _noYearTicks : d3.timeFormat('%m-%d %H:%M');
+  }
+  if (typeof fmt !== 'string')
+    throw new Error(ctor + ": " + path + " must be 'noYear', a format string or a function value => text, got " + JSON.stringify(fmt));
+  if (axis.band)
+    throw new Error(ctor + ": " + path + " as a format string needs a number or time axis; pass a function for a category axis");
+  if (time) {
+    if (fmt.indexOf('%') < 0)
+      throw new Error(ctor + ": " + path + " " + JSON.stringify(fmt) + " is not a d3.timeFormat string (no % directive) or 'noYear'");
+    return d3.timeFormat(fmt);
+  }
   try { return d3.format(fmt); }
-  catch (e) { throw new Error(ctor + ": " + path + " is not a d3.format string (" + JSON.stringify(fmt) + "); a time axis takes d3.timeFormat strings"); }
+  catch (e) { throw new Error(ctor + ": " + path + " " + JSON.stringify(fmt) + " is not a d3.format string (a time axis takes d3.timeFormat strings)"); }
 };
 
 // Throws for any key of `obj` that is not in `allowed`. `path` names the object ('x', 'points'),
@@ -369,12 +399,13 @@ d3.easygraph._checkConfig = function(config, chartType) {
   d3.easygraph._checkOption(ctor, 'color', config.color, { kind: 'object' }, _COLOR_KEYS[chartType]);
 
   // crosshair.format: { x, y }, each a format string or a function, checked here so a bad one throws
-  // before any DOM is built (see _tipFormatter)
+  // before any DOM is built (see _formatter)
   var tipFormat = config.crosshair && config.crosshair.format;
   if (tipFormat != null) {
     d3.easygraph._checkOption(ctor, 'crosshair.format', tipFormat, { kind: 'object' }, ['x', 'y']);
     ['x', 'y'].forEach(function(name) {
-      d3.easygraph._tipFormatter(ctor, name, tipFormat[name], (config[name] && config[name].type) || 'linear');
+      d3.easygraph._formatter(ctor, 'crosshair.format.' + name, tipFormat[name],
+                              { type: (config[name] && config[name].type) || 'linear' }, 'tip');
     });
   }
 
@@ -504,19 +535,6 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   }
 
 
-  // multi-format tick labels for one-year time axes
-  var _timeFormats = [
-    [d3.timeFormat("%I:%M"), function(d) { return d.getMinutes(); }],
-    [d3.timeFormat("%I %p"), function(d) { return d.getHours(); }],
-    [d3.timeFormat("%a %d"), function(d) { return d.getDay() && d.getDate() != 1; }],
-    [d3.timeFormat("%b %d"), function(d) { return d.getDate() != 1; }],
-    [d3.timeFormat("%b"),    function(d) { return true; }]
-  ];
-  graph._.timeFormatShort = function(date) {
-    for (var i = 0; i < _timeFormats.length; i++) {
-      if (_timeFormats[i][1](date)) return _timeFormats[i][0](date);
-    }
-  };
 
   // Re-applies both axes to whatever the scales currently say, with no transition. Every family
   // needs this after a resize, because _layout() changes the scales' pixel ranges but doesn't
@@ -655,30 +673,15 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     graph.y.$scale.range([graph.plotHeight, 0]);
   }
 
-  // x.tickFormat / y.tickFormat: 'multi' (a time axis: minute, hour, day or month format picked per
-  // tick), a function (value => text), or a format string (d3.timeFormat on a time axis, d3.format on
-  // a linear one). Left out, a linear axis uses formatNumber and a time axis d3's own multi-format.
-  // tickLabels: false blanks the tick *text* and keeps the tick marks and gridlines, and wins over
-  // tickFormat.
+  // x.tickFormat / y.tickFormat through _formatter (the same values as the tooltip's format); left out,
+  // a number axis uses formatNumber and a time or category axis d3's own. tickLabels: false blanks the
+  // tick *text* and keeps the tick marks and gridlines, and wins over tickFormat.
   function _applyTickFormat(name, axis) {
-    var prop = graph[name], fmt = prop.tickFormat, band = !!prop.$scale.bandwidth;
+    var prop = graph[name], band = !!prop.$scale.bandwidth;
     if (prop.tickLabels === false) { axis.tickFormat(function() { return ''; }); return; }
-    if (fmt === undefined) {
-      if (prop.type === 'linear' && !band) axis.tickFormat(d3.easygraph.formatNumber);
-      return;
-    }
-    if (fmt === 'multi') {
-      if (prop.type !== 'time' || band)
-        throw new Error("d3.easygraph: " + name + ".tickFormat 'multi' is for a time axis (set " + name + ".type: 'time')");
-      axis.tickFormat(graph._.timeFormatShort);
-    } else if (typeof fmt === 'function') {
-      axis.tickFormat(fmt);
-    } else if (typeof fmt === 'string') {
-      if (band) throw new Error("d3.easygraph: " + name + ".tickFormat as a format string needs a number or time axis; pass a function for a category axis");
-      axis.tickFormat(prop.type === 'time' ? d3.timeFormat(fmt) : d3.format(fmt));
-    } else {
-      throw new Error("d3.easygraph: " + name + ".tickFormat must be 'multi', a format string or a function, got " + JSON.stringify(fmt));
-    }
+    var fn = d3.easygraph._formatter('d3.easygraph', name + '.tickFormat', prop.tickFormat, { type: prop.type, band: band }, 'tick');
+    if (fn) axis.tickFormat(fn);
+    else if (prop.type === 'linear' && !band) axis.tickFormat(d3.easygraph.formatNumber);
   }
 
   graph.x.$axis = d3.axisBottom(graph.x.$scale).tickSize(-graph.plotHeight).tickPadding(12);
