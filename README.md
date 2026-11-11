@@ -418,7 +418,7 @@ d3.easygraph.preset("temperatureF").convertRounded(20.44, 1);          // => 68.
 (no label, empty unit, identity `convert`) for a falsy name. An unrecognized name throws, so a typo
 such as `"temprature"` cannot quietly produce a chart with no label, unit or conversion.
 
-The shipped presets, named quantity + unit:
+The shipped presets, named after the quantity, plus the unit where a quantity comes in several:
 
 | Quantity | Presets | `convert` takes |
 | --- | --- | --- |
@@ -426,7 +426,9 @@ The shipped presets, named quantity + unit:
 | pressure | `pressureHpa`, `pressureInHg` | hPa |
 | rainfall | `rainfallMm`, `rainfallIn` | mm |
 | wind speed | `windSpeedMs`, `windSpeedKmh`, `windSpeedMph`, `windSpeedKnots` | m/s |
-| others (no conversion) | `windDirection` (°), `relativeHumidity` (%), `solarRadiation` (W/m²), `clouds` (tenths), `batteryStateOfCharge` (%), `electricCurrent` (A), `electricPower` (W), `electricVoltage` (V) | the unit shown |
+| distance, level | `distanceCm`, `distanceIn` | cm |
+| visibility | `visibilityKm`, `visibilityMi` | km |
+| others (no conversion) | `windDirection` (°), `relativeHumidity` (%), `solarRadiation` (W/m²), `clouds` (tenths), `uvIndex` (no unit), `illuminance` (lx), `co2` (ppm), `pm25` and `pm10` (µg/m³), `soilMoisture` (%), `batteryStateOfCharge` (%), `signalStrength` (dBm), `electricCurrent` (A), `electricPower` (W), `electricVoltage` (V), `electricEnergy` (kWh) | the unit shown |
 
 A preset says nothing about the axis type (time or linear) and declares no range: a sensible axis
 range depends on what a station or sensor actually observes, so a chart that pins none auto-scales
@@ -692,7 +694,7 @@ npm test
 
 [Playwright](https://playwright.dev) specs in `test/` (one per source module - core, line, bar,
 heatmap, scatter, presets, colors - plus `api.spec.js` and `api-1.0.spec.js` for cross-cutting checks;
-182 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
+183 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
 live resize, `destroy()` teardown, config and `domains` validation, the live/build-time key split,
 legends, the standalone unit and palette functions, and behavior that needs real interaction to
 verify: `set()`, zoom and crosshair events, pinned color domains surviving a resize, `id`-keyed point identity,

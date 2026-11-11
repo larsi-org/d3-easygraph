@@ -19,9 +19,30 @@ test('preset returns a preset\'s label/unit/convert; presets carry no scale', as
 test('preset names are quantity + unit, and the old names are gone', async ({ page }) => {
   await page.goto(FIXTURE);
   const names = await page.evaluate(() => Object.keys(d3.easygraph.presets).sort());
-  expect(names).toEqual(['batteryStateOfCharge', 'clouds', 'electricCurrent', 'electricPower', 'electricVoltage',
-    'pressureHpa', 'pressureInHg', 'rainfallIn', 'rainfallMm', 'relativeHumidity', 'solarRadiation',
-    'temperatureC', 'temperatureF', 'windDirection', 'windSpeedKmh', 'windSpeedKnots', 'windSpeedMph', 'windSpeedMs']);
+  expect(names).toEqual(['batteryStateOfCharge', 'clouds', 'co2', 'distanceCm', 'distanceIn',
+    'electricCurrent', 'electricEnergy', 'electricPower', 'electricVoltage', 'illuminance', 'pm10', 'pm25',
+    'pressureHpa', 'pressureInHg', 'rainfallIn', 'rainfallMm', 'relativeHumidity', 'signalStrength',
+    'soilMoisture', 'solarRadiation', 'temperatureC', 'temperatureF', 'uvIndex', 'visibilityKm', 'visibilityMi',
+    'windDirection', 'windSpeedKmh', 'windSpeedKnots', 'windSpeedMph', 'windSpeedMs']);
+});
+
+test('the sensor presets: labels, units and the two new conversions', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var P = d3.easygraph.preset;
+    return {
+      co2: P('co2').label + ' [' + P('co2').unit + ']', pm25: P('pm25').label + ' [' + P('pm25').unit + ']',
+      inch: P('distanceIn').convert(2.54), mile: P('visibilityMi').convert(1.609344),
+      uv: [P('uvIndex').label, P('uvIndex').unit, P('uvIndex').convert(7)],
+      kwh: P('electricEnergy').unit, lux: P('illuminance').unit, dbm: P('signalStrength').unit
+    };
+  });
+  expect(r.co2).toBe('CO\u2082 [ppm]');
+  expect(r.pm25).toBe('PM2.5 [\xB5g/m\xB3]');
+  expect(r.inch).toBeCloseTo(1, 10);
+  expect(r.mile).toBeCloseTo(1, 10);
+  expect(r.uv).toEqual(['UV Index', '', 7]);
+  expect([r.kwh, r.lux, r.dbm]).toEqual(['kWh', 'lx', 'dBm']);
 });
 
 test('windSpeedKnots converts m/s to knots (1 kn = 0.514444 m/s), labeled like the other wind speeds', async ({ page }) => {

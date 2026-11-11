@@ -60,7 +60,10 @@ All notable changes to this project are documented here. Format loosely follows
 - **Scatter `points: false` draws no circles** (it was ignored); arrows, labels and voronoi still draw.
 - **The `zoom` event passes `{ transform, x }`** (the transform and the x domain in view) instead of the
   bare transform, so it can grow like the crosshair's `{ x, pixel }`.
-- **`windSpeedKnots`** preset (kn, from m/s), the unit METAR reports wind in.
+- **More presets**, so a new sensor needs no new release: `windSpeedKnots` (kn, from m/s, the unit
+  METAR reports wind in), `visibilityKm`/`visibilityMi` (from km), `distanceCm`/`distanceIn` (from cm),
+  and with no conversion `illuminance` (lx), `co2` (ppm), `pm25` and `pm10` (µg/m³), `soilMoisture` (%),
+  `uvIndex`, `signalStrength` (dBm) and `electricEnergy` (kWh).
 - **`bands: true` draws both bands** and `bands: false` none, like every other false/true/object
   option (`bands` took only an object, and `true` threw).
 - **`tickFormat: 'multi'` is gone; time formats have names** in a new table, **`d3.easygraph.formats`**,
