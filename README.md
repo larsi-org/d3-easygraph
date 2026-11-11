@@ -425,7 +425,7 @@ The shipped presets, named quantity + unit:
 | temperature | `temperatureC`, `temperatureF` | °C |
 | pressure | `pressureHpa`, `pressureInHg` | hPa |
 | rainfall | `rainfallMm`, `rainfallIn` | mm |
-| wind speed | `windSpeedMs`, `windSpeedKmh`, `windSpeedMph` | m/s |
+| wind speed | `windSpeedMs`, `windSpeedKmh`, `windSpeedMph`, `windSpeedKnots` | m/s |
 | others (no conversion) | `windDirection` (°), `relativeHumidity` (%), `solarRadiation` (W/m²), `clouds` (tenths), `batteryStateOfCharge` (%), `electricCurrent` (A), `electricPower` (W), `electricVoltage` (V) | the unit shown |
 
 A preset says nothing about the axis type (time or linear) and declares no range: a sensible axis
@@ -692,7 +692,7 @@ npm test
 
 [Playwright](https://playwright.dev) specs in `test/` (one per source module - core, line, bar,
 heatmap, scatter, presets, colors - plus `api.spec.js` and `api-1.0.spec.js` for cross-cutting checks;
-181 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
+182 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
 live resize, `destroy()` teardown, config and `domains` validation, the live/build-time key split,
 legends, the standalone unit and palette functions, and behavior that needs real interaction to
 verify: `set()`, zoom and crosshair events, pinned color domains surviving a resize, `id`-keyed point identity,

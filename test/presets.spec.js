@@ -21,7 +21,20 @@ test('preset names are quantity + unit, and the old names are gone', async ({ pa
   const names = await page.evaluate(() => Object.keys(d3.easygraph.presets).sort());
   expect(names).toEqual(['batteryStateOfCharge', 'clouds', 'electricCurrent', 'electricPower', 'electricVoltage',
     'pressureHpa', 'pressureInHg', 'rainfallIn', 'rainfallMm', 'relativeHumidity', 'solarRadiation',
-    'temperatureC', 'temperatureF', 'windDirection', 'windSpeedKmh', 'windSpeedMph', 'windSpeedMs']);
+    'temperatureC', 'temperatureF', 'windDirection', 'windSpeedKmh', 'windSpeedKnots', 'windSpeedMph', 'windSpeedMs']);
+});
+
+test('windSpeedKnots converts m/s to knots (1 kn = 0.514444 m/s), labeled like the other wind speeds', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var p = d3.easygraph.preset('windSpeedKnots');
+    return { label: p.label, unit: p.unit, ten: p.convert(10), oneKnot: p.convert(0.514444), rounded: p.convertRounded(10, 1) };
+  });
+  expect(r.label).toBe('Wind Speed');
+  expect(r.unit).toBe('kn');
+  expect(r.ten).toBeCloseTo(19.43844, 5);
+  expect(r.oneKnot).toBeCloseTo(1, 5);
+  expect(r.rounded).toBe(19.4);
 });
 
 test('presets have no range property - a sensible axis range is data-dependent, not a fixed property of the quantity', async ({ page }) => {

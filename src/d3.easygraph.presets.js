@@ -51,6 +51,7 @@ d3.easygraph.presets = {
   windSpeedMs:          { label: 'Wind Speed',        unit: 'm/s' },
   windSpeedKmh:         { label: 'Wind Speed',        unit: 'km/h',   convert: function(v) { return v * 3.6; } },
   windSpeedMph:         { label: 'Wind Speed',        unit: 'mph',    convert: function(v) { return v * 2.23694; } },
+  windSpeedKnots:       { label: 'Wind Speed',        unit: 'kn',     convert: function(v) { return v * 1.943844; } },
   windDirection:        { label: 'Wind Direction',    unit: '\xB0' }
 };
 
