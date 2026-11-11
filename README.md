@@ -485,6 +485,10 @@ d3.select("#legend").selectAll("span").data(graph.legendItems()).join("span")
   .html(d => `<span style="color:${d.color}">■</span> ${d.label}`);
 ```
 
+Every row has `{ index, color, label }`, whatever the chart, so a legend that draws a swatch and a
+label works for all of them; rows from a color scale add `value` (a continuous scale's stop) or
+`from`/`to` (a quantized band's edges), to read when present.
+
 For `line` and `bar` there is one row per series, labeled from the `series` config. A series with no
 label comes back with `label: undefined`, never an invented "Series 3" (the same rule the chart title
 follows). For `heatmap` and `scatter` the rows come from the color scale: a `color.quantize` scale
@@ -550,7 +554,7 @@ sealed, so a property of your own cannot be added to it.
 | `destroy()` | disconnect the resize observer and tear down the DOM |
 | `on(event, fn)`, `off(event[, fn])` | listeners, chainable ([Patterns](#patterns) 10) |
 | `paletteColor(i)` | the i-th palette color, wrapping past the end |
-| `legendItems()` | the `{ index, color, label }` rows a legend is drawn from |
+| `legendItems()` | the rows a legend is drawn from: always `{ index, color, label }`, plus `value` or `from`/`to` from a color scale |
 | `zoomScale(k)` | scatter only: the zoom factor of your own zoom on top, dividing on-screen marker sizes by `k`; `zoomScale()` reads it back |
 
 **On a graph - properties:**
