@@ -37,7 +37,7 @@ d3.easygraph.line = function(config) {
     _eventTypes:        ['zoom', 'crosshair'],
     _dataShape:         'series',
     lines:              null, // null = on, except on a stacked chart (see _linesOn() below); true/false decides
-    bands:              null, // null / {} = none; { minmax, sigma } booleans - see _bandSet() below
+    bands:              null, // false / null / {} = none, true = both; { minmax, sigma } booleans - see _bandSet() below
     stacked:            false,
     zoom:               false,
     crosshair:          false,
@@ -51,9 +51,9 @@ d3.easygraph.line = function(config) {
 
     // bands says which shaded bands to draw around each series, nested widest first:
     // { minmax: true } (each point's min/max), { sigma: true } (sigmaMin/sigmaMax, typically
-    // mean +-1 sd), or both. A missing key or false is off; null or {} is none. Re-read on every
-    // update(), so a page toggles both with one call:
-    // graph.set({ bands: hourly ? {} : { minmax: true, sigma: true } }).
+    // mean +-1 sd), or both. true is both, false / null / {} is none, and a missing key is off, like
+    // every other false/true/object option. Re-read on every update(), so a page toggles both with
+    // one call: graph.set({ bands: !hourly }).
     // lines left unset draws the lines, so a plain { container, height } chart shows something - except
     // on a stacked chart, where the stacked areas are the picture. Set true or false to decide.
     // Re-read on every update(), like the other flags.
@@ -63,7 +63,9 @@ d3.easygraph.line = function(config) {
 
     // bands is checked by the config and by set(), its only ways in
     function _bandSet() {
-      var b = graph.bands || {};
+      var b = graph.bands;
+      if (b === true) return { minmax: true, sigma: true };
+      b = b || {};
       return { minmax: !!b.minmax, sigma: !!b.sigma };
     }
 

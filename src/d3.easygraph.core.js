@@ -262,7 +262,7 @@ var _NESTED = {
   margin: { kind: 'object', keys: ['top', 'right', 'bottom', 'left'] },
   x:      { kind: 'object', keys: _AXIS_KEYS },
   y:      { kind: 'object', keys: _AXIS_KEYS },
-  bands:  { kind: 'object', keys: ['minmax', 'sigma'] },
+  bands:  { kind: 'flag',   keys: ['minmax', 'sigma'] },
   zoom:   { kind: 'flag',   keys: ['min', 'max'] },
   crosshair: { kind: 'flag', keys: ['threshold', 'format'] },
   points: { kind: 'flag',   keys: ['radius', 'strokeWidth'] },

@@ -43,7 +43,7 @@ test('a typo inside a nested option object throws with a did-you-mean, in every 
   expect(r.zoomArray).toContain('an array');
   expect(r.crosshair).toContain("crosshair.threshold");
   expect(r.bands).toContain("bands.median");
-  expect(r.bandsTrue).toContain("'bands' must be an object");
+  expect(r.bandsTrue).toBe('');   // bands: true is both bands, like every false/true/object option
   expect(r.color).toContain("color.palette");
   expect(r.colorLine).toContain("'color.domain'");
   expect(r.points).toContain("points.radius");

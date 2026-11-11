@@ -411,7 +411,7 @@ test('crosshair accepts { threshold } as well as true', async ({ page }) => {
   expect(ok).toBe(true);
 });
 
-test('bands is an object: {} draws none, either key works alone, unknown keys and arrays throw', async ({ page }) => {
+test('bands: true is both, false or {} none, either key works alone; unknown keys and arrays throw', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(() => {
     var data = [[{ x: 0, y: 1, min: 0, max: 2, sigmaMin: 0.5, sigmaMax: 1.5 }, { x: 1, y: 2, min: 1, max: 3, sigmaMin: 1.5, sigmaMax: 2.5 }]];
@@ -427,6 +427,9 @@ test('bands is an object: {} draws none, either key works alone, unknown keys an
     var out = { both: counts(both) };
     both.g.set({ bands: {} });              out.none = (both.g.update(data), counts(both));
     both.g.set({ bands: { sigma: true } }); out.sigmaOnly = (both.g.update(data), counts(both));
+    both.g.set({ bands: true });            out.trueBoth = (both.g.update(data), counts(both));
+    both.g.set({ bands: false });           out.falseNone = (both.g.update(data), counts(both));
+    out.built = counts(mk({ bands: true }));
     out.unknown = msg(function() { mk({ bands: { median: true } }); });
     out.array = msg(function() { mk({ bands: ['minmax'] }); });
     return out;
@@ -434,6 +437,9 @@ test('bands is an object: {} draws none, either key works alone, unknown keys an
   expect(r.both).toEqual([1, 1]);
   expect(r.none).toEqual([0, 0]);
   expect(r.sigmaOnly).toEqual([0, 1]);
+  expect(r.trueBoth).toEqual([1, 1]);
+  expect(r.falseNone).toEqual([0, 0]);
+  expect(r.built).toEqual([1, 1]);
   expect(r.unknown).toContain('median');
   expect(r.array).toContain('object');
 });

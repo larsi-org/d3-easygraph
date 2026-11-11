@@ -82,7 +82,7 @@ change anything: assigning a key of the graph (`graph.stacked = true`, `graph.y.
 with a message naming the `set()` call to use.
 
 ```js
-graph.set({ bands: hourly ? {} : { minmax: true, sigma: true }, stacked: true }).update(data);
+graph.set({ bands: !hourly, stacked: true }).update(data);
 graph.set({ y: { label: 'Load' } });    // x, y and color are merged key by key
 ```
 
@@ -95,8 +95,8 @@ chart's scales, so they are never replaced, only their keys changed. The split i
 
 **3. Options are `false`, `true`, or an object.** A feature is off, on with defaults, or on with
 options: `zoom: { min, max }`, `crosshair: { threshold, format }`, `voronoi: { opacity }`,
-`arrows: { color, ... }`, `labels: { size, offset, minZoom }`, `points: { radius, strokeWidth }`.
-`bands` is the one object-only option (`{ minmax, sigma }`, each `true` or `false`).
+`arrows: { color, ... }`, `labels: { size, offset, minZoom }`, `points: { radius, strokeWidth }`,
+`bands: { minmax, sigma }` (`true` is both).
 
 **4. The config is strict.** An unknown key throws, at any depth: `titel`, `x: { lable }`,
 `points: { radus }`, `zoom: { mn }`, an entry of `series`, a key of `update()`'s `domains`. The message
@@ -199,7 +199,7 @@ A continuous (time or linear) x axis. Three drawing modes, each a flag you can t
 - **`bands`** - shaded bands around each series, nested widest first. `{ minmax: true }` fills from
   each point's `min`/`max` (a daily high/low around a mean line); `{ sigma: true }` is a second, more
   opaque band from `sigmaMin`/`sigmaMax` (typically the mean ±1 standard deviation). Either key works
-  alone; `{}` or omitted draws none. If you convert a point's `y` (°C to °F), convert `min`, `max`,
+  alone; `bands: true` is both, and `false`, `{}` or omitted draws none. If you convert a point's `y` (°C to °F), convert `min`, `max`,
   `sigmaMin` and `sigmaMax` too. `d3.easygraph.bandStats(values, k)` and
   `bandStatsFromSums(totals, k)` compute the four numbers (mean ± `k` population standard deviations,
   default 1, clamped into `[min, max]`) from an array or from running totals; supply percentiles or
