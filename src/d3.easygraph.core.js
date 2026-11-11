@@ -304,47 +304,84 @@ function _nearest(key, known) {
 // One format API for an axis's values, used by x.tickFormat / y.tickFormat (the ticks) and by
 // crosshair.format.x / .y (the line chart's tooltip). The two are separate settings and never copy
 // each other - ticks are spaced, so their format may be coarse and vary along the axis, while a
-// tooltip names one exact point - but they take the same values, checked here the same way:
+// tooltip names one exact point - but they take the same values, resolved here the same way:
 //   undefined  - null: the place's own default (ticks: formatNumber on a number axis, d3's multi-scale
-//                time format on a time axis; tooltip: formatNumber, '%Y-%m-%d %H:%M' for time)
+//                time format on a time axis; tooltip: formatNumber, or formats.datetime's '%Y-%m-%d %H:%M')
 //   a function - value => text, used as is (the only form a category axis takes)
-//   a string   - d3.timeFormat on a time axis (it must contain a % directive, so a misspelled keyword
-//                does not print itself on every tick), d3.format otherwise
-//   'noYear'   - a time axis only: that default without the year, for a typical year whose year means
-//                nothing (an EPW weather file). Ticks: d3's multi-scale format minus its year level;
-//                tooltip: '%m-%d %H:%M'.
+//   a string   - a name in d3.easygraph.formats first, else a format string: d3.timeFormat on a time
+//                axis (it must contain a % directive, so a misspelled name does not print itself on
+//                every tick), d3.format otherwise
 // `use` is 'tick' or 'tip'; `axis` is { type, band }. The unit is added after the text by the tooltip.
-var _noYearTickFormats = [
-  [d3.timeFormat("%I:%M"), function(d) { return d.getMinutes(); }],
-  [d3.timeFormat("%I %p"), function(d) { return d.getHours(); }],
-  [d3.timeFormat("%a %d"), function(d) { return d.getDay() && d.getDate() != 1; }],
-  [d3.timeFormat("%b %d"), function(d) { return d.getDate() != 1; }],
-  [d3.timeFormat("%b"),    function(d) { return true; }]
-];
-function _noYearTicks(date) {
-  for (var i = 0; i < _noYearTickFormats.length; i++) {
-    if (_noYearTickFormats[i][1](date)) return _noYearTickFormats[i][0](date);
-  }
+
+// Multi-scale tick formats for the shipped time formats: each tick takes the finest level it has
+// (minute, hour, then day, week start, month, year), as d3's own time format does. withTime keeps the
+// minute and hour levels; withYear names January as the year, else as "Jan".
+function _multiTicks(withTime, withYear) {
+  var minute = d3.timeFormat("%I:%M"), hour = d3.timeFormat("%I %p"), day = d3.timeFormat("%a %d"),
+      week = d3.timeFormat("%b %d"), month = d3.timeFormat("%b"), year = d3.timeFormat("%Y");
+  return function(d) {
+    if (withTime && d.getMinutes()) return minute(d);
+    if (withTime && d.getHours()) return hour(d);
+    if (d.getDay() && d.getDate() != 1) return day(d);
+    if (d.getDate() != 1) return week(d);
+    return (withYear && d.getMonth() === 0) ? year(d) : month(d);
+  };
 }
+
+// Named formats, a global table like presets and palettes: a page adds its own once and names them on
+// every chart, for ticks and tooltips alike. An entry is a format string or a function used for both,
+// or { tick, tip, type } when the two need different forms; `type` ('time' or 'linear', optional) is
+// the only axis type it is for. Prefix your own names, as with presets.
+// The shipped ones are time formats in two words: date / datetime (with the time of day or not), and
+// -short (without the year, for a typical year whose year means nothing, such as an EPW weather file).
+// Ticks vary per tick at those levels; a tooltip shows the whole string.
+d3.easygraph.formats = {
+  'datetime':       { tick: _multiTicks(true, true),   tip: '%Y-%m-%d %H:%M', type: 'time' },
+  'datetime-short': { tick: _multiTicks(true, false),  tip: '%m-%d %H:%M',    type: 'time' },
+  'date':           { tick: _multiTicks(false, true),  tip: '%Y-%m-%d',       type: 'time' },
+  'date-short':     { tick: _multiTicks(false, false), tip: '%m-%d',          type: 'time' }
+};
+
 d3.easygraph._formatter = function(ctor, path, fmt, axis, use) {
   if (fmt == null) return null;
   if (typeof fmt === 'function') return fmt;
-  var time = axis.type === 'time' && !axis.band;
-  if (fmt === 'noYear') {
-    if (!time) throw new Error(ctor + ": " + path + " 'noYear' is for a time axis (type: 'time')");
-    return (use === 'tick') ? _noYearTicks : d3.timeFormat('%m-%d %H:%M');
-  }
   if (typeof fmt !== 'string')
-    throw new Error(ctor + ": " + path + " must be 'noYear', a format string or a function value => text, got " + JSON.stringify(fmt));
+    throw new Error(ctor + ": " + path + " must be a format name, a format string or a function value => text, got " + JSON.stringify(fmt));
+  var time = axis.type === 'time' && !axis.band;
+  var names = Object.keys(d3.easygraph.formats);
+  var where = path + " " + JSON.stringify(fmt);
+  if (Object.prototype.hasOwnProperty.call(d3.easygraph.formats, fmt)) {
+    var entry = d3.easygraph.formats[fmt];
+    where = path + " '" + fmt + "' (d3.easygraph.formats." + fmt + ")";
+    if (entry && typeof entry === 'object') {
+      Object.keys(entry).forEach(function(k) {
+        if (['tick', 'tip', 'type'].indexOf(k) < 0)
+          throw new Error(ctor + ": " + where + " has an unknown key '" + k + "' (an entry is a format string, a function, or { tick, tip, type })");
+      });
+      if (entry.type != null && entry.type !== (axis.band ? 'band' : axis.type))
+        throw new Error(ctor + ": " + where + " is for a " + entry.type + " axis (type: '" + entry.type + "')");
+      entry = entry[use];
+      if (entry == null)
+        throw new Error(ctor + ": " + where + " has no " + use + " format");
+    }
+    if (typeof entry === 'function') return entry;
+    if (typeof entry !== 'string')
+      throw new Error(ctor + ": " + where + " must be a format string, a function or { tick, tip, type }, got " + JSON.stringify(entry));
+    fmt = entry;
+  }
   if (axis.band)
-    throw new Error(ctor + ": " + path + " as a format string needs a number or time axis; pass a function for a category axis");
+    throw new Error(ctor + ": " + where + " as a format string needs a number or time axis; pass a function for a category axis");
   if (time) {
     if (fmt.indexOf('%') < 0)
-      throw new Error(ctor + ": " + path + " " + JSON.stringify(fmt) + " is not a d3.timeFormat string (no % directive) or 'noYear'");
+      throw new Error(ctor + ": " + where + " is neither a name in d3.easygraph.formats (" + names.join(', ') +
+                      ") nor a d3.timeFormat string (it has no % directive)");
     return d3.timeFormat(fmt);
   }
   try { return d3.format(fmt); }
-  catch (e) { throw new Error(ctor + ": " + path + " " + JSON.stringify(fmt) + " is not a d3.format string (a time axis takes d3.timeFormat strings)"); }
+  catch (e) {
+    throw new Error(ctor + ": " + where + " is neither a name in d3.easygraph.formats (" + names.join(', ') +
+                    ") nor a d3.format string (a time axis takes d3.timeFormat strings)");
+  }
 };
 
 // Throws for any key of `obj` that is not in `allowed`. `path` names the object ('x', 'points'),

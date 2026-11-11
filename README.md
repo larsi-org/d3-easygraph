@@ -18,7 +18,7 @@ palettes and legend rows are also available with no chart at all.
 - [Chart families](#chart-families): [Line](#line), [Bars](#bars), [Heatmap](#heatmap), [Scatter](#scatter)
 - [Shared config](#shared-config)
 - [Data conventions](#data-conventions)
-- [Standalone helpers](#standalone-helpers): [units](#unit-conversion), [palettes](#color-palettes), [legends](#legends), [your own presets and palettes](#adding-your-own-presets-and-palettes)
+- [Standalone helpers](#standalone-helpers): [units](#unit-conversion), [palettes](#color-palettes), [legends](#legends), [your own presets, palettes and formats](#adding-your-own-presets-palettes-and-formats)
 - [Public API](#public-api) - what 1.0 freezes
 - [Class names](#class-names), [Examples](#examples), [Architecture](#architecture), [Building](#building), [Testing](#testing)
 
@@ -169,8 +169,9 @@ its paths, heatmap and scatter marks are not clipped. A `$` name on the graph is
 public handles. Everything the chart keeps for itself is on `graph._`, which is not enumerable and not
 API.
 
-**13. Lookup tables are global and extensible.** `d3.easygraph.presets` and `d3.easygraph.palettes`
-are plain objects you add to ([below](#adding-your-own-presets-and-palettes)).
+**13. Lookup tables are global and extensible.** `d3.easygraph.presets`, `d3.easygraph.palettes` and
+`d3.easygraph.formats` are plain objects you add to ([below](#adding-your-own-presets-palettes-and-formats)), and a
+config names an entry by its key.
 
 **14. Resize is automatic, errors are early.** Width follows the container with no calls on your end.
 Bad `container`, `sizing`, `width`, `height`, `orientation`, axis `type`, `tickFormat`, `series`, palette, preset or data shapes throw at the
@@ -213,8 +214,8 @@ A continuous (time or linear) x axis. Three drawing modes, each a flag you can t
 default 10) adds a hover crosshair with a tooltip. The tooltip shows x as `%Y-%m-%d %H:%M` on a time
 axis (else `formatNumber`) and the values in the axes' number format (`formatNumber`; `?` for a series
 with no point near the cursor or a gap there). `crosshair: { format: { x, y } }` changes either, and
-takes exactly what `tickFormat` takes ([below](#shared-config)): `'noYear'`, a format string or a
-function, e.g. `{ x: '%b %d', y: '.1f' }`. It is a setting of its own and does not follow the tick
+takes exactly what `tickFormat` takes ([below](#shared-config)): a name in `d3.easygraph.formats`, a
+format string or a function, e.g. `{ x: '%b %d', y: '.1f' }`. It is a setting of its own and does not follow the tick
 format: ticks are spaced and may be coarse, while the tooltip names one exact point. The unit is still
 added after it, and a side left out keeps the default. The crosshair finds the nearest point per series with a binary
 search, so **each series must be sorted ascending by `x`** (unsorted input reports the wrong point and
@@ -312,12 +313,15 @@ overlay points on a map you draw yourself.
   title, on the bottom for an x title) is added to your margin, reserved at construction; `graph.margin`
   still reads what you passed. Change a label's text whenever you like, but an axis with no label at
   construction has no room set aside if you add one later.
-- `tickFormat` is a format string (`d3.format` on a linear axis, `'.1f'`; `d3.timeFormat` on a time axis,
-  `'%b %d'`, which must contain a `%` directive), a function `value => text`, or `'noYear'` (time axis
-  only): the default without the year, for a typical year whose year means nothing, such as an EPW
-  weather file. On the ticks that is d3's own multi-scale time format minus its year level; in the
-  line chart's tooltip, which takes the same values (`crosshair.format`), `%m-%d %H:%M`. A category
-  axis takes a function only. `tickLabels: false` blanks the tick text while keeping the tick marks and
+- `tickFormat` is a function `value => text`, a name in `d3.easygraph.formats`, or a format string
+  (`d3.format` on a linear axis, `'.1f'`; `d3.timeFormat` on a time axis, `'%b %d'`, which must contain
+  a `%` directive). A string is looked up in the table first. The line chart's tooltip
+  (`crosshair.format`) takes the same values but is set on its own. Four time formats ship, two words
+  each: **`'date'`** and **`'datetime'`** (with the time of day or not), and **`'date-short'`** and
+  **`'datetime-short'`** without the year, for a typical year whose year means nothing, such as an EPW
+  weather file. On the ticks they are multi-scale (each tick at its own finest level: minute, hour,
+  day, month, year); in a tooltip `2026-03-05`, `2026-03-05 14:30`, `03-05` and `03-05 14:30`
+  (`datetime` is the tooltip's default). A category axis takes a function only. `tickLabels: false` blanks the tick text while keeping the tick marks and
   gridlines, and wins over `tickFormat`.
 - `trim: [loQuantile, hiQuantile]` (e.g. `[0.05, 0.95]`) builds a data-driven domain from those
   quantiles instead of the true min/max, so one extreme outlier does not compress everything else.
@@ -430,7 +434,7 @@ from the data loaded.
 **What is stable:** preset *names* are part of the API and change only in a major release. A preset's
 label, unit text and conversion constant may be corrected in a minor release (a typo, a more exact
 factor), so a chart may read slightly differently after an upgrade. To pin one exactly, add your own
-preset ([below](#adding-your-own-presets-and-palettes)).
+preset ([below](#adding-your-own-presets-palettes-and-formats)).
 
 `convert(v)` stays unrounded, so a consumer that needs full precision (a continuous color scale) is not
 forced to lose it. `convertRounded(v, d)` rounds the result to `d` decimals (`d` omitted or 0: to a
@@ -509,9 +513,9 @@ columns, a separately positioned `<svg>`, swatches inside the chart's margin) an
 renderer would fit most of them. The pairing-up of colors and labels is what they share, so that is
 what the library provides.
 
-### Adding your own presets and palettes
+### Adding your own presets, palettes and formats
 
-Both lookup tables are plain objects and are **meant to be extended**:
+All three lookup tables are plain objects and are **meant to be extended**:
 
 ```js
 d3.easygraph.presets.soilMoisture = { label: "Soil Moisture", unit: "%" };
@@ -520,9 +524,18 @@ d3.easygraph.presets.soilMoistureFraction =
 
 d3.easygraph.palettes["Sequential.MyBrand"] = ["#eef", "#88a", "#114"];
 
+d3.easygraph.formats.myDate = "%d.%m.%Y";                           // ticks and tooltips alike
+d3.easygraph.formats.myDateTime = { tick: "%d.%m.", tip: "%d.%m.%Y %H:%M" };
+
 d3.easygraph.line({ container: "#g", height: 320, y: { preset: "soilMoisture" },
+                    x: { type: "time", tickFormat: "myDate" },
+                    crosshair: { format: { x: "myDateTime" } },
                     color: { palette: "Sequential.MyBrand" } });
 ```
+
+A format entry is a format string or a function, used for ticks and tooltips alike, or
+`{ tick, tip, type }` when the two need different forms (a side left out throws if a chart asks for
+it); the optional `type` (`'time'` or `'linear'`) is the only axis type it is for.
 
 A preset needs `label` and `unit`; `convert` is optional (no conversion), and `preset()` fills in
 `convert` and `convertRounded` on an entry that lacks them. A palette is an array of CSS colors, used
@@ -545,6 +558,7 @@ sealed, so a property of your own cannot be added to it.
 | `preset(name)`, `presets` | preset lookup (throws on an unrecognized name) and the table behind it |
 | `formatNumber(v)` | the number format the axes and legends use |
 | `palette(name, { classes, reverse })`, `palettes` | palette lookup (throws on an unrecognized name) and the table behind it |
+| `formats` | named formats for `tickFormat` and `crosshair.format`; ships `date`, `datetime`, `date-short`, `datetime-short` |
 | `colorScale({ palette, domain, classes, reverse, quantize })` | a ready `color(value)` scale |
 | `legendItems(colors, labels)` | zip colors and labels into legend rows, with no chart involved |
 | `bandStats(values, k)`, `bandStatsFromSums(totals, k)` | `{ count, mean, min, max, sigmaMin, sigmaMax }` for a band, from an array or from running `{ sum, sumSq, count, min, max }` totals |
@@ -677,7 +691,7 @@ npm test
 
 [Playwright](https://playwright.dev) specs in `test/` (one per source module - core, line, bar,
 heatmap, scatter, presets, colors - plus `api.spec.js` and `api-1.0.spec.js` for cross-cutting checks;
-180 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
+181 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
 live resize, `destroy()` teardown, config and `domains` validation, the live/build-time key split,
 legends, the standalone unit and palette functions, and behavior that needs real interaction to
 verify: `set()`, zoom and crosshair events, pinned color domains surviving a resize, `id`-keyed point identity,

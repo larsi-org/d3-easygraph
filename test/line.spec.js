@@ -307,8 +307,8 @@ test('crosshair.format { x, y } formats the tooltip: strings or functions, the u
       strings:  tip({ x: { type: 'time' }, y: { unit: '°F' }, crosshair: { format: { x: '%b %d', y: '.1f' } } }, timeData),
       fns:      tip({ x: { unit: 'h' }, crosshair: { format: { x: function(v) { return 'at ' + v; }, y: function(v) { return '~' + Math.round(v); } } } }, numData),
       onlyY:    tip({ x: { type: 'time' }, crosshair: { format: { y: '.2f' } } }, timeData),
-      noYear:   tip({ x: { type: 'time' }, crosshair: { format: { x: 'noYear' } } }, timeData),
-      noYearLin: msg({ crosshair: { format: { x: 'noYear' } } }),
+      named:    ['datetime', 'datetime-short', 'date', 'date-short'].map(function(n) { return tip({ x: { type: 'time' }, crosshair: { format: { x: n } } }, timeData); }),
+      namedLin: msg({ crosshair: { format: { x: 'date' } } }),
       noPct:    msg({ x: { type: 'time' }, crosshair: { format: { x: 'multi' } } }),
       badStr:   msg({ crosshair: { format: { y: 'nonsense' } } }),
       number:   msg({ crosshair: { format: { y: 2 } } }),
@@ -322,11 +322,12 @@ test('crosshair.format { x, y } formats the tooltip: strings or functions, the u
   expect(r.fns).toContain('~21');
   expect(r.onlyY).toContain('<strong>2026-03-05 14:30</strong>');   // the default time format
   expect(r.onlyY).toContain('21.33');
-  expect(r.noYear).toContain('<strong>03-05 14:30</strong>');     // the tooltip default minus the year
-  expect(r.noYearLin).toContain("crosshair.format.x 'noYear' is for a time axis");
-  expect(r.noPct).toContain('is not a d3.timeFormat string');
-  expect(r.badStr).toContain('crosshair.format.y "nonsense" is not a d3.format string');
-  expect(r.number).toContain("crosshair.format.y must be 'noYear', a format string or a function");
+  expect(r.named.map(function(h) { return /<strong>(.*?)<\/strong>/.exec(h)[1]; }))
+    .toEqual(['2026-03-05 14:30', '03-05 14:30', '2026-03-05', '03-05']);
+  expect(r.namedLin).toContain("crosshair.format.x 'date' (d3.easygraph.formats.date) is for a time axis");
+  expect(r.noPct).toContain('nor a d3.timeFormat string');
+  expect(r.badStr).toContain('crosshair.format.y "nonsense" is neither a name in d3.easygraph.formats');
+  expect(r.number).toContain('crosshair.format.y must be a format name, a format string or a function');
   expect(r.typo).toContain("unknown option 'crosshair.format.z'");
   expect(r.notObj).toContain("'crosshair.format' must be");
 });

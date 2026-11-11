@@ -995,7 +995,7 @@ test('assigning a build-time key throws; live keys change through set(), and ass
   expect(r.live).toEqual([false, 0]);
 });
 
-test('x.tickFormat: \'noYear\' for a time axis, a function, or a format string; anything else throws', async ({ page }) => {
+test('x.tickFormat: a shipped time format name (date, datetime, -short) for a time axis, a function, or a format string; anything else throws', async ({ page }) => {
   await page.goto(FIXTURE);
   const r = await page.evaluate(async () => {
     async function build(cfg, data) {
@@ -1013,9 +1013,12 @@ test('x.tickFormat: \'noYear\' for a time axis, a function, or a format string; 
       fn:     await build({ x: { tickFormat: function(v) { return '<' + v + '>'; } } }),
       string: await build({ x: { tickFormat: '.1f' } }),
       timeStr: await build({ x: { type: 'time', tickFormat: '%b %d' } }, days),
-      noYear: await build({ x: { type: 'time', tickFormat: 'noYear' } }, [[{ x: new Date(2025, 5, 1), y: 1 }, { x: new Date(2026, 5, 1), y: 2 }]]),
+      noYear: await build({ x: { type: 'time', tickFormat: 'datetime-short' } }, [[{ x: new Date(2025, 5, 1), y: 1 }, { x: new Date(2026, 5, 1), y: 2 }]]),
+      withYear: await build({ x: { type: 'time', tickFormat: 'datetime' } }, [[{ x: new Date(2025, 5, 1), y: 1 }, { x: new Date(2026, 5, 1), y: 2 }]]),
+      hours: await build({ x: { type: 'time', tickFormat: 'datetime-short' } }, [[{ x: new Date(2026, 2, 5), y: 1 }, { x: new Date(2026, 2, 5, 18), y: 2 }]]),
+      hoursDate: await build({ x: { type: 'time', tickFormat: 'date-short' } }, [[{ x: new Date(2026, 2, 5), y: 1 }, { x: new Date(2026, 2, 5, 18), y: 2 }]]),
       plainDefault: await build({ x: { type: 'time' } }, [[{ x: new Date(2025, 5, 1), y: 1 }, { x: new Date(2026, 5, 1), y: 2 }]]),
-      noYearOnLinear: await build({ x: { tickFormat: 'noYear' } }),
+      noYearOnLinear: await build({ x: { tickFormat: 'date-short' } }),
       oldMulti: await build({ x: { type: 'time', tickFormat: 'multi' } }, days),
       badNumber: await build({ x: { tickFormat: 'nonsense' } }),
       bogus:  await build({ x: { tickFormat: 5 } }),
@@ -1030,9 +1033,12 @@ test('x.tickFormat: \'noYear\' for a time axis, a function, or a format string; 
   expect(r.noYear.length).toBeGreaterThan(0);
   expect(r.noYear.some(function(t) { return /20\d\d/.test(t); })).toBe(false);   // ...noYear never does
   expect(r.noYear).toContain('Jan');
-  expect(r.noYearOnLinear).toContain("x.tickFormat 'noYear' is for a time axis");
-  expect(r.oldMulti).toContain('is not a d3.timeFormat string');   // a stray word no longer prints itself
-  expect(r.badNumber).toContain('x.tickFormat "nonsense" is not a d3.format string');
+  expect(r.withYear).toContain('2026');                         // datetime names January as the year
+  expect(r.hours).toContain('06 AM');                           // datetime: hour ticks
+  expect(r.hoursDate.some(function(t) { return /AM|PM/.test(t); })).toBe(false);   // date: no time of day
+  expect(r.noYearOnLinear).toContain("x.tickFormat 'date-short' (d3.easygraph.formats.date-short) is for a time axis");
+  expect(r.oldMulti).toContain('is neither a name in d3.easygraph.formats (datetime, datetime-short, date, date-short) nor a d3.timeFormat string');   // a stray word no longer prints itself
+  expect(r.badNumber).toContain('x.tickFormat "nonsense" is neither a name in d3.easygraph.formats');
   expect(r.bogus).toContain('tickFormat');
   expect(r.blank.join('')).toBe('');   // tickLabels: false wins
 });
@@ -1095,7 +1101,7 @@ test('what a chart is built around throws when assigned (type, preset, convert, 
       added:    (function() { 'use strict'; return msg(function() { g.stakced = true; }); })(),
       yPreset:  msg(function() { g.y.preset = 'temperatureF'; }),
       yConvert: msg(function() { g.y.convert = function(v) { return v; }; }),
-      tickFmt:  msg(function() { g.x.tickFormat = 'noYear'; }),
+      tickFmt:  msg(function() { g.x.tickFormat = 'date'; }),
       palette:  msg(function() { h.color.palette = 'Sequential.Blues'; }),
       width:    msg(function() { g.width = 300; }),
       readable: [g.x.type, g.y.preset, typeof g.y.convert, typeof g.width, typeof g.palettes]

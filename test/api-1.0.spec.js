@@ -273,3 +273,46 @@ test('scatter zoomScale(k) reads back with no argument and rejects a non-positiv
   expect(r.err).toContain('zoomScale(k) needs the zoom factor');
   expect(r.rescale).toBe('undefined');
 });
+
+test('d3.easygraph.formats: a name works for ticks and tooltips alike; an entry is a string, a function or { tick, tip, type }', async ({ page }) => {
+  const r = await page.evaluate(async () => {
+    var F = d3.easygraph.formats;
+    F.testDay = '%d.%m.%Y';                                           // one format for both
+    F.testPair = { tick: '%d.%m.', tip: function(d) { return 'at ' + d.getDate(); } };
+    F.testNum = { tip: '.2f', type: 'linear' };                       // a tooltip-only entry, numbers only
+    F.testBad = { tick: '%d', colour: 'red' };
+    var t0 = new Date(2026, 2, 5, 14, 30), t1 = new Date(2026, 2, 9);
+    function chart(cfg, data) {
+      var g = d3.easygraph.line(Object.assign({ container: mk(), height: 200, duration: 0 }, cfg));
+      g.update(data || [[{ x: t0, y: 1.234 }, { x: t1, y: 2 }]]);
+      g._.moveCrosshair(g.x.$scale(g._.lastData[0][0].x));
+      return g;
+    }
+    function ticks(g) { return [...g.$svg.node().querySelectorAll('g.easygraph-axis-x .tick text')].map(function(t) { return t.textContent; }); }
+    function msg(cfg) { try { chart(cfg); return 'no error'; } catch (e) { return e.message; } }
+    var a = chart({ x: { type: 'time', tickFormat: 'testDay' }, crosshair: { format: { x: 'testDay', y: 'testNum' } } });
+    await new Promise(function(done) { setTimeout(done, 100); });
+    var b = chart({ x: { type: 'time', tickFormat: 'testPair' }, crosshair: { format: { x: 'testPair' } } });
+    await new Promise(function(done) { setTimeout(done, 100); });
+    var out = {
+      aTicks: ticks(a), aTip: a._.$crosshairTip.html(), bTicks: ticks(b), bTip: b._.$crosshairTip.html(),
+      noTick: msg({ x: { tickFormat: 'testNum' } }),
+      wrongType: msg({ x: { type: 'time' }, crosshair: { format: { x: 'testNum' } } }),
+      badKey: msg({ x: { type: 'time', tickFormat: 'testBad' } }),
+      unknown: msg({ x: { type: 'time', tickFormat: 'tesDay' } }),
+      inherited: msg({ x: { type: 'time', tickFormat: 'toString' } })   // only the table's own names count
+    };
+    ['testDay', 'testPair', 'testNum', 'testBad'].forEach(function(k) { delete F[k]; });
+    return out;
+  });
+  expect(r.aTicks.every(function(t) { return /^\d\d\.03\.2026$/.test(t); })).toBe(true);
+  expect(r.aTip).toContain('<strong>05.03.2026</strong>');
+  expect(r.aTip).toContain('1.23');
+  expect(r.bTicks.every(function(t) { return /^\d\d\.03\.$/.test(t); })).toBe(true);
+  expect(r.bTip).toContain('<strong>at 5</strong>');
+  expect(r.noTick).toContain("x.tickFormat 'testNum' (d3.easygraph.formats.testNum) has no tick format");
+  expect(r.wrongType).toContain('is for a linear axis');
+  expect(r.badKey).toContain("has an unknown key 'colour'");
+  expect(r.unknown).toContain('is neither a name in d3.easygraph.formats (datetime, datetime-short, date, date-short, testDay, testPair, testNum, testBad)');
+  expect(r.inherited).toContain('is neither a name in d3.easygraph.formats');
+});
