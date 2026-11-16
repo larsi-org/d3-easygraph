@@ -5,225 +5,180 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
-### Changed (the 1.0 API audit; every item breaks 0.9.0 code)
-- **`set()` is the only way to change a chart.** Assigning any key of the graph throws: a live key
+## [0.10.0] - 2026-11-16
+
+Every item under Changed and Removed breaks 0.9.0 code.
+
+### Changed
+- **`set()` is the only way to change a chart.** `graph.set(options)` changes live keys, checked exactly
+  like the config (a typo throws with a did-you-mean; a build-time key throws before anything is
+  changed), merges `x`, `y` and `color` key by key, and returns the graph:
+  `graph.set({ stacked: true }).update(data)`. Assigning any key of the graph throws: a live key
   (`graph.stacked = true`, `graph.y.label = 'T'`) with a message naming the `set()` call, a build-time
   key as before, and what the chart computes (`width`, `plotWidth`, `plotHeight`, `paletteColors`,
   `x.$scale`, `x.$axis`, `x.convert`, the `$svg`/`$plot`/`$marks` handles, the methods) as read-only.
-  The graph and its `x`, `y` and `color` objects are sealed and `margin` is frozen, so a misspelled
-  key cannot be added either. Every config key of the family is on the graph, `undefined` when not
-  given. The live options are no longer re-checked on every render, since `set()` checks them.
+  The graph and its `x`, `y` and `color` objects are sealed and `margin` is frozen, so a misspelled key
+  cannot be added and `x`, `y` and `color` cannot be replaced. Every config key of the family is on the
+  graph, `undefined` when not given. Own state goes in `graph.meta`.
 - **Internals moved to `graph._`** (not enumerable, not API): `Object.keys(graph)` lists only config
   keys, the three public handles and the methods, and a `$` name on the graph is always a public handle.
-  The config checker no longer lets `_`- and `$`-named keys through: they throw like any unknown key.
-- **`update(data, ranges)` is `update(data, domains)`**, the d3 word for data values (a range is pixels);
-  the error messages say domains. Calls do not change, the argument is positional.
+  `_`- and `$`-named config keys throw like any unknown key.
+- **DOM handles renamed:** `$svg` is the chart's `<svg>` (was the margin-shifted `<g>`), that `<g>` is
+  `$plot`, and the marks layer `$group` is `$marks` (class `easygraph-marks`, not clipped).
+- **`update(data, ranges)` is `update(data, domains)`**, the d3 word for data values (a range is pixels).
+  Calls do not change, the argument is positional.
 - **`x.scale` / `y.scale` is `x.type` / `y.type`** (`'linear'` or `'time'`), so it is not one character
   away from `x.$scale`, the d3 scale.
+- **`d3.easygraph.bars` is `d3.easygraph.bar`**, matching `line` and the chart's own type name.
 - **A bar is `{ category, value }`** (was `{ x, y }`, where `y` was the value even on a horizontal chart
-  whose value axis is `x`); `x` and `y` are now the screen axes everywhere, bar data being the one
-  shape that is not about the axes. Bar data written the old way throws, naming the new shape.
+  whose value axis is `x`), so `x` and `y` are the screen axes everywhere. Bar data written the old way
+  throws, naming the new shape.
 - **Bar categories are every series' categories in first-seen order** (they were series 0's only, so a
   category only a later series had was not drawn), and stacked bars are matched by category, not by
   position in the array.
 - **`sizing: 'fluid' | 'scaled'`** names the sizing mode. A logical `width` (with `height`) is only for
-  `sizing: 'scaled'`, the viewBox mode for maps; a bare `width` used to switch to it, and `width: 600`
-  read as 600 px. `width` on a fluid chart now throws, saying to size the container.
-- **Scatter `rescale(k)` is `zoomScale(k)`**, which no longer reads like d3's `transform.rescaleX`;
-  it checks `k` and returns the graph, and `zoomScale()` reads the factor back.
-- **`syncZoom(graphs)` / `syncCrosshair(graphs)` return a function that undoes the link** (they
-  returned `undefined`). It removes only the listeners that call added; a chart linked into another
-  group since keeps that link. A destroyed chart in a group is skipped.
-- **`graph.set(options)` changes live keys**, checked exactly like the config (a typo throws with a
-  did-you-mean; a build-time key throws before anything is changed); `x`, `y` and `color` are merged
-  key by key; returns the graph: `graph.set({ stacked: true }).update(data)`. The `x`, `y` and `color`
-  objects can no longer be replaced (`graph.y = {...}` used to crash the next `update()`). Own state goes
-  in `graph.meta`; the README no longer promises that extra properties on the graph are fine.
-- **DOM handles renamed:** `$svg` is now the chart's `<svg>` (was the margin-shifted `<g>`), that `<g>`
-  is `$plot`, and the marks layer `$group` is `$marks` (class `easygraph-marks`). The docs no longer
-  call it clipped: it never was.
+  `sizing: 'scaled'`, the viewBox mode for maps; a bare `width` used to switch to it. `width` on a fluid
+  chart throws, saying to size the container.
+- **Scatter `rescale(k)` is `zoomScale(k)`**; it checks `k` and returns the graph, and `zoomScale()`
+  reads the factor back.
+- **`syncZoom(graphs)` / `syncCrosshair(graphs)` return a function that undoes the link.** It removes
+  only the listeners that call added; a chart linked into another group since keeps that link. A
+  destroyed chart in a group is skipped.
+- **The `zoom` event passes `{ transform, x }`** (the transform and the x domain in view) instead of the
+  bare transform.
 - **Palettes:** `paletteColors(name, classes)` is `palette(name, { classes, reverse })` and
   `colorPalettes` is `palettes`, beside `preset(name)` / `presets`. The `.reversed` name suffix is gone:
   `color: { reverse: true }` (the heatmap default stays reversed RdBu; `reverse: false` undoes it).
   `colorScale(name, domain, options)` is `colorScale({ palette, domain, classes, reverse, quantize })`,
-  the keys of a chart's `color`. `classes` is now really ignored for a Qualitative palette (it used to
-  cut it short). `graph.paletteColors` (the resolved array) is unchanged.
+  the keys of a chart's `color`. `classes` is ignored for a Qualitative palette (it used to cut it
+  short). `graph.paletteColors` (the resolved array) is unchanged.
 - **Presets renamed** to quantity + unit: `pressureInhg` -> `pressureInHg`, `rainFallMm` -> `rainfallMm`,
   `rainFallInches` -> `rainfallIn`, `windSpeed` -> `windSpeedMs`, `windSpeedKmph` -> `windSpeedKmh`.
   Units `km/h`, `in`, `°` (wind direction), `tenths` (clouds); label `Rainfall`. Presets carry no
-  `scale` (an axis is linear unless it says time), `default` is no longer a table entry, and a preset
-  you add needs only `label` and `unit` (`preset()` fills in `convert` and `convertRounded`).
-- **`convert`/`convertRounded` are no longer config keys** of `x`/`y` (a function the chart never
-  applied); a preset still puts them on `graph.y`. **`color.preset`** (and `color.label`, `unit`,
-  `scale`, `convert`) on heatmap and scatter is gone: none of it changed the chart.
-- **`d3.easygraph.bars` is `d3.easygraph.bar`**, matching `line` and the chart's own type name.
+  `scale` (an axis is linear unless it says time), `default` is not a table entry, and a preset you add
+  needs only `label` and `unit` (`preset()` fills in `convert` and `convertRounded`). Preset names are
+  frozen at 1.0; a preset's label, unit text or conversion constant may be corrected in a minor release.
+- **`convert`/`convertRounded` are not config keys** of `x`/`y` (a function the chart never applied); a
+  preset still puts them on `graph.y`.
+- **Time formats have names** in a new global table, `d3.easygraph.formats` (see Added); `tickFormat:
+  'multi'` is gone. A time axis that names no format uses `'datetime'` instead of d3's own 12-hour
+  format, so every time axis ticks on a 24-hour clock (`18:00`, not `06 PM`). A time-axis format string
+  must contain a `%` directive, so a misspelled name throws instead of printing itself on every tick.
+- **`graph.numberFormat` is `d3.easygraph.formatNumber`**, module-level, as it depends on no chart.
 - **Scatter `points: false` draws no circles** (it was ignored); arrows, labels and voronoi still draw.
-- **The `zoom` event passes `{ transform, x }`** (the transform and the x domain in view) instead of the
-  bare transform, so it can grow like the crosshair's `{ x, pixel }`.
-- **More presets**, so a new sensor needs no new release: `windSpeedKnots` (kn, from m/s, the unit
-  METAR reports wind in), `visibilityKm`/`visibilityMi` (from km), `distanceCm`/`distanceIn` (from cm),
-  and with no conversion `illuminance` (lx), `co2` (ppm), `pm25` and `pm10` (µg/m³), `soilMoisture` (%),
+- **`bands: true` draws both bands** and `bands: false` none, like every other false/true/object option
+  (`true` threw).
+
+### Added
+- **`d3.easygraph.formats`**, named formats for `tickFormat` and `crosshair.format`, global and
+  extensible like `presets` and `palettes`. Ships `'date'`, `'datetime'`, `'date-short'` and
+  `'datetime-short'` (`-short` = without the year, for a typical year): multi-scale 24-hour ticks, one
+  whole string in a tooltip. An entry is a format string or function, or `{ tick, tip, type }`.
+- **`crosshair: { format: { x, y } }`** formats the tooltip and takes exactly what `tickFormat` takes,
+  checked by the same code. The defaults are `'datetime'` on a time x and `formatNumber` otherwise.
+- **More presets**, so a new sensor needs no new release: `windSpeedKnots` (kn, from m/s, the unit METAR
+  reports wind in), `visibilityKm`/`visibilityMi` (from km), `distanceCm`/`distanceIn` (from cm), and
+  with no conversion `illuminance` (lx), `co2` (ppm), `pm25` and `pm10` (µg/m³), `soilMoisture` (%),
   `uvIndex`, `signalStrength` (dBm) and `electricEnergy` (kWh).
-- **`bands: true` draws both bands** and `bands: false` none, like every other false/true/object
-  option (`bands` took only an object, and `true` threw).
-- **`tickFormat: 'multi'` is gone; time formats have names** in a new table, **`d3.easygraph.formats`**,
-  global and extensible like `presets` and `palettes`: `'date'`, `'datetime'`, `'date-short'` and
-  `'datetime-short'` (`-short` = without the year). Their ticks use a 24-hour clock (`18:00`, not
-  `06 PM`), and a time axis that names no format uses `'datetime'` instead of d3's own 12-hour format. A page
-  adds its own (a format string or function, or `{ tick, tip, type }`) and names it on every chart, for
-  ticks and tooltips alike. A time-axis format string must now contain a `%` directive, so a misspelled
-  name throws instead of printing itself on every tick.
-- **`crosshair: { format: { x, y } }`** formats the tooltip and takes exactly what `tickFormat` takes
-  (a name from `formats` included), checked by the same code with the same messages; it was fixed at `%Y-%m-%d %H:%M` for a time x and `formatNumber` otherwise,
-  which stay the defaults.
-- **`round(x, n)` and `compassPoint(deg, points)` are no longer part of the API.** A charting
-  library is not the place for a rounding helper or wind-direction labels: use `+v.toFixed(n)` (or
-  a preset's `convertRounded`), and copy `compassPoint` (which had replaced `compassPoint16/8/4`) from
-  [larsi.org's compass page](https://larsi.org/graphics/earth-and-sky/compass/#the-code), where the
-  whole function is kept. Preset *names* are frozen at 1.0; a preset's label, unit text or
-  conversion constant may be corrected in a minor release.
-- **`hueWheelPalette` is removed** (it returned `[r, g, b]` triples for one site's canvas code).
-  **`graph.numberFormat` is `d3.easygraph.formatNumber`**, module-level, as it depends on no chart.
+
+### Removed
+- **`round(x, n)` and `compassPoint16/8/4`.** A charting library is not the place for a rounding
+  helper or wind-direction labels: round with `Math.round(v * 100) / 100` (or a preset's
+  `convertRounded`), and copy `compassPoint(deg, points)` from
+  [larsi.org's compass page](https://larsi.org/graphics/earth-and-sky/compass/#the-code).
+- **`hueWheelPalette`** (it returned `[r, g, b]` triples for one site's canvas code).
+- **`color.preset`** (and `color.label`, `unit`, `scale`, `convert`) on heatmap and scatter: none of it
+  changed the chart.
 
 ### Fixed
-
 - **The crosshair tooltip formats its values** with `formatNumber`, like the axes and legends
   (`21.3333`, `12.3k`), instead of printing the raw number; a gap under the cursor reads `?`, not `null`.
 - **A heatmap `null` or `undefined` cell is drawn empty** (no fill, class `easygraph-heatmap-cell-missing`,
-  `fill: none` in the stylesheet) instead of black or the color of 0; `update()` accepts a row that starts
-  with one, and `color.trim` leaves missing cells out of the quantiles instead of counting them as 0.
+  `fill: none` in the stylesheet) instead of black or the color of 0; `update()` accepts a row that
+  starts with one, and `color.trim` leaves missing cells out of the quantiles instead of counting them
+  as 0.
 
 ## [0.9.0] - 2026-11-09
 
-### Changed (last pass before 1.0)
-- **`resolvePalette` is `paletteColors`, `resolvePreset` is `preset`.** The first matches
-  `graph.paletteColors`; the second sits beside the `presets` table. Same behavior.
-- **Nested options are checked like top-level ones.** A typo inside `x`/`y`, `color`, `margin`, `points`,
-  `arrows`, `labels`, `voronoi`, `zoom`, `crosshair`, `bands` or an entry of `series` throws with a
-  did-you-mean (`x.lable` -> `x.label`), and so does an unknown key in `update()`'s domains argument
-  (`color` is for heatmap and scatter only). `zoom: [1, 10]` and `bands: true` are rejected by the same check.
-- **`lines` defaults to on** (off on a stacked chart, where the stacked areas are the picture). A plain
-  `{ container, height }` line chart now draws. Set `lines: false` for a bands-only chart.
-- **The `crosshair` event carries `{ x, pixel }`** (the data value under the pointer, and its x in plot
-  pixels) instead of the pixel alone; still `null` when the pointer leaves. `syncCrosshair` no longer
-  needs the other charts to have zoom.
+Every item under Changed and Removed breaks 0.8.0 code.
+
+### Changed
+- **Unknown config keys throw**, at any depth: a typo at the top, inside `x`/`y`, `color`, `margin`,
+  `points`, `arrows`, `labels`, `voronoi`, `zoom`, `crosshair`, `bands` or an entry of `series`, and in
+  `update()`'s ranges argument, with a did-you-mean (`x.lable` -> `x.label`) or a pointer to the family
+  the key belongs to. Your own fields go under the new open-ended **`meta`** object (`graph.meta`).
+- **Assigning a build-time key throws** (`container`, `width`, `height`, `margin`, `orientation`,
+  `curve`, `zoom`, `crosshair`, the color palette and classes, and on `x`/`y` `scale`, `preset`,
+  `convert`, `tickFormat`, `tickLabels`) instead of silently doing nothing. Everything else is re-read
+  on every `update()`.
+- **Options are false, true or an object**, with their keys grouped:
+  - `color: { palette, classes }` replaces `colorPalette`/`colorClasses`, on every family (heatmap and
+    scatter keep their scale options in the same object).
+  - `stacked` replaces line's `stackedArea` and bars' `mode: 'stacked' | 'grouped'`, live-toggleable.
+  - `bands: { minmax, sigma }` replaces `ribbons` and `sigmaBand` (each band named for what it draws).
+  - `points: { radius, strokeWidth }` replaces scatter's `radius` and `pointStrokeWidth`; a point's own
+    `radius` still overrides.
+  - `arrows: { color, strokeWidth, minLength, maxLength, headLength, headAngle }` and
+    `labels: { size, offset, minZoom }` replace the `arrow*` and `label*` keys.
+  - `crosshair: { threshold }` replaces `crosshairThreshold`, `voronoi: { opacity }` replaces
+    `voronoiOpacity`, `zoom: { min, max }` replaces `zoom: [min, max]`.
+  - `series: [{ label, unit }, ...]` replaces `names` and `units`, on line and bars.
+  - `x.tickFormat` (`'multi'`, a format string or a function, on `x` and `y`) replaces
+    `timeFormatMulti: true`.
+  - `trim` replaces `clip` on `x`, `y` and `color`.
+- **Axis titles.** `x.label` and `y.label` are drawn as axis titles (x under the horizontal axis, y
+  rotated beside the vertical one), with the unit in brackets: `Temperature [°F]`. A preset supplies
+  both. Graph-level `label` is now **`title`**, the chart heading only (blank unless set), and top-level
+  `unit` is gone (use `y.unit`). The library adds 20px to the left and bottom margins for an axis title
+  that exists at construction. New classes `easygraph-axis-title` (with `-x` / `-y`).
+- **`lines` defaults to on** (off on a stacked chart, where the stacked areas are the picture), so a
+  plain `{ container, height }` line chart draws. Set `lines: false` for a bands-only chart.
+- **Events are listeners:** `graph.on(event, fn)` / `graph.off(event, fn)` replace the
+  `onZoom`/`onCrosshair` callback properties (several listeners per event, d3-style `.name`
+  namespaces, chainable). `syncZoom`/`syncCrosshair` register as `zoom.sync`/`crosshair.sync`, so
+  calling them twice no longer stacks. The `crosshair` event carries `{ x, pixel }` (the data value
+  under the pointer and its x in plot pixels) instead of the pixel alone; still `null` when the pointer
+  leaves. `syncCrosshair` no longer needs the other charts to have zoom.
+- **`width`/`height` mean the full `<svg>` box**, and the plot area inside the margins is
+  `plotWidth`/`plotHeight`; `outerWidth`/`outerHeight` are gone.
+- **`x`/`y` are the screen axes in a horizontal bar chart**: `x` is the horizontal axis (the values) and
+  `y` the vertical one (the categories) for the config, the ranges and the axis titles alike.
 - **Scatter arrows use a compass `bearing`** in degrees (0 = north, clockwise) instead of `angle` in
-  screen radians, matching `compassPoint16()`; `arrows.headAngle` is in degrees.
-- **Scatter points join on `id` only** (else array position). `label` is display text and no longer an identity.
-- **`x.timeFormat: 'multi'` is `x.tickFormat`**, which also takes a format string or a function, on `x` and `y`.
-- **`colorPerData` is gone**: a bar datum with a `color` field is drawn in it.
-- **Assigning `x.preset`, `convert`, `tickFormat`, `tickLabels`, `color.quantize`, `color.preset` or
-  `graph.width` throws**, like the other build-time keys.
-- **The six `LS-` palettes are no longer shipped** (they were picked for one site); add your own to
-  `d3.easygraph.colorPalettes`.
-- `convert(v, d)` no longer throws on a second argument (use `convertRounded`), and the migration errors
-  for names that were only ever in internal builds (`ribbons`, `sigmaBand`, `names`, `units`, `clip`,
-  `colorPalette`, `stackedArea`, `mode`, `radius`, `onZoom` ...) are gone: they are plain unknown options now.
-
-### Added
-- **Bars take negative values.** The value axis includes zero and reaches every bar; grouped bars hang
-  from zero, stacked bars pile positives up and negatives down from it. Before, a negative bar was a
-  rectangle with a negative height and was not drawn.
-
-### Changed (final pre-1.0 API pass)
-- **`color: { palette, classes }`** replaces top-level `colorPalette`/`colorClasses`, on every family
-  (heatmap and scatter keep their scale options in the same object). Both are fixed at construction.
-- **`stacked`** replaces line's `stackedArea` and bars' `mode: 'stacked' | 'grouped'`: one boolean
-  name for both families (`stacked: false` is grouped). Live-toggleable.
-- **`points: { radius, strokeWidth }`** replaces scatter's `radius` and `pointStrokeWidth`, matching
-  `arrows`/`labels`/`voronoi`. A point's own `radius` field still overrides.
-- **`convert(v)` takes one argument; `convertRounded(v, d)` rounds.** `convert(v, d)` throws. A
-  custom `convert` gets a `convertRounded` automatically.
-- **Unknown config keys throw** (did-you-mean, or a pointer for a moved or other-family key) instead
-  of warning or staying silent. Your own fields go under the new open-ended **`meta`** object
-  (`graph.meta`).
-- **`graph.on(event, fn)` / `graph.off(event, fn)`** replace the `onZoom`/`onCrosshair` callback
-  properties (which now throw with a pointer): several listeners per event, d3-style `.name`
-  namespaces, chainable. Line charts emit `'zoom'` and `'crosshair'`. `syncZoom`/`syncCrosshair`
-  register as `zoom.sync`/`crosshair.sync`, so calling them twice no longer stacks.
-- `timeFormatShort` is private; `numberFormat` stays public.
+  screen radians; `arrows.headAngle` is in degrees.
+- **Scatter points join on `id`** (else array position). `label` is display text only.
+- **`convert(v)` takes one argument; `convertRounded(v, d)` rounds.** A custom `convert` gets a
+  `convertRounded` automatically.
+- **Renamed:** `getUnit(name)` -> `preset(name)` (an unrecognized non-empty name throws instead of
+  falling back to the blank preset), `resolvePalette` -> `paletteColors`, `graph.getPaletteColor(i)` ->
+  `graph.paletteColor(i)`, source file `units.js` -> `presets.js`.
+- **Every DOM class is `easygraph-<mark>`**, documented as stable (README, "Class names"): `data-lines`
+  -> `easygraph-line`, `data-ribbons` -> `easygraph-minmax`, `data-sigma` -> `easygraph-sigma`,
+  `data-stack` -> `easygraph-stack`, `data-bars` -> `easygraph-bar`, `bar-groups` ->
+  `easygraph-bar-group`, `heatmap-cells` -> `easygraph-heatmap-cell`, `heatmap-row` ->
+  `easygraph-heatmap-row`, `scatter-point(s)` -> `easygraph-point(s)`, `scatter-cell(s)` ->
+  `easygraph-voronoi-cell(s)`, `scatter-arrow(s)` -> `easygraph-arrow(s)`, `scatter-label(s)` ->
+  `easygraph-label(s)`, `pane` -> `easygraph-pane`, `crosshair-line` -> `easygraph-crosshair-line`,
+  and `x axis` / `y axis` -> `easygraph-axis easygraph-axis-x` / `-y`.
+- `graph.$svg` and `graph.$group` are documented as stable alongside `$scale` and `$axis`.
 
 ### Added
 - **Fixed-size mode: `width` together with `height`.** The chart is drawn once at that logical size
   and scaled uniformly by the browser through a `viewBox` (no relayout on resize), for maps and other
   drawings with an intrinsic shape. `scatter` marks keep their on-screen size at any scale.
-  `width` alone is not a mode and throws if it is not a positive number.
-
-### Changed
-- **`width`/`height` now mean the full `<svg>` box**, and the plot area inside the margins is
-  `plotWidth`/`plotHeight`. Previously `height` went in as the outer height and was silently
-  replaced by the plot height during construction (with `outerWidth`/`outerHeight` holding the box);
-  `outerWidth`/`outerHeight` are gone.
-- **`graph.label` and `graph.unit` are accessors** that read the effective title text (your value,
-  else the `y` preset's) and set the override. `resolvedLabel()`/`resolvedUnit()` are gone.
-
-- **`timeFormatMulti: true` is now `x.timeFormat: 'multi'`**, next to the other axis options. Any
-  other value throws.
-- **`zoom: [min, max]` is now `zoom: { min, max }`** (defaults 1 and 10); the array form throws
-  with a pointer to the new one.
-- **Scatter's `arrow*` and `label*` keys are grouped.** `arrows` and `labels` take `true` or an
-  options object: `arrows: { color, strokeWidth, minLength, maxLength, headLength, headAngle }`,
-  `labels: { size, offset, minZoom }`. `arrowColor`, `labelMinZoom` and the rest are gone.
-- **`crosshairThreshold` is now `crosshair: { threshold }`** and **`voronoiOpacity` is now
-  `voronoi: { opacity }`**, the same "`true` or an options object" shape as scatter's `arrows` and
-  `labels`. `crosshair: true` and `voronoi: true` still work.
-- **`ribbons` and `sigmaBand` are replaced by `bands`**, an object: `{ minmax: true }`,
-  `{ sigma: true }` or both (`{}` or omitted is none). Every caller toggled the two together, so
-  this is one assignment (`graph.bands = hourly ? {} : { minmax: true, sigma: true }`), and each
-  band is named for what it draws. The old keys, and an array, throw with a pointer to the new
-  form. The DOM/CSS class `data-ribbons` is now `data-minmax`. This also fixes the no-marks
-  warning firing on a chart that had only the sigma band.
-- **Graph-level `label` is now `title`, and top-level `unit` is gone** (use `y.unit`). `title` is
-  the chart title and defaults to `y.label`; the old keys throw with a pointer. `graph.label` and
-  `graph.unit` as accessors are replaced by `graph.title`.
-- **`clip` is now `trim`** on `x`, `y` and `color` (same `[loQuantile, hiQuantile]` value). The old
-  key throws.
-- **Scatter points join on `id` first**, then `label`, then array position, so the display text
-  no longer has to double as identity.
-- **Assigning a build-time key throws** (`container`, `height`, `margin`, `orientation`, `curve`,
-  `zoom`, `crosshair`, `colorPalette`, `colorClasses`) instead of silently doing nothing. Everything
-  else is still re-read on every `update()`.
-- `graph.$svg` and `graph.$group` are documented as stable alongside `$scale` and `$axis`.
-- New optional helpers `d3.easygraph.bandStats(values, k)` and `bandStatsFromSums(totals, k)`:
+- **Bars take negative values.** The value axis includes zero and reaches every bar; grouped bars hang
+  from zero, stacked bars pile positives up and negatives down from it.
+- **`d3.easygraph.bandStats(values, k)` and `bandStatsFromSums(totals, k)`**:
   `{ count, mean, min, max, sigmaMin, sigmaMax }` for a line chart's bands (mean +- k population
-  standard deviations, clamped into `[min, max]`). The chart itself still only draws the
-  `min`/`max`/`sigmaMin`/`sigmaMax` you give it.
-- **`names` and `units` are merged into `series`**: `series: [{ label, unit }, ...]`, one entry per
-  series in the order you pass them to `update()`, on `line` and `bars` (`bars` reads `label`). The
-  old keys throw with a pointer to the new one. `label`, not `name`, to match presets and the
-  `{ index, color, label }` rows `legendItems()` returns.
-- **`getUnit(name)` is now `resolvePreset(name)`** (it returns a whole preset, not a unit), and the
-  source file `units.js` is `presets.js`. An unrecognized non-empty name now throws instead of
-  silently falling back to the blank `default`; a falsy name still returns `default`.
-- **`graph.getPaletteColor(i)` is now `graph.paletteColor(i)`**; no name in the API carries a
-  `get` prefix any more.
-- **Every DOM class is now `easygraph-<mark>`**, and the set is documented as stable (README, "Class
-  names"). Renamed: `data-lines` to `easygraph-line`, `data-minmax` to `easygraph-minmax`,
-  `data-sigma` to `easygraph-sigma`, `data-stack` to `easygraph-stack`, `data-bars` to
-  `easygraph-bar`, `bar-groups` to `easygraph-bar-group`, `heatmap-cells` to
-  `easygraph-heatmap-cell`, `heatmap-row` to `easygraph-heatmap-row`, `scatter-point(s)` to
-  `easygraph-point(s)`, `scatter-cell(s)` to `easygraph-voronoi-cell(s)`, `scatter-arrow(s)` to
-  `easygraph-arrow(s)`, `scatter-label(s)` to `easygraph-label(s)`, `pane` to `easygraph-pane`,
-  `crosshair-line` to `easygraph-crosshair-line`, and `x axis` / `y axis` to
-  `easygraph-axis easygraph-axis-x` / `-y`. Custom CSS or selectors using the old names need updating.
-- **Config typos are warned about.** A key that is a near-miss of a real option (`colorPallete`) or
-  belongs to another family (`zoom` on bars) logs a console warning with a suggestion; custom fields
-  you hang on a config stay silent.
-- **`x.scale`, `y.scale` and `color.scale` throw when assigned after construction**, like the other
-  build-time keys.
-- **`graph.colorPalettes` is removed**; use `d3.easygraph.colorPalettes`.
-- **Axis titles.** `x.label` and `y.label` are now drawn as axis titles (x under the horizontal axis,
-  y rotated beside the vertical one), with the unit in brackets: `Temperature [°F]`. A preset
-  supplies both, so a preset chart's text moves from the top heading to the y axis. `title` is the
-  chart heading only: it is blank unless you set it, no longer defaults to `y.label`, and no longer
-  has the unit appended. The library adds 20px to the left and bottom margins for a title that
-  exists at construction; `graph.margin` is unchanged. The `aria-label` is the `title`, else the y,
-  then x axis title. New classes `easygraph-axis-title` (with `-x` / `-y`).
-- **`ranges` and `x`/`y` are the screen axes in a horizontal bar chart.** `x` is the horizontal
-  axis (the values) and `y` the vertical one (the categories) for the config, `ranges` and the axis
-  titles alike; the data stays `{ x: category, y: value }`. Previously `ranges` alone was swapped
-  back to the data fields in horizontal mode, so `{ y: [0, 1] }` pinned the values while
-  `x: { tickLabels: false }` hid them.
+  standard deviations, clamped into `[min, max]`).
+
+### Removed
+- **`colorPerData`**: a bar datum with a `color` field is drawn in it.
+- **The six `LS-` palettes** (they were picked for one site); add your own to `d3.easygraph.colorPalettes`.
+- **`graph.colorPalettes`**; use `d3.easygraph.colorPalettes`.
+- **`timeFormatShort`** is private; `numberFormat` stays public.
+
+### Fixed
+- A chart with only the sigma band no longer warns that it has nothing to draw.
 
 ## [0.8.0] - 2026-11-08
 

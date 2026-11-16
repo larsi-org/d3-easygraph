@@ -207,7 +207,9 @@ A continuous (time or linear) x axis. Three drawing modes, each a flag you can t
   anything else instead if you prefer.
 - **`stacked: true`** - a classic stacked area: plain `{ x, y }` points, each series stacked on the
   ones before it. The y axis always includes zero, regardless of `trim`. Series are stacked by array
-  index, so they must be sampled at the same x positions.
+  index, so they must be sampled at the same x positions. Values should be zero or more for now: a
+  negative value is added into the pile, so its band folds back over the ones below it (stacked bars
+  already give negatives a pile of their own, below zero; areas will do the same before 1.0).
 
 `zoom: { min, max }` (scale extent, defaults 1 and 10) enables scroll-to-zoom and drag-to-pan.
 `crosshair: true` (or `{ threshold }`, how close in pixels the cursor must be to a point to show it,
