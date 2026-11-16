@@ -5,6 +5,14 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Changed
+- **A stacked area stacks negative values the way stacked bars do**: positive values pile up from zero
+  and negative values down from it, each on its own pile, and the y axis reaches both. A negative value
+  used to be added into the one pile, folding its band back over the series below it. Charts with no
+  negative values draw exactly as before.
+- **`stacked` must be `true` or `false`** on line and bar charts; any other value throws, so stacking
+  modes can be added later as values of the same key.
+
 ## [0.10.0] - 2026-11-16
 
 Every item under Changed and Removed breaks 0.9.0 code.

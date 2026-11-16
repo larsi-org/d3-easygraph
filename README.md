@@ -15,7 +15,7 @@ palettes and legend rows are also available with no chart at all.
 
 - [Quick start](#quick-start)
 - [Patterns](#patterns) - how the API is shaped; read this first
-- [Chart families](#chart-families): [Line](#line), [Bars](#bars), [Heatmap](#heatmap), [Scatter](#scatter)
+- [Chart families](#chart-families): [Line](#line), [Bars](#bars), [Stacking](#stacking), [Heatmap](#heatmap), [Scatter](#scatter)
 - [Shared config](#shared-config)
 - [Data conventions](#data-conventions)
 - [Standalone helpers](#standalone-helpers): [units](#unit-conversion), [palettes](#color-palettes), [legends](#legends), [your own presets, palettes and formats](#adding-your-own-presets-palettes-and-formats)
@@ -206,10 +206,9 @@ A continuous (time or linear) x axis. Three drawing modes, each a flag you can t
   default 1, clamped into `[min, max]`) from an array or from running totals; supply percentiles or
   anything else instead if you prefer.
 - **`stacked: true`** - a classic stacked area: plain `{ x, y }` points, each series stacked on the
-  ones before it. The y axis always includes zero, regardless of `trim`. Series are stacked by array
-  index, so they must be sampled at the same x positions. Values should be zero or more for now: a
-  negative value is added into the pile, so its band folds back over the ones below it (stacked bars
-  already give negatives a pile of their own, below zero; areas will do the same before 1.0).
+  ones before it, [the way stacked bars are](#stacking): positive values pile up from zero, negative
+  values down from it. Series are stacked by array index, so they must be sampled at the same x
+  positions.
 
 `zoom: { min, max }` (scale extent, defaults 1 and 10) enables scroll-to-zoom and drag-to-pan.
 `crosshair: true` (or `{ threshold }`, how close in pixels the cursor must be to a point to show it,
@@ -247,8 +246,23 @@ are matched by category, not by position, both side by side and when stacked. To
 an empty category, pin the category axis (`update(data, { x: ['Mon', 'Tue', ...] })`).
 
 Values may be negative. The value axis always includes zero and reaches every bar: grouped bars hang
-from the zero line, and stacked bars pile positive values up from zero and negative values down from
-it, each on its own pile. Because the value axis always includes zero, `trim` has no effect there.
+from the zero line, and stacked bars [stack](#stacking) like stacked areas. Because the value axis
+always includes zero, `trim` has no effect there.
+
+### Stacking
+
+`stacked` is `true` or `false` on both `line` and `bar`, and both stack the same way: at each x (or
+category), positive values pile up from zero and negative values pile down from zero, each on its own
+pile, in series order. A missing value is in neither pile. The value axis reaches from the bottom of
+the negative pile to the top of the positive one and always includes zero, regardless of `trim`.
+Stacking shows parts adding up, so with values of both signs it reads as a balance: the top edge is
+the total of the positives, the bottom edge the total of the negatives (generation above zero,
+consumption below).
+
+A single series that changes sign moves from the upper pile to the lower one. Areas are drawn point to
+point, so between two such points its band slides across zero and briefly covers its neighbors. If that
+matters, split the series in two before passing it in, one with its positive values (`null` elsewhere)
+and one with its negative values.
 
 ### Heatmap
 
@@ -696,7 +710,7 @@ npm test
 
 [Playwright](https://playwright.dev) specs in `test/` (one per source module - core, line, bar,
 heatmap, scatter, presets, colors - plus `api.spec.js` and `api-1.0.spec.js` for cross-cutting checks;
-183 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
+185 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
 live resize, `destroy()` teardown, config and `domains` validation, the live/build-time key split,
 legends, the standalone unit and palette functions, and behavior that needs real interaction to
 verify: `set()`, zoom and crosshair events, pinned color domains surviving a resize, `id`-keyed point identity,

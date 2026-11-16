@@ -246,15 +246,19 @@ d3.easygraph.line = function(config) {
         if (yRange) {
           yDomain = yRange;
         } else if (graph.stacked) {
-          // a stacked area's own top edge is a cumulative sum across series, not a single
-          // series' own values - trim doesn't have a single value array to work from here
-          // either, and (like bars' stacked mode) the axis always includes zero regardless of
-          // graph.y.trim, since a stack's height is only meaningful measured from the bottom.
+          // a stacked area's edges are running sums across series, not a single series' own
+          // values - trim doesn't have a single value array to work from here either, and (like
+          // bars' stacked mode) the axis always includes zero regardless of graph.y.trim, since a
+          // pile is only meaningful measured from zero. It reaches from the bottom of the
+          // negative pile to the top of the positive one.
           var stacked = d3.easygraph._computeStacked(data);
-          var stackedMax = d3.max(stacked, function(series) {
-            return d3.max(series, function(d) { return d.y0 + d.y; });
+          var stackedLo = d3.min(stacked, function(series) {
+            return d3.min(series, function(d) { return d.y == null ? undefined : Math.min(d.y0, d.y0 + d.y); });
           });
-          yDomain = [0, (stackedMax === undefined) ? 1 : stackedMax];
+          var stackedHi = d3.max(stacked, function(series) {
+            return d3.max(series, function(d) { return d.y == null ? undefined : Math.max(d.y0, d.y0 + d.y); });
+          });
+          yDomain = (stackedHi === undefined) ? [0, 1] : [Math.min(0, stackedLo), Math.max(0, stackedHi)];
         } else if (_bandSet().minmax || _bandSet().sigma) {
           // A ribbon's/sigma band's extent comes from each point's own precomputed min/max (or
           // sigmaMin/sigmaMax), not a plain value per point - trim doesn't have a single value

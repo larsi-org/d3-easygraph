@@ -8,8 +8,8 @@
 // (see data_monthly.php/h.php's dropdown) - domain()/render() always re-read the
 // live config rather than caching a choice made at construction. Stacking itself
 // (accumulating each bar's base) is d3.easygraph._computeStacked() in core.js, shared with
-// line.js's stacked area; bars ask for its signed form, where positive values pile up from zero
-// and negative ones down from it.
+// line.js's stacked area: positive values pile up from zero and negative ones down from it; bars
+// ask for its by-category form.
 //
 // A bar is { category, value } (plus an optional `color`, which colors that bar instead of its series'
 // palette color), whichever way the bars run: x and y name the screen axes, in the config and in

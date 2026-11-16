@@ -139,6 +139,57 @@ test('stacked stacks series cumulatively, each layer riding on top of the previo
   expect(result.yDomain).toEqual([0, 15]);
 });
 
+test('stacked areas pile positives up and negatives down from zero, like stacked bars', async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    var wrap = document.createElement('div');
+    document.body.appendChild(wrap);
+    var g = d3.easygraph.line({ container: wrap, height: 200, stacked: true, duration: 0 });
+    g.update([
+      [ { x: 0, y: 10 },  { x: 1, y: 10 } ],
+      [ { x: 0, y: -5 },  { x: 1, y: -5 } ],
+      [ { x: 0, y: 20 },  { x: 1, y: -10 } ],   // changes sign: moves from the upper pile to the lower
+      [ { x: 0, y: null }, { x: 1, y: 4 } ]     // a gap is in neither pile
+    ]);
+    var spans = [...wrap.querySelectorAll('path.easygraph-stack')].map(function(p) {
+      return p.__data__.map(function(d) { return d.y == null ? null : [d.y0, d.y0 + d.y]; });
+    });
+    var yDomain = g.y.$scale.domain();
+    g.destroy();
+    wrap.remove();
+    return { spans: spans, yDomain: yDomain };
+  });
+  expect(r.spans).toEqual([
+    [[0, 10],   [0, 10]],
+    [[0, -5],   [0, -5]],       // [where it starts, where it ends]: down from zero
+    [[10, 30],  [-5, -15]],
+    [null,      [10, 14]]
+  ]);
+  // from the bottom of the negative pile to the top of the positive one
+  expect(r.yDomain).toEqual([-15, 30]);
+});
+
+test("stacked is true or false: any other value throws, in the config and in set()", async ({ page }) => {
+  await page.goto(FIXTURE);
+  const r = await page.evaluate(() => {
+    function msg(fn) { try { fn(); return null; } catch (e) { return e.message; } }
+    var wrap = document.createElement('div');
+    document.body.appendChild(wrap);
+    var line = msg(function() { d3.easygraph.line({ container: wrap, height: 200, stacked: 'expand' }); });
+    var bar = msg(function() { d3.easygraph.bar({ container: wrap, height: 200, stacked: 1 }); });
+    var g = d3.easygraph.line({ container: wrap, height: 200 });
+    var set = msg(function() { g.set({ stacked: 'wiggle' }); });
+    var ok = msg(function() { g.set({ stacked: true }).set({ stacked: false }); });
+    g.destroy();
+    wrap.remove();
+    return { line: line, bar: bar, set: set, ok: ok };
+  });
+  expect(r.line).toContain("'stacked' must be true or false");
+  expect(r.bar).toContain("'stacked' must be true or false");
+  expect(r.set).toContain("'stacked' must be true or false");
+  expect(r.ok).toBeNull();
+});
+
 test('stacked with no data falls back to a [0,1] y domain instead of NaN', async ({ page }) => {
   await page.goto(FIXTURE);
   const yDomain = await page.evaluate(() => {

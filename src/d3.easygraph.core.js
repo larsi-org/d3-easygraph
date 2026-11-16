@@ -93,38 +93,31 @@ d3.easygraph.bandStats = function(values, k) {
   return d3.easygraph.bandStatsFromSums(totals, k);
 };
 
-// Stacks layered series, accumulating y0 offsets bottom-up - shared by bar.js's stacked mode and
-// line.js's stackedArea.
-//   signed (bars, points { category, value }): points are matched by category, so a series may
-//     leave a category out or list them in another order. Values of either sign: positive values
-//     stack upward from zero and negative ones downward from zero, each on its own pile, so a bar
-//     spans [base, base + value] either way.
-//   unsigned (stacked area, points { x, y }): points are matched by index, so every series must be
-//     sampled at the same x positions; each point gets y0, where it starts.
-d3.easygraph._computeStacked = function(data, signed) {
-  if (signed) {
-    var up = new d3.InternMap(), down = new d3.InternMap();
-    return data.map(function(series) {
-      return series.map(function(p) {
-        var d = Object.assign({ base: 0 }, p);
-        if (d.value == null) return d;
-        var pile = (d.value >= 0) ? up : down, base = pile.get(d.category) || 0;
-        d.base = base;
-        pile.set(d.category, base + d.value);
-        return d;
-      });
+// Stacks layered series - shared by bar.js's stacked mode and line.js's stacked area. Both stack
+// values of either sign the same way: positive values pile upward from zero and negative ones
+// downward from zero, each on its own pile (d3's stackOffsetDiverging). A missing value (null or
+// undefined) is left out of both piles.
+//   byCategory (bars, points { category, value }): points are matched by category, so a series may
+//     leave a category out or list them in another order; each bar gets base, where it starts, so
+//     it spans [base, base + value].
+//   by index (stacked area, points { x, y }): points are matched by index, so every series must be
+//     sampled at the same x positions; each point gets y0, where it starts, so its band spans
+//     [y0, y0 + y].
+d3.easygraph._computeStacked = function(data, byCategory) {
+  var up = byCategory ? new d3.InternMap() : [], down = byCategory ? new d3.InternMap() : [];
+  var start = byCategory ? 'base' : 'y0', field = byCategory ? 'value' : 'y';
+  return data.map(function(series) {
+    return series.map(function(p, j) {
+      var d = Object.assign({}, p);
+      d[start] = 0;
+      if (d[field] == null) return d;
+      var key = byCategory ? d.category : j, pile = (d[field] >= 0) ? up : down;
+      var from = (byCategory ? pile.get(key) : pile[key]) || 0;
+      d[start] = from;
+      if (byCategory) pile.set(key, from + d[field]); else pile[key] = from + d[field];
+      return d;
     });
-  }
-  var result = data.map(function(series) {
-    return series.map(function(d) { return Object.assign({ y0: 0 }, d); });
   });
-  var len = result[0] ? result[0].length : 0;
-  for (var j = 0; j < len; j++) {
-    for (var i = 1; i < result.length; i++) {
-      result[i][j].y0 = result[i-1][j].y0 + result[i-1][j].y;
-    }
-  }
-  return result;
 };
 
 // Validates update()'s `data` at the boundary, the same way the constructor already validates
@@ -437,6 +430,11 @@ d3.easygraph._checkConfig = function(config, chartType) {
     if (own.indexOf(name) >= 0) d3.easygraph._checkOption(ctor, name, config[name], _NESTED[name], _NESTED[name].keys);
   });
   d3.easygraph._checkOption(ctor, 'color', config.color, { kind: 'object' }, _COLOR_KEYS[chartType]);
+
+  // stacked is exactly true or false, so stacking modes ('expand', 'wiggle' ...) can be added later
+  // as values of the same key without changing what any working chart does
+  if (config.stacked != null && typeof config.stacked !== 'boolean')
+    throw new Error(ctor + ": 'stacked' must be true or false (got " + JSON.stringify(config.stacked) + ")");
 
   // crosshair.format: { x, y }, each a format string or a function, checked here so a bad one throws
   // before any DOM is built (see _formatter)
