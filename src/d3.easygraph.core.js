@@ -250,7 +250,7 @@ var _FAMILY_CTOR = { line: 'line', bar: 'bar', heatmap: 'heatmap', scatter: 'sca
 // The keys each nested option object accepts. 'object' options must be an object; 'flag' options
 // may also be true/false (true = all defaults). An axis's convert/convertRounded are not config: they
 // come from its preset and are only read back (graph.y.convert), since the chart never applies them.
-var _AXIS_KEYS = ['type', 'unit', 'label', 'tickLabels', 'tickFormat', 'preset', 'trim'];
+var _AXIS_KEYS = ['type', 'timeZone', 'unit', 'label', 'tickLabels', 'tickFormat', 'preset', 'trim'];
 var _NESTED = {
   margin: { kind: 'object', keys: ['top', 'right', 'bottom', 'left'] },
   x:      { kind: 'object', keys: _AXIS_KEYS },
@@ -304,22 +304,106 @@ function _nearest(key, known) {
 //   a string   - a name in d3.easygraph.formats first, else a format string: d3.timeFormat on a time
 //                axis (it must contain a % directive, so a misspelled name does not print itself on
 //                every tick), d3.format otherwise
-// `use` is 'tick' or 'tip'; `axis` is { type, band }. The unit is added after the text by the tooltip.
+// `use` is 'tick' or 'tip'; `axis` is { type, band, zone }. The unit is added after the text by the tooltip.
+// With a zone (an axis's timeZone, see _zone) a format string and the shipped formats print that zone's
+// wall clock; a function of your own still gets the real Date and formats it itself (with
+// d3.easygraph.timeFormat(fmt, timeZone), say), since it may do anything with it.
 
 // Multi-scale tick formats for the shipped time formats: each tick takes the finest level it has
 // (second, minute or hour, then day, week start, month, year), as d3's own time format does, but on a
 // 24-hour clock ("18:00", not d3's "06 PM"); a locale could switch that later. withTime keeps the
 // second, minute and hour levels; withYear names January as the year, else as "Jan".
+// Each is built twice: in the viewer's zone (d3.timeFormat, local getters) and, as its ._wall, in
+// UTC getters for a wall-clock Date (see _zone), which is how a zoned axis uses the same levels.
 function _multiTicks(withTime, withYear) {
-  var second = d3.timeFormat("%H:%M:%S"), minute = d3.timeFormat("%H:%M"), day = d3.timeFormat("%a %d"),
-      week = d3.timeFormat("%b %d"), month = d3.timeFormat("%b"), year = d3.timeFormat("%Y");
-  return function(d) {
-    if (withTime && d.getSeconds()) return second(d);
-    if (withTime && (d.getMinutes() || d.getHours())) return minute(d);
-    if (d.getDay() && d.getDate() != 1) return day(d);
-    if (d.getDate() != 1) return week(d);
-    return (withYear && d.getMonth() === 0) ? year(d) : month(d);
-  };
+  function make(fmt, utc) {
+    var second = fmt("%H:%M:%S"), minute = fmt("%H:%M"), day = fmt("%a %d"),
+        week = fmt("%b %d"), month = fmt("%b"), year = fmt("%Y");
+    var g = utc ? ['getUTCSeconds', 'getUTCMinutes', 'getUTCHours', 'getUTCDay', 'getUTCDate', 'getUTCMonth']
+                : ['getSeconds', 'getMinutes', 'getHours', 'getDay', 'getDate', 'getMonth'];
+    return function(d) {
+      if (withTime && d[g[0]]()) return second(d);
+      if (withTime && (d[g[1]]() || d[g[2]]())) return minute(d);
+      if (d[g[3]]() && d[g[4]]() != 1) return day(d);
+      if (d[g[4]]() != 1) return week(d);
+      return (withYear && d[g[5]]() === 0) ? year(d) : month(d);
+    };
+  }
+  var local = make(d3.timeFormat, false);
+  local._wall = make(d3.utcFormat, true);
+  return local;
+}
+
+// Time zones. An axis's timeZone (an IANA name such as "America/New_York", or "UTC") puts its ticks
+// and its text in that zone's wall clock instead of the viewer's; positions stay real time, so a
+// daylight saving day is 23 or 25 hours wide and a line never folds back on itself.
+// _zone(name) -> { name, offset(t), wall(t), instant(w), abbr(t) }, cached per name:
+//   offset(t)  the zone's offset from UTC in ms at instant t (a Date or ms), from Intl
+//   wall(t)    a Date whose UTC fields read the zone's wall clock at t (14:00 in New York -> 14:00 UTC);
+//              d3.utcFormat and the getUTC* getters then print the zone's time
+//   instant(w) back from a wall-clock Date to the instant; a wall time a spring-forward skips moves
+//              ahead by the jump, one a fall-back repeats gives the first (daylight) occurrence
+//   abbr(t)    the zone's short name at t, "EST" / "EDT" (Intl's en-US names, "GMT+1" where none)
+var _zones = {};
+function _zone(name) {
+  if (_zones[name]) return _zones[name];
+  var parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: name, hourCycle: 'h23',
+    year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric'
+  });
+  var short = new Intl.DateTimeFormat('en-US', { timeZone: name, timeZoneName: 'short' });
+  function offset(t) {
+    var ms = +t, p = {};
+    parts.formatToParts(new Date(ms)).forEach(function(x) { p[x.type] = +x.value; });
+    var asUTC = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+    return asUTC - (ms - (((ms % 1000) + 1000) % 1000));   // Intl has whole seconds
+  }
+  function instant(w) {
+    var ms = +w, t = ms - offset(ms);
+    var t2 = ms - offset(t);   // the offset at the first guess can differ near a switch
+    if (t2 === t) return new Date(t);
+    // a repeated hour: the earlier of those that map back; a skipped hour: none does, take the later
+    var good = [t, t2].filter(function(c) { return c + offset(c) === ms; });
+    return new Date(good.length ? Math.min.apply(null, good) : Math.max(t, t2));
+  }
+  return (_zones[name] = {
+    name: name,
+    offset: offset,
+    wall: function(t) { return new Date(+t + offset(t)); },
+    instant: instant,
+    abbr: function(t) {
+      var z = short.formatToParts(new Date(+t)).filter(function(x) { return x.type === 'timeZoneName'; })[0];
+      return z ? z.value : name;
+    }
+  });
+}
+
+// Checks an axis's timeZone: a string Intl knows, on a time axis only. Returns the _zone or null.
+d3.easygraph._checkTimeZone = function(ctor, path, name, type) {
+  if (name == null) return null;
+  if (type !== 'time')
+    throw new Error(ctor + ": " + path + " needs a time axis (type: 'time'), this one is '" + type + "'");
+  if (typeof name !== 'string')
+    throw new Error(ctor + ": " + path + " must be an IANA time zone name such as 'America/New_York' or 'UTC', got " + JSON.stringify(name));
+  try { return _zone(name); }
+  catch (e) {
+    throw new Error(ctor + ": " + path + " " + JSON.stringify(name) + " is not a time zone this browser knows " +
+                    "(an IANA name such as 'America/New_York', 'Europe/Berlin' or 'UTC')");
+  }
+};
+
+// Ticks in a zone: d3's own UTC tick rules (the same steps as scaleTime: 1/5/15/30 s and min, 1/3/6/12 h,
+// days, weeks from Sunday, months, years) run on the wall clock, then each tick goes back to its instant.
+// So ticks fall on the zone's midnights and hours. A tick the clock skips or repeats is dropped as a
+// duplicate, and ticks outside the domain are left out.
+function _zonedTicks(zone, domain, count) {
+  var lo = Math.min(+domain[0], +domain[1]), hi = Math.max(+domain[0], +domain[1]), seen = {};
+  return d3.utcTicks(zone.wall(lo), zone.wall(hi), count == null ? 10 : count)
+    .map(function(w) { return zone.instant(w); })
+    .filter(function(t) {
+      if (+t < lo || +t > hi || seen[+t]) return false;
+      return (seen[+t] = true);
+    });
 }
 
 // Named formats, a global table like presets and palettes: a page adds its own once and names them on
@@ -340,7 +424,12 @@ d3.easygraph.formats = {
 
 d3.easygraph._formatter = function(ctor, path, fmt, axis, use) {
   if (fmt == null) return null;
-  if (typeof fmt === 'function') return fmt;
+  var zone = axis.zone;
+  // a shipped multi-level format carries its wall-clock twin (._wall); any other function is used as is
+  function fn(f) {
+    return (zone && f._wall) ? function(d) { return f._wall(zone.wall(d)); } : f;
+  }
+  if (typeof fmt === 'function') return fn(fmt);
   if (typeof fmt !== 'string')
     throw new Error(ctor + ": " + path + " must be a format name, a format string or a function value => text, got " + JSON.stringify(fmt));
   var time = axis.type === 'time' && !axis.band;
@@ -360,7 +449,7 @@ d3.easygraph._formatter = function(ctor, path, fmt, axis, use) {
       if (entry == null)
         throw new Error(ctor + ": " + where + " has no " + use + " format");
     }
-    if (typeof entry === 'function') return entry;
+    if (typeof entry === 'function') return fn(entry);
     if (typeof entry !== 'string')
       throw new Error(ctor + ": " + where + " must be a format string, a function or { tick, tip, type }, got " + JSON.stringify(entry));
     fmt = entry;
@@ -371,13 +460,26 @@ d3.easygraph._formatter = function(ctor, path, fmt, axis, use) {
     if (fmt.indexOf('%') < 0)
       throw new Error(ctor + ": " + where + " is neither a name in d3.easygraph.formats (" + names.join(', ') +
                       ") nor a d3.timeFormat string (it has no % directive)");
-    return d3.timeFormat(fmt);
+    if (!zone) return d3.timeFormat(fmt);
+    var utc = d3.utcFormat(fmt);
+    return function(d) { return utc(zone.wall(d)); };
   }
   try { return d3.format(fmt); }
   catch (e) {
     throw new Error(ctor + ": " + where + " is neither a name in d3.easygraph.formats (" + names.join(', ') +
                     ") nor a d3.format string (a time axis takes d3.timeFormat strings)");
   }
+};
+
+// d3.easygraph.timeFormat(format, timeZone) -> date => text, for a page's own text about the chart's
+// times (a tooltip of its own, a status line): the same resolution as crosshair.format on a time axis -
+// a name in d3.easygraph.formats (its tooltip form: 'date' gives '2026-11-18'), else a d3.timeFormat
+// string - printed in timeZone's wall clock, or the viewer's zone when it is left out (then it is
+// exactly d3.timeFormat). format left out is 'datetime'.
+d3.easygraph.timeFormat = function(format, timeZone) {
+  var ctor = 'd3.easygraph.timeFormat';
+  var zone = d3.easygraph._checkTimeZone(ctor, 'timeZone', timeZone, 'time');
+  return d3.easygraph._formatter(ctor, 'format', format == null ? 'datetime' : format, { type: 'time', zone: zone }, 'tip');
 };
 
 // Throws for any key of `obj` that is not in `allowed`. `path` names the object ('x', 'points'),
@@ -635,6 +737,11 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
                       JSON.stringify(type));
     }
   });
+  // timeZone: the time axis's ticks and text in that zone's wall clock (see _zone); null = the viewer's
+  graph._.zone = {
+    x: d3.easygraph._checkTimeZone('d3.easygraph', 'x.timeZone', graph.x.timeZone, graph.x.type),
+    y: d3.easygraph._checkTimeZone('d3.easygraph', 'y.timeZone', graph.y.timeZone, graph.y.type)
+  };
 
   // The text of an axis title: the axis's label plus its unit, "Temperature [°F]". A preset
   // supplies both for a known quantity; with neither there is no title at all. Re-read on every
@@ -710,6 +817,13 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
     graph.y.$scale = (graph.y.type === 'time') ? d3.scaleTime() : d3.scaleLinear();
     graph.y.$scale.range([graph.plotHeight, 0]);
   }
+  // A zoned time axis takes its ticks from _zonedTicks. The scale object itself is kept for the chart's
+  // life (zoom changes its domain, never replaces it), so the axis asks this ticks() on every redraw.
+  ['x', 'y'].forEach(function(name) {
+    var zone = graph._.zone[name], scale = graph[name].$scale;
+    if (!zone || scale.bandwidth) return;
+    scale.ticks = function(count) { return _zonedTicks(zone, scale.domain(), count); };
+  });
 
   // x.tickFormat / y.tickFormat through _formatter (the same values as the tooltip's format); left out,
   // a number axis uses formatNumber, a time axis the shipped datetime ticks (24-hour) and a category
@@ -718,10 +832,13 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   function _applyTickFormat(name, axis) {
     var prop = graph[name], band = !!prop.$scale.bandwidth;
     if (prop.tickLabels === false) { axis.tickFormat(function() { return ''; }); return; }
-    var fn = d3.easygraph._formatter('d3.easygraph', name + '.tickFormat', prop.tickFormat, { type: prop.type, band: band }, 'tick');
+    var zone = graph._.zone[name];
+    var fn = d3.easygraph._formatter('d3.easygraph', name + '.tickFormat', prop.tickFormat, { type: prop.type, band: band, zone: zone }, 'tick');
     if (fn) axis.tickFormat(fn);
     else if (band) return;
-    else axis.tickFormat(prop.type === 'time' ? _defaultTimeTicks : d3.easygraph.formatNumber);
+    else if (prop.type === 'time')
+      axis.tickFormat(d3.easygraph._formatter('d3.easygraph', name + '.tickFormat', _defaultTimeTicks, { type: 'time', zone: zone }, 'tick'));
+    else axis.tickFormat(d3.easygraph.formatNumber);
   }
 
   graph.x.$axis = d3.axisBottom(graph.x.$scale).tickSize(-graph.plotHeight).tickPadding(12);
@@ -979,7 +1096,7 @@ d3.easygraph._build = function(config, familyDefaults, moduleFactory) {
   }
 
   var _FIXED_TOP  = ['container', 'sizing', 'height', 'margin', 'orientation', 'curve', 'zoom', 'crosshair'];
-  var _FIXED_SUB  = { x: ['type', 'preset', 'tickFormat', 'tickLabels'], y: ['type', 'preset', 'tickFormat', 'tickLabels'],
+  var _FIXED_SUB  = { x: ['type', 'timeZone', 'preset', 'tickFormat', 'tickLabels'], y: ['type', 'timeZone', 'preset', 'tickFormat', 'tickLabels'],
                       color: ['palette', 'classes', 'reverse', 'quantize'] };
   var _OWNED_SUB  = { x: ['convert', 'convertRounded', '$scale', '$axis'], y: ['convert', 'convertRounded', '$scale', '$axis'],
                       color: ['$scale'] };

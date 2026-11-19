@@ -166,10 +166,18 @@ d3.easygraph.line = function(config) {
             .style("display", "none");
 
           // crosshair.format { x, y } (checked with the config); a side left out keeps the default:
-          // x '%Y-%m-%d %H:%M' on a time axis, else formatNumber; values formatNumber
+          // x formats.datetime's tooltip form ('%Y-%m-%d %H:%M') on a time axis, else formatNumber;
+          // values formatNumber. On a zoned x axis the time is the zone's, followed by its short name
+          // ("2026-11-18 14:00 EST"), unless crosshair.format.x is a function of your own.
           var _tipFmt = (graph.crosshair && graph.crosshair.format) || {};
-          var _fmtX = d3.easygraph._formatter('d3.easygraph.line', 'crosshair.format.x', _tipFmt.x, { type: graph.x.type }, 'tip') ||
-                      ((graph.x.type === 'time') ? d3.timeFormat('%Y-%m-%d %H:%M') : d3.easygraph.formatNumber);
+          var _zoneX = graph._.zone.x;
+          var _fmtX = d3.easygraph._formatter('d3.easygraph.line', 'crosshair.format.x',
+                        (_tipFmt.x == null && graph.x.type === 'time') ? 'datetime' : _tipFmt.x,
+                        { type: graph.x.type, zone: _zoneX }, 'tip') || d3.easygraph.formatNumber;
+          if (_zoneX && typeof _tipFmt.x !== 'function') {
+            var _fmtXZone = _fmtX;
+            _fmtX = function(d) { return _fmtXZone(d) + ' ' + _zoneX.abbr(d); };
+          }
           var _fmtY = d3.easygraph._formatter('d3.easygraph.line', 'crosshair.format.y', _tipFmt.y, { type: graph.y.type }, 'tip') ||
                       d3.easygraph.formatNumber;
 

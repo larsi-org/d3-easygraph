@@ -223,7 +223,7 @@ test('the graph object holds config keys, the public handles and methods only; i
   expect(r.privateKeys).toEqual([]);
   expect(r.hasHidden).toBe(true);
   expect(r.sealed).toBe(true);
-  expect(r.xKeys).toEqual(['$axis', '$scale', 'convert', 'convertRounded', 'label', 'preset', 'tickFormat', 'tickLabels', 'trim', 'type', 'unit']);
+  expect(r.xKeys).toEqual(['$axis', '$scale', 'convert', 'convertRounded', 'label', 'preset', 'tickFormat', 'tickLabels', 'timeZone', 'trim', 'type', 'unit']);
   expect(r.title).toBeUndefined();
 });
 

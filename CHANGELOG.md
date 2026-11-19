@@ -5,6 +5,18 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added
+- **`x.timeZone` / `y.timeZone`** on a time axis: an IANA name (`'America/New_York'`, `'UTC'`) puts
+  the axis's ticks on that zone's midnights and hours and prints its tick and tooltip text in that
+  zone's wall clock, daylight saving time included, whatever zone the viewer is in. Positions stay
+  real time (a clock-change day is 23 or 25 hours wide). The line chart's tooltip adds the zone's short
+  name (`2026-11-18 14:00 EST`). A format function of your own still gets the real `Date`. Fixed at
+  construction; an unknown name or a `timeZone` on a linear axis throws. Left out, nothing changes:
+  the viewer's zone, as before.
+- **`d3.easygraph.timeFormat(format, timeZone)`**: `date => text` from a name in `formats` (its tooltip
+  form) or a `d3.timeFormat` string, in a zone's wall clock or the viewer's, so a page's own text
+  shows the same times as a zoned axis.
+
 ### Changed
 - **A stacked area stacks negative values the way stacked bars do**: positive values pile up from zero
   and negative values down from it, each on its own pile, and the y axis reaches both. A negative value
@@ -12,6 +24,8 @@ All notable changes to this project are documented here. Format loosely follows
   negative values draw exactly as before.
 - **`stacked` must be `true` or `false`** on line and bar charts; any other value throws, so stacking
   modes can be added later as values of the same key.
+- **The line chart's default tooltip time is the `'datetime'` format's tooltip form** instead of its
+  own copy of the same string; the text is unchanged (`%Y-%m-%d %H:%M`).
 
 ## [0.10.0] - 2026-11-16
 

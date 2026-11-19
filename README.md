@@ -174,8 +174,23 @@ API.
 config names an entry by its key.
 
 **14. Resize is automatic, errors are early.** Width follows the container with no calls on your end.
-Bad `container`, `sizing`, `width`, `height`, `orientation`, axis `type`, `tickFormat`, `series`, palette, preset or data shapes throw at the
+Bad `container`, `sizing`, `width`, `height`, `orientation`, axis `type`, `timeZone`, `tickFormat`, `series`, palette, preset or data shapes throw at the
 boundary with a message that says how to fix it, rather than rendering the wrong chart.
+
+**15. Times are instants; the zone belongs to the axis.** A point's `x` on a time axis is a `Date`, an
+instant, never shifted to fake a time zone. Data about a place (a weather station, a sensor) is shown
+in that place's zone with `x: { type: 'time', timeZone: 'America/New_York' }`, so every viewer sees the
+same days and hours; left out, the viewer's own zone is used. Text the page writes about the same
+times uses the same zone, through `d3.easygraph.timeFormat(format, timeZone)`. Grouping into days
+(daily means, min/max bands) is your code's job, like all aggregation, and should cut the days in
+the axis's zone too.
+
+```js
+var zone = 'America/New_York';                       // e.g. from your station metadata
+var g = d3.easygraph.line({ container: '#chart', height: 320, crosshair: true,
+                            x: { type: 'time', timeZone: zone, tickFormat: 'datetime' } });
+var tipDay = d3.easygraph.timeFormat('date', zone);  // '2026-11-18', the same day the axis shows
+```
 
 ## Chart families
 
@@ -213,7 +228,8 @@ A continuous (time or linear) x axis. Three drawing modes, each a flag you can t
 `zoom: { min, max }` (scale extent, defaults 1 and 10) enables scroll-to-zoom and drag-to-pan.
 `crosshair: true` (or `{ threshold }`, how close in pixels the cursor must be to a point to show it,
 default 10) adds a hover crosshair with a tooltip. The tooltip shows x as `%Y-%m-%d %H:%M` on a time
-axis (else `formatNumber`) and the values in the axes' number format (`formatNumber`; `?` for a series
+axis, the `'datetime'` format (in `x.timeZone` with its short name when the axis has one; else
+`formatNumber`) and the values in the axes' number format (`formatNumber`; `?` for a series
 with no point near the cursor or a gap there). `crosshair: { format: { x, y } }` changes either, and
 takes exactly what `tickFormat` takes ([below](#shared-config)): a name in `d3.easygraph.formats`, a
 format string or a function, e.g. `{ x: '%b %d', y: '.1f' }`. It is a setting of its own and does not follow the tick
@@ -320,8 +336,19 @@ overlay points on a map you draw yourself.
 | `duration` | transition length in ms, default 500; live |
 | `meta` | your own fields, copied to `graph.meta` |
 
-**`x` / `y`:** `type` (`'linear'`, the default, or `'time'`), `label`, `unit`, `preset`, `tickFormat`,
-`tickLabels`, `trim`.
+**`x` / `y`:** `type` (`'linear'`, the default, or `'time'`), `timeZone`, `label`, `unit`, `preset`,
+`tickFormat`, `tickLabels`, `trim`.
+
+- `timeZone` (a time axis only) is an IANA time zone name, `'America/New_York'`, `'Europe/Berlin'`
+  or `'UTC'`: the axis's ticks fall on that zone's midnights and hours, and its tick and tooltip text
+  is that zone's wall clock, daylight saving time included, whoever is looking. Left out, the axis
+  uses the viewer's own zone, as d3 does. Positions stay real time: a day with a clock change is 23
+  or 25 hours wide, ticks the clock skips or repeats are dropped, and the line never folds back. The
+  line chart's tooltip adds the zone's short name (`2026-11-18 14:00 EST`) unless `crosshair.format.x`
+  is a function of your own. A format string and the shipped formats print the zone's clock; a
+  `tickFormat` or `crosshair.format` *function* gets the real `Date` and formats it itself
+  (`d3.easygraph.timeFormat(format, timeZone)` gives one that matches the axis). A name the browser
+  does not know, or a `timeZone` on a linear axis, throws.
 
 - `label` and `unit` title the axis: `x.label` goes under the horizontal axis, `y.label` rotated beside
   the vertical one, each followed by its unit in brackets (`Temperature [°F]`). A `preset` supplies
@@ -554,7 +581,9 @@ d3.easygraph.line({ container: "#g", height: 320, y: { preset: "soilMoisture" },
 
 A format entry is a format string or a function, used for ticks and tooltips alike, or
 `{ tick, tip, type }` when the two need different forms (a side left out throws if a chart asks for
-it); the optional `type` (`'time'` or `'linear'`) is the only axis type it is for.
+it); the optional `type` (`'time'` or `'linear'`) is the only axis type it is for. On an axis with a
+`timeZone`, a string entry prints that zone's clock; a function entry gets the real `Date`, as any
+format function does.
 
 A preset needs `label` and `unit`; `convert` is optional (no conversion), and `preset()` fills in
 `convert` and `convertRounded` on an entry that lacks them. A palette is an array of CSS colors, used
@@ -578,6 +607,7 @@ sealed, so a property of your own cannot be added to it.
 | `formatNumber(v)` | the number format the axes and legends use |
 | `palette(name, { classes, reverse })`, `palettes` | palette lookup (throws on an unrecognized name) and the table behind it |
 | `formats` | named formats for `tickFormat` and `crosshair.format`; ships `date`, `datetime`, `date-short`, `datetime-short` |
+| `timeFormat(format, timeZone)` | `date => text`: a name in `formats` (its tooltip form) or a `d3.timeFormat` string, in `timeZone`'s wall clock (the viewer's zone when left out); `format` left out is `'datetime'` |
 | `colorScale({ palette, domain, classes, reverse, quantize })` | a ready `color(value)` scale |
 | `legendItems(colors, labels)` | zip colors and labels into legend rows, with no chart involved |
 | `bandStats(values, k)`, `bandStatsFromSums(totals, k)` | `{ count, mean, min, max, sigmaMin, sigmaMax }` for a band, from an array or from running `{ sum, sumSq, count, min, max }` totals |
@@ -613,7 +643,7 @@ handles and methods) are read-only too.
 
 | Re-read on every `update()` (live, through `set()`) | Fixed when the chart is built |
 |---|---|
-| `lines`, `bands`, `stacked`, `voronoi`, `arrows`, `labels`, `points`, `duration`, `series`, `title`, `meta`; on `x`/`y`: `label`, `unit`, `trim`; on `color`: `domain`, `trim` | `container`, `sizing`, `height`, `width`, `margin`, `orientation`, `curve`, `zoom`, `crosshair`; on `x`/`y`: `type`, `preset`, `tickFormat`, `tickLabels`; on `color`: `palette`, `classes`, `reverse`, `quantize`; the `x`, `y` and `color` objects themselves |
+| `lines`, `bands`, `stacked`, `voronoi`, `arrows`, `labels`, `points`, `duration`, `series`, `title`, `meta`; on `x`/`y`: `label`, `unit`, `trim`; on `color`: `domain`, `trim` | `container`, `sizing`, `height`, `width`, `margin`, `orientation`, `curve`, `zoom`, `crosshair`; on `x`/`y`: `type`, `timeZone`, `preset`, `tickFormat`, `tickLabels`; on `color`: `palette`, `classes`, `reverse`, `quantize`; the `x`, `y` and `color` objects themselves |
 
 The right-hand column is what a chart is built around. This split, plus the names in this README, is
 the API that 1.0.0 freezes.
@@ -668,7 +698,8 @@ across its weather, sensors, EnergyPlus and graphics sections (not included in t
   the real global `d3` under a `<script>` tag, a mutable `Object.create(d3)` view under CommonJS/AMD
   (d3 v7's ESM namespace is frozen and cannot take a `.easygraph` property).
 - `src/d3.easygraph.core.js` - container sizing and resize, the SVG/margin/clip-path/title
-  scaffolding, axis formatting and `formatNumber`, x/y/color config resolution, config and `domains`
+  scaffolding, axis formatting, `formatNumber` and `timeFormat`, time zones (`_zone`: offsets and
+  wall clocks from `Intl`, zoned ticks from d3's own UTC tick rules), x/y/color config resolution, config and `domains`
   validation, `set()`, events, `bandStats`, and the shared `_build()` that each constructor calls with
   its own defaults and hooks.
 - `src/d3.easygraph.presets.js` - the preset table and `preset(name)`.
@@ -709,11 +740,12 @@ npm test
 ```
 
 [Playwright](https://playwright.dev) specs in `test/` (one per source module - core, line, bar,
-heatmap, scatter, presets, colors - plus `api.spec.js` and `api-1.0.spec.js` for cross-cutting checks;
-185 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
+heatmap, scatter, presets, colors - plus `api.spec.js` and `api-1.0.spec.js` for cross-cutting checks
+and `timezone.spec.js`, which runs the browser in `Europe/Berlin` so a zone test cannot pass by the
+test machine's own zone; 194 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
 live resize, `destroy()` teardown, config and `domains` validation, the live/build-time key split,
 legends, the standalone unit and palette functions, and behavior that needs real interaction to
-verify: `set()`, zoom and crosshair events, pinned color domains surviving a resize, `id`-keyed point identity,
+verify: `set()`, zoom and crosshair events, zoned ticks across both daylight saving switches, pinned color domains surviving a resize, `id`-keyed point identity,
 and line paths not warping when a series' point count changes. CI runs the same suite on every push.
 **Run `npm run build` first** - the tests exercise `dist/`, not `src/`.
 
