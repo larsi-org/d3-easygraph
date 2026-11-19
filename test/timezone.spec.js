@@ -140,6 +140,37 @@ test('zooming keeps the zone\'s ticks', async ({ page }) => {
   r.forEach((hm) => expect(hm).toMatch(/^(00|03|06|09|12|15|18|21):00$/));   // whole 3-hour steps of New York's clock
 });
 
+test('d3.easygraph.timeZone gives a page the zone\'s month starts, days and short names; left out, the viewer\'s zone', async ({ page }) => {
+  const r = await page.evaluate(() => {
+    var ny = d3.easygraph.timeZone('America/New_York'), viewer = d3.easygraph.timeZone();
+    var t = new Date('2026-11-01T03:30:00Z');   // still Oct 31 in New York (23:30 EDT)
+    return {
+      nov: ny.instant(new Date(Date.UTC(2026, 10, 1))).toISOString(),
+      jul: ny.instant(new Date(Date.UTC(2026, 6, 1))).toISOString(),
+      day: ny.wall(t).getUTCDate(), abbr: ny.abbr(t), winter: ny.abbr(new Date('2026-12-01T12:00:00Z')),
+      viewerNov: viewer.instant(new Date(Date.UTC(2026, 10, 1))).toISOString(),
+      viewerSame: +viewer.instant(new Date(Date.UTC(2026, 10, 1))) === +new Date(2026, 10, 1),
+      offset: d3.easygraph.timeZone('+05:45').wall(new Date('2026-01-01T00:00:00Z')).toISOString(),
+      offsetAbbr: d3.easygraph.timeZone('-05:00').abbr(new Date('2026-07-01T00:00:00Z'))
+    };
+  });
+  expect(r.nov).toBe('2026-11-01T04:00:00.000Z');   // midnight EDT: the switch is at 02:00
+  expect(r.jul).toBe('2026-07-01T04:00:00.000Z');
+  expect(r.day).toBe(31);
+  expect(r.abbr).toBe('EDT');
+  expect(r.winter).toBe('EST');
+  expect(r.viewerNov).toBe('2026-10-31T23:00:00.000Z');   // Berlin, CET
+  expect(r.viewerSame).toBe(true);
+  expect(r.offset).toBe('2026-01-01T05:45:00.000Z');      // a fixed offset: no daylight saving time
+  expect(r.offsetAbbr).toBe('GMT-5');
+});
+
+test('a fixed offset works as an axis\'s timeZone: ticks on its midnights all year', async ({ page }) => {
+  const r = await page.evaluate(() =>
+    ticksOf('2026-07-10T00:00:00-05:00', '2026-07-20T00:00:00-05:00', { timeZone: '-05:00' }));
+  r.at.forEach((iso) => expect(iso).toMatch(/T05:00:00\.000Z$/));   // midnight at UTC-5 in July too
+});
+
 test('timeZone is checked: time axes only, a name the browser knows, and fixed for the chart\'s life', async ({ page }) => {
   const r = await page.evaluate(() => {
     function err(fn) { try { fn(); return null; } catch (e) { return e.message; } }
@@ -149,6 +180,7 @@ test('timeZone is checked: time axes only, a name the browser knows, and fixed f
       unknown: err(() => d3.easygraph.line({ container: mk(), height: 200, x: { type: 'time', timeZone: 'America/Rochester' } })),
       number: err(() => d3.easygraph.line({ container: mk(), height: 200, x: { type: 'time', timeZone: -5 } })),
       helper: err(() => d3.easygraph.timeFormat('%H', 'Mars/Olympus')),
+      zoneHelper: err(() => d3.easygraph.timeZone('Mars/Olympus')),
       set: err(() => g.set({ x: { timeZone: 'America/New_York' } })),
       typo: err(() => d3.easygraph.line({ container: mk(), height: 200, x: { type: 'time', timezone: 'UTC' } }))
     };
@@ -157,6 +189,7 @@ test('timeZone is checked: time axes only, a name the browser knows, and fixed f
   expect(r.unknown).toContain('is not a time zone this browser knows');
   expect(r.number).toContain('must be an IANA time zone name');
   expect(r.helper).toContain('is not a time zone this browser knows');
+  expect(r.zoneHelper).toContain('d3.easygraph.timeZone: name "Mars/Olympus" is not a time zone');
   expect(r.set).toContain('x.timeZone');
   expect(r.typo).toContain("did you mean 'x.timeZone'");
 });

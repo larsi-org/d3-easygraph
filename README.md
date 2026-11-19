@@ -182,14 +182,18 @@ instant, never shifted to fake a time zone. Data about a place (a weather statio
 in that place's zone with `x: { type: 'time', timeZone: 'America/New_York' }`, so every viewer sees the
 same days and hours; left out, the viewer's own zone is used. Text the page writes about the same
 times uses the same zone, through `d3.easygraph.timeFormat(format, timeZone)`. Grouping into days
-(daily means, min/max bands) is your code's job, like all aggregation, and should cut the days in
-the axis's zone too.
+(daily means, min/max bands) and choosing which month to load are your code's job, like all
+aggregation, and cut the days in the axis's zone too, with `d3.easygraph.timeZone(name)`.
 
 ```js
 var zone = 'America/New_York';                       // e.g. from your station metadata
 var g = d3.easygraph.line({ container: '#chart', height: 320, crosshair: true,
                             x: { type: 'time', timeZone: zone, tickFormat: 'datetime' } });
 var tipDay = d3.easygraph.timeFormat('date', zone);  // '2026-11-18', the same day the axis shows
+var tz = d3.easygraph.timeZone(zone);
+var from = tz.instant(new Date(Date.UTC(2026, 10, 1)));   // November 1, 00:00 in New York (04:00 UTC)
+var w = tz.wall(reading.time);                             // its UTC fields read New York's clock
+var dayStart = tz.instant(new Date(Date.UTC(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate())));
 ```
 
 ## Chart families
@@ -340,7 +344,8 @@ overlay points on a map you draw yourself.
 `tickFormat`, `tickLabels`, `trim`.
 
 - `timeZone` (a time axis only) is an IANA time zone name, `'America/New_York'`, `'Europe/Berlin'`
-  or `'UTC'`: the axis's ticks fall on that zone's midnights and hours, and its tick and tooltip text
+  or `'UTC'`, or a fixed offset such as `'-05:00'` or `'+05:45'` (data kept in standard time all
+  year, such as an EPW weather file; the short name is then `GMT-5`): the axis's ticks fall on that zone's midnights and hours, and its tick and tooltip text
   is that zone's wall clock, daylight saving time included, whoever is looking. Left out, the axis
   uses the viewer's own zone, as d3 does. Positions stay real time: a day with a clock change is 23
   or 25 hours wide, ticks the clock skips or repeats are dropped, and the line never folds back. The
@@ -607,6 +612,7 @@ sealed, so a property of your own cannot be added to it.
 | `formatNumber(v)` | the number format the axes and legends use |
 | `palette(name, { classes, reverse })`, `palettes` | palette lookup (throws on an unrecognized name) and the table behind it |
 | `formats` | named formats for `tickFormat` and `crosshair.format`; ships `date`, `datetime`, `date-short`, `datetime-short` |
+| `timeZone(name)` | the zone `{ name, offset(t), wall(t), instant(w), abbr(t) }` for a page's own work in an axis's zone: `wall(t)` is a `Date` whose UTC fields read the zone's clock at `t`, `instant(w)` goes back (a skipped wall time moves ahead, a repeated one gives the first), `abbr(t)` is `'EST'` / `'EDT'`, `offset(t)` in ms; `name` left out is the viewer's zone |
 | `timeFormat(format, timeZone)` | `date => text`: a name in `formats` (its tooltip form) or a `d3.timeFormat` string, in `timeZone`'s wall clock (the viewer's zone when left out); `format` left out is `'datetime'` |
 | `colorScale({ palette, domain, classes, reverse, quantize })` | a ready `color(value)` scale |
 | `legendItems(colors, labels)` | zip colors and labels into legend rows, with no chart involved |
@@ -698,8 +704,9 @@ across its weather, sensors, EnergyPlus and graphics sections (not included in t
   the real global `d3` under a `<script>` tag, a mutable `Object.create(d3)` view under CommonJS/AMD
   (d3 v7's ESM namespace is frozen and cannot take a `.easygraph` property).
 - `src/d3.easygraph.core.js` - container sizing and resize, the SVG/margin/clip-path/title
-  scaffolding, axis formatting, `formatNumber` and `timeFormat`, time zones (`_zone`: offsets and
-  wall clocks from `Intl`, zoned ticks from d3's own UTC tick rules), x/y/color config resolution, config and `domains`
+  scaffolding, axis formatting, `formatNumber` and `timeFormat`, time zones (`_zone`, public as
+  `timeZone`: offsets and wall clocks from `Intl`, kept per 15-minute block because `Intl` is slow,
+  zoned ticks from d3's own UTC tick rules), x/y/color config resolution, config and `domains`
   validation, `set()`, events, `bandStats`, and the shared `_build()` that each constructor calls with
   its own defaults and hooks.
 - `src/d3.easygraph.presets.js` - the preset table and `preset(name)`.
@@ -742,7 +749,7 @@ npm test
 [Playwright](https://playwright.dev) specs in `test/` (one per source module - core, line, bar,
 heatmap, scatter, presets, colors - plus `api.spec.js` and `api-1.0.spec.js` for cross-cutting checks
 and `timezone.spec.js`, which runs the browser in `Europe/Berlin` so a zone test cannot pass by the
-test machine's own zone; 194 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
+test machine's own zone; 196 tests) run against the built `dist/` via static `test/fixtures/*.html` pages loaded over `file://`. They cover rendering,
 live resize, `destroy()` teardown, config and `domains` validation, the live/build-time key split,
 legends, the standalone unit and palette functions, and behavior that needs real interaction to
 verify: `set()`, zoom and crosshair events, zoned ticks across both daylight saving switches, pinned color domains surviving a resize, `id`-keyed point identity,

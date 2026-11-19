@@ -6,7 +6,8 @@ All notable changes to this project are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
-- **`x.timeZone` / `y.timeZone`** on a time axis: an IANA name (`'America/New_York'`, `'UTC'`) puts
+- **`x.timeZone` / `y.timeZone`** on a time axis: an IANA name (`'America/New_York'`, `'UTC'`) or a
+  fixed offset (`'-05:00'`, `'+05:45'`, for data kept in standard time all year) puts
   the axis's ticks on that zone's midnights and hours and prints its tick and tooltip text in that
   zone's wall clock, daylight saving time included, whatever zone the viewer is in. Positions stay
   real time (a clock-change day is 23 or 25 hours wide). The line chart's tooltip adds the zone's short
@@ -16,6 +17,9 @@ All notable changes to this project are documented here. Format loosely follows
 - **`d3.easygraph.timeFormat(format, timeZone)`**: `date => text` from a name in `formats` (its tooltip
   form) or a `d3.timeFormat` string, in a zone's wall clock or the viewer's, so a page's own text
   shows the same times as a zoned axis.
+- **`d3.easygraph.timeZone(name)`**: the zone itself, `{ name, offset(t), wall(t), instant(w), abbr(t) }`,
+  for a page's own work in the axis's zone: a month's first instant, a reading's wall-clock day for
+  daily buckets, the short name (`EST`) after a time of its own. Left out, the viewer's zone.
 
 ### Changed
 - **A stacked area stacks negative values the way stacked bars do**: positive values pile up from zero

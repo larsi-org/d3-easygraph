@@ -334,7 +334,8 @@ function _multiTicks(withTime, withYear) {
   return local;
 }
 
-// Time zones. An axis's timeZone (an IANA name such as "America/New_York", or "UTC") puts its ticks
+// Time zones. An axis's timeZone (an IANA name such as "America/New_York", "UTC", or a fixed offset such
+// as "-05:00" or "+05:45" for data kept in standard time all year) puts its ticks
 // and its text in that zone's wall clock instead of the viewer's; positions stay real time, so a
 // daylight saving day is 23 or 25 hours wide and a line never folds back on itself.
 // _zone(name) -> { name, offset(t), wall(t), instant(w), abbr(t) }, cached per name:
@@ -352,11 +353,18 @@ function _zone(name) {
     year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric'
   });
   var short = new Intl.DateTimeFormat('en-US', { timeZone: name, timeZoneName: 'short' });
+  // Intl takes about 7 microseconds a call, too slow for a page that buckets a month of readings, so
+  // the offset is kept per 15-minute block of UTC: every zone in use today changes its offset on such a
+  // boundary (a whole or half hour of its own clock, offsets in quarter hours). Only historic local mean
+  // times, before about 1900, change in between.
+  var cache = {}, cached = 0;
   function offset(t) {
-    var ms = +t, p = {};
+    var block = Math.floor(+t / 900000);
+    if (cache[block] !== undefined) return cache[block];
+    var ms = block * 900000, p = {};
     parts.formatToParts(new Date(ms)).forEach(function(x) { p[x.type] = +x.value; });
-    var asUTC = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
-    return asUTC - (ms - (((ms % 1000) + 1000) % 1000));   // Intl has whole seconds
+    if (++cached > 100000) { cache = {}; cached = 1; }
+    return (cache[block] = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - ms);
   }
   function instant(w) {
     var ms = +w, t = ms - offset(ms);
@@ -378,17 +386,26 @@ function _zone(name) {
   });
 }
 
+// d3.easygraph.timeZone(name) -> that _zone, for a page's own work in the axis's zone: a month's first
+// instant (instant(new Date(Date.UTC(2026, 10, 1)))), a reading's wall-clock day for daily buckets
+// (wall(t).getUTCDate()), the short name after a time of its own (abbr(t)). name is what x.timeZone takes;
+// left out, the viewer's zone, so one code path serves both.
+d3.easygraph.timeZone = function(name) {
+  if (name == null) return _zone(undefined);
+  return d3.easygraph._checkTimeZone('d3.easygraph.timeZone', 'name', name, 'time');
+};
+
 // Checks an axis's timeZone: a string Intl knows, on a time axis only. Returns the _zone or null.
 d3.easygraph._checkTimeZone = function(ctor, path, name, type) {
   if (name == null) return null;
   if (type !== 'time')
     throw new Error(ctor + ": " + path + " needs a time axis (type: 'time'), this one is '" + type + "'");
   if (typeof name !== 'string')
-    throw new Error(ctor + ": " + path + " must be an IANA time zone name such as 'America/New_York' or 'UTC', got " + JSON.stringify(name));
+    throw new Error(ctor + ": " + path + " must be an IANA time zone name such as 'America/New_York', 'UTC' or an offset such as '-05:00', got " + JSON.stringify(name));
   try { return _zone(name); }
   catch (e) {
     throw new Error(ctor + ": " + path + " " + JSON.stringify(name) + " is not a time zone this browser knows " +
-                    "(an IANA name such as 'America/New_York', 'Europe/Berlin' or 'UTC')");
+                    "(an IANA name such as 'America/New_York', 'Europe/Berlin' or 'UTC', or an offset such as '-05:00')");
   }
 };
 
